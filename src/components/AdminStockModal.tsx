@@ -21,6 +21,8 @@ import {
   Download,
   ArrowRight,
   Edit3,
+  ClipboardList,
+  Printer,
 } from 'lucide-react';
 import {
   User,
@@ -45,6 +47,7 @@ import {
   ProductCategory,
   stripAxisCountFromText,
 } from '../data/products';
+import { SubmittedCustomerOrder } from './CartDrawer';
 
 interface AdminStockModalProps {
   isOpen: boolean;
@@ -53,6 +56,11 @@ interface AdminStockModalProps {
   currentUser: User | null;
   syncedProductIds: Set<string>;
   customProductIds: string[];
+  orders?: SubmittedCustomerOrder[];
+  onUpdateOrderStatus?: (
+    orderId: string,
+    newStatus: SubmittedCustomerOrder['orderStatus']
+  ) => void;
 }
 
 export interface TrackedExcelStockItem {
@@ -173,8 +181,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   currentUser,
   syncedProductIds,
   customProductIds,
+  orders = [],
+  onUpdateOrderStatus,
 }) => {
-  const [activeTab, setActiveTab] = useState<'manage' | 'create' | 'excel'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage' | 'create' | 'excel' | 'orders'>('manage');
   const [searchQuery, setSearchQuery] = useState('');
   const [stepAmount, setStepAmount] = useState<number>(1);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -1294,9 +1304,9 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             )}
           </div>
 
-          {/* 3-Tab Mode Selector */}
+          {/* 4-Tab Mode Selector */}
           {isAuthorizedAdmin && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setActiveTab('manage')}
@@ -1307,7 +1317,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                 }`}
               >
                 <Layers className="w-4 h-4 shrink-0" />
-                <span>1. Manage Stock &amp; Photos ({products.length})</span>
+                <span>1. Manage Stock ({products.length})</span>
               </button>
 
               <button
@@ -1323,7 +1333,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                 }`}
               >
                 <PlusCircle className="w-4 h-4 shrink-0" />
-                <span>2. + Add / Edit Item Listing</span>
+                <span>2. + Add / Edit Item</span>
               </button>
 
               <button
@@ -1337,9 +1347,22 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
               >
                 <FileSpreadsheet className="w-4 h-4 shrink-0" />
                 <span>
-                  3. Upload .xlsx (&quot;stock list&quot;)
+                  3. Upload .xlsx
                   {trackedExcelItems.length > 0 ? ` (${trackedExcelItems.length})` : ''}
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('orders')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-md text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === 'orders'
+                    ? 'bg-[#0D5C2B] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4 shrink-0" />
+                <span>4. Customer Orders ({orders.length})</span>
               </button>
             </div>
           )}
@@ -1359,6 +1382,186 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-600 dark:text-red-400" />
               )}
               <span>{statusBanner.message}</span>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB 4: LIVE CUSTOMER ORDERS & OFFICIAL TAX INVOICE LOGS           */}
+          {/* ================================================================= */}
+          {isAuthorizedAdmin && activeTab === 'orders' && (
+            <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <ClipboardList className="w-5 h-5 text-[#0D5C2B] dark:text-emerald-400" />
+                    <span>
+                      Direct Customer Orders &amp; Official Tax Invoices ({orders.length})
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Orders placed at checkout are automatically sent to your email and recorded here in real time with customer NTN No., 18% Sales Tax breakdown, and Pick-Up / Bank Transfer details.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-100 cursor-pointer shrink-0"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Orders Report</span>
+                </button>
+              </div>
+
+              {orders.length === 0 ? (
+                <div className="py-12 text-center border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-xl space-y-2">
+                  <ClipboardList className="w-10 h-10 text-slate-400 mx-auto" />
+                  <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                    No Customer Orders Submitted Yet
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                    Whenever a customer completes checkout on the website, their complete order details, NTN No., and 18% Sales Tax invoice appear here automatically.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map((order) => (
+                    <div
+                      key={order.orderId}
+                      className="p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-2xs"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono-tabular text-xs font-extrabold px-2.5 py-1 rounded bg-[#1E2985] text-white">
+                            {order.orderId}
+                          </span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">
+                            {order.companyName}
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 font-mono-tabular text-xs font-extrabold">
+                            NTN: {order.ntnNumber}
+                          </span>
+                          {order.strnNumber && (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono-tabular text-[11px] font-semibold">
+                              STRN: {order.strnNumber}
+                            </span>
+                          )}
+                          <span className="text-[11px] text-slate-500">
+                            {order.timestamp}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <label className="text-[11px] font-bold text-slate-500">
+                            Status:
+                          </label>
+                          <select
+                            value={order.orderStatus}
+                            onChange={(e) =>
+                              onUpdateOrderStatus &&
+                              onUpdateOrderStatus(
+                                order.orderId,
+                                e.target.value as SubmittedCustomerOrder['orderStatus']
+                              )
+                            }
+                            className="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs font-bold text-slate-900 dark:text-white"
+                          >
+                            <option value="New Order">New Order</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="Ready for Pick Up">Ready for Pick Up</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div className="p-3 rounded bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Customer &amp; Tax Details
+                          </div>
+                          <div>
+                            <strong>Contact:</strong> {order.contactName}
+                          </div>
+                          <div>
+                            <strong>Phone:</strong>{' '}
+                            <span className="font-mono-tabular font-bold">
+                              {order.phone}
+                            </span>
+                          </div>
+                          <div>
+                            <strong>Email:</strong> {order.email}
+                          </div>
+                          <div>
+                            <strong>NTN No.:</strong>{' '}
+                            <span className="font-mono-tabular font-bold text-[#1E2985] dark:text-emerald-400">
+                              {order.ntnNumber}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Address &amp; Payment Mode
+                          </div>
+                          <div>
+                            <strong>City:</strong> {order.city}
+                          </div>
+                          <div>
+                            <strong>Address:</strong> {order.address}
+                          </div>
+                          <div>
+                            <strong>Payment:</strong>{' '}
+                            <span className="font-bold text-[#0D5C2B] dark:text-emerald-400">
+                              {order.paymentMethod}
+                            </span>
+                          </div>
+                          {order.transactionRef && (
+                            <div>
+                              <strong>TID / Ref:</strong>{' '}
+                              <span className="font-mono-tabular">
+                                {order.transactionRef}
+                              </span>
+                            </div>
+                          )}
+                          {order.orderNotes && (
+                            <div>
+                              <strong>Notes:</strong> {order.orderNotes}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-3 rounded bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-1 font-mono-tabular">
+                          <div className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
+                            Invoice &amp; 18% GST Breakdown
+                          </div>
+                          <div className="font-sans text-[11px] font-bold text-slate-800 dark:text-slate-200">
+                            {order.invoiceType}
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Subtotal:</span>
+                            <span>PKR {order.subtotalPKR.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-amber-700 dark:text-amber-400 font-bold">
+                            <span>Sales Tax ({order.salesTaxRate}%):</span>
+                            <span>+ PKR {order.salesTaxPKR.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-800 text-sm font-extrabold text-slate-900 dark:text-white">
+                            <span>Total:</span>
+                            <span>PKR {order.totalPKR.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 text-xs font-mono-tabular whitespace-pre-wrap text-slate-800 dark:text-slate-200">
+                        <div className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          Ordered Equipment Line Items
+                        </div>
+                        {order.itemsSummary}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

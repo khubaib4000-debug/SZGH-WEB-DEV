@@ -119,6 +119,167 @@
       },
       "required": ["manifestId", "customProductIds", "updatedBy", "updatedAt"]
     },
+    "CustomerOrder": {
+      "title": "CustomerOrder",
+      "description": "Complete B2B customer order record submitted directly at checkout including mandatory NTN No., 18% Sales Tax for Official Tax Invoices, and Cash on Pick Up or Online Bank Transfer selection.",
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "customerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "companyName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "contactName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 150
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 40
+        },
+        "ntnNumber": {
+          "type": "string",
+          "description": "Customer National Tax Number (NTN No.).",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "strnNumber": {
+          "type": "string",
+          "description": "Optional Sales Tax Registration Number or CNIC.",
+          "minLength": 0,
+          "maxLength": 60
+        },
+        "city": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "orderNotes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 600
+        },
+        "invoiceType": {
+          "type": "string",
+          "enum": ["Official Tax Invoice (18% GST)", "Standard Commercial Receipt"]
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["Cash on Pick Up (Lahore Facility)", "Online Bank Transfer (UBL)"]
+        },
+        "transactionRef": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "itemsSummary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "subtotalPKR": {
+          "type": "integer"
+        },
+        "salesTaxRate": {
+          "type": "integer",
+          "enum": [0, 18]
+        },
+        "salesTaxPKR": {
+          "type": "integer"
+        },
+        "totalPKR": {
+          "type": "integer"
+        },
+        "orderStatus": {
+          "type": "string",
+          "enum": ["New Order", "Confirmed", "Ready for Pick Up", "Completed", "Cancelled"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "orderId",
+        "customerUid",
+        "companyName",
+        "contactName",
+        "email",
+        "phone",
+        "ntnNumber",
+        "strnNumber",
+        "city",
+        "address",
+        "orderNotes",
+        "invoiceType",
+        "paymentMethod",
+        "transactionRef",
+        "itemsSummary",
+        "subtotalPKR",
+        "salesTaxRate",
+        "salesTaxPKR",
+        "totalPKR",
+        "orderStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "OrderManifest": {
+      "title": "OrderManifest",
+      "description": "Manifest of submitted order IDs so administrators can subscribe to individual order documents via single-document get without list queries.",
+      "type": "object",
+      "properties": {
+        "manifestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "orderIds": {
+          "type": "array",
+          "description": "Bounded list of submitted order document IDs."
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["manifestId", "orderIds", "updatedBy", "updatedAt"]
+    },
     "AdminUser": {
       "title": "AdminUser",
       "description": "Authorized SZGH Pakistan inventory administrator record.",
@@ -154,6 +315,18 @@
         "$ref": "#/entities/CatalogManifest"
       },
       "description": "Stores the active manifest of custom product IDs added by administrators."
+    },
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerOrder"
+      },
+      "description": "Stores complete B2B customer orders submitted directly on the website."
+    },
+    "/order_index/{manifestId}": {
+      "schema": {
+        "$ref": "#/entities/OrderManifest"
+      },
+      "description": "Stores the active manifest of submitted order IDs."
     },
     "/admins/{adminUid}": {
       "schema": {

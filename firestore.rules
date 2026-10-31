@@ -133,6 +133,141 @@ service cloud.firestore {
         data.updatedAt == request.time;
     }
 
+    // Pillar 2 & Pillar 5: Validation Blueprint for CustomerOrder
+    function isValidCustomerOrder(data, docId) {
+      return data.keys().hasAll([
+          'orderId',
+          'customerUid',
+          'companyName',
+          'contactName',
+          'email',
+          'phone',
+          'ntnNumber',
+          'strnNumber',
+          'city',
+          'address',
+          'orderNotes',
+          'invoiceType',
+          'paymentMethod',
+          'transactionRef',
+          'itemsSummary',
+          'subtotalPKR',
+          'salesTaxRate',
+          'salesTaxPKR',
+          'totalPKR',
+          'orderStatus',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'orderId',
+          'customerUid',
+          'companyName',
+          'contactName',
+          'email',
+          'phone',
+          'ntnNumber',
+          'strnNumber',
+          'city',
+          'address',
+          'orderNotes',
+          'invoiceType',
+          'paymentMethod',
+          'transactionRef',
+          'itemsSummary',
+          'subtotalPKR',
+          'salesTaxRate',
+          'salesTaxPKR',
+          'totalPKR',
+          'orderStatus',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.orderId is string &&
+        data.orderId == docId &&
+        data.orderId.size() >= 1 &&
+        data.orderId.size() <= 128 &&
+        data.orderId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.customerUid is string &&
+        data.customerUid.size() >= 1 &&
+        data.customerUid.size() <= 128 &&
+        data.customerUid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.companyName is string &&
+        data.companyName.size() >= 1 &&
+        data.companyName.size() <= 200 &&
+        data.contactName is string &&
+        data.contactName.size() >= 1 &&
+        data.contactName.size() <= 150 &&
+        data.email is string &&
+        data.email.size() >= 3 &&
+        data.email.size() <= 160 &&
+        data.phone is string &&
+        data.phone.size() >= 5 &&
+        data.phone.size() <= 40 &&
+        data.ntnNumber is string &&
+        data.ntnNumber.size() >= 1 &&
+        data.ntnNumber.size() <= 60 &&
+        data.strnNumber is string &&
+        data.strnNumber.size() >= 0 &&
+        data.strnNumber.size() <= 60 &&
+        data.city is string &&
+        data.city.size() >= 1 &&
+        data.city.size() <= 80 &&
+        data.address is string &&
+        data.address.size() >= 1 &&
+        data.address.size() <= 500 &&
+        data.orderNotes is string &&
+        data.orderNotes.size() >= 0 &&
+        data.orderNotes.size() <= 600 &&
+        data.invoiceType is string &&
+        data.invoiceType in ['Official Tax Invoice (18% GST)', 'Standard Commercial Receipt'] &&
+        data.paymentMethod is string &&
+        data.paymentMethod in ['Cash on Pick Up (Lahore Facility)', 'Online Bank Transfer (UBL)'] &&
+        data.transactionRef is string &&
+        data.transactionRef.size() >= 0 &&
+        data.transactionRef.size() <= 120 &&
+        data.itemsSummary is string &&
+        data.itemsSummary.size() >= 1 &&
+        data.itemsSummary.size() <= 4000 &&
+        data.subtotalPKR is int &&
+        data.subtotalPKR >= 0 &&
+        data.subtotalPKR <= 1000000000 &&
+        data.salesTaxRate is int &&
+        data.salesTaxRate in [0, 18] &&
+        data.salesTaxPKR is int &&
+        data.salesTaxPKR >= 0 &&
+        data.salesTaxPKR <= 200000000 &&
+        data.totalPKR is int &&
+        data.totalPKR >= 0 &&
+        data.totalPKR <= 1200000000 &&
+        data.orderStatus is string &&
+        data.orderStatus in ['New Order', 'Confirmed', 'Ready for Pick Up', 'Completed', 'Cancelled'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        data.updatedAt == request.time;
+    }
+
+    // Pillar 2 & Pillar 5: Validation Blueprint for OrderManifest
+    function isValidOrderManifest(data, docId) {
+      return data.keys().hasAll(['manifestId', 'orderIds', 'updatedBy', 'updatedAt']) &&
+        data.keys().hasOnly(['manifestId', 'orderIds', 'updatedBy', 'updatedAt']) &&
+        data.manifestId is string &&
+        data.manifestId == docId &&
+        data.manifestId.size() >= 1 &&
+        data.manifestId.size() <= 128 &&
+        data.manifestId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.orderIds is list &&
+        data.orderIds.size() <= 500 &&
+        (data.orderIds.size() == 0 || (data.orderIds[0] is string && data.orderIds[0].size() <= 128)) &&
+        data.updatedBy is string &&
+        data.updatedBy.size() >= 1 &&
+        data.updatedBy.size() <= 128 &&
+        data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.updatedBy == request.auth.uid &&
+        data.updatedAt is timestamp &&
+        data.updatedAt == request.time;
+    }
+
     // Pillar 2: Validation Blueprint for AdminUser
     function isValidAdminUser(data, adminUid) {
       return data.keys().hasAll(['uid', 'role', 'createdAt']) &&
@@ -201,7 +336,57 @@ service cloud.firestore {
       allow delete: if isAdmin() && isValidId(manifestId);
     }
 
-    // Collection 3: Trusted Admins Registry (/admins/{adminUid})
+    // Collection 3: Customer B2B Orders (/orders/{orderId})
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && isValidId(orderId) && (isAdmin() || existing().customerUid == request.auth.uid);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+        isValidId(orderId) &&
+        isValidCustomerOrder(incoming(), orderId) &&
+        incoming().customerUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+
+      allow update: if isAdmin() &&
+        isValidId(orderId) &&
+        isValidCustomerOrder(incoming(), orderId) &&
+        incoming().orderId == existing().orderId &&
+        incoming().customerUid == existing().customerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'orderStatus',
+          'transactionRef',
+          'orderNotes',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(orderId);
+    }
+
+    // Collection 4: Customer Orders Manifest (/order_index/{manifestId})
+    match /order_index/{manifestId} {
+      allow get: if isSignedIn() && isValidId(manifestId);
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+        isValidId(manifestId) &&
+        isValidOrderManifest(incoming(), manifestId);
+
+      allow update: if isSignedIn() &&
+        isValidId(manifestId) &&
+        isValidOrderManifest(incoming(), manifestId) &&
+        incoming().manifestId == existing().manifestId &&
+        (isAdmin() || (incoming().orderIds.size() >= existing().orderIds.size() && incoming().orderIds.hasAll(existing().orderIds))) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'orderIds',
+          'updatedBy',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(manifestId);
+    }
+
+    // Collection 5: Trusted Admins Registry (/admins/{adminUid})
     match /admins/{adminUid} {
       allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
       allow list: if false;

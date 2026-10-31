@@ -29,7 +29,12 @@ import {
   signOut,
   User,
 } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import {
+  doc,
+  onSnapshot,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import {
   auth,
   db,
@@ -41,7 +46,11 @@ import {
 import { Navbar, NavSection } from './components/Navbar';
 import { ProductCard } from './components/ProductCard';
 import { ProductDetailModal } from './components/ProductDetailModal';
-import { CartDrawer, CartEntry } from './components/CartDrawer';
+import {
+  CartDrawer,
+  CartEntry,
+  SubmittedCustomerOrder,
+} from './components/CartDrawer';
 import { CategoryStoreSubpage } from './components/CategoryStoreSubpage';
 import { WhatsAppFloatingChat } from './components/WhatsAppFloatingChat';
 import { RetrofitBookingSection } from './components/RetrofitBookingSection';
@@ -50,6 +59,7 @@ import { AdminStockModal } from './components/AdminStockModal';
 const THEME_STORAGE_KEY = 'sdgh_pakistan_theme_v1';
 const CART_STORAGE_KEY = 'sdgh_pakistan_cart_v2';
 const METRICS_STORAGE_KEY = 'sdgh_pakistan_metrics_v1';
+const ORDERS_STORAGE_KEY = 'sdgh_pakistan_orders_v1';
 
 interface ProductPerformanceMetrics {
   views: number;
@@ -185,6 +195,32 @@ export default function App() {
     >
   >({});
 
+  // Submitted Customer Orders State (Local + Live Firestore Sync)
+  const [localOrders, setLocalOrders] = useState<SubmittedCustomerOrder[]>(() => {
+    try {
+      const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return [];
+  });
+  const [cloudOrderIds, setCloudOrderIds] = useState<string[]>([]);
+  const [cloudOrdersMap, setCloudOrdersMap] = useState<
+    Record<string, SubmittedCustomerOrder>
+  >({});
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(localOrders));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [localOrders]);
+
   const isAuthorizedAdmin = useMemo(() => {
     if (!currentUser || !currentUser.emailVerified || !currentUser.email) {
       return false;
@@ -193,46 +229,169 @@ export default function App() {
     return ADMIN_EMAILS.some((admin) => admin.toLowerCase() === lowerEmail);
   }, [currentUser]);
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const cred = await signInWithPopup(auth, googleProvider);
+      const email = cred.user.email?.toLowerCase() || '';
+      const isAdminUser =
+        cred.user.emailVerified &&
+        ADMIN_EMAILS.some((admin) => admin.toLowerCase() === email);
+      if (isAdminUser) {
+        setAdminStockModalOpen(true);
+      }
+    } catch {
+      // Popup closed or blocked
+    }
+  };
+
+  const handleGoogleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setAdminStockModalOpen(false);
+    } catch {
+      // Ignore sign-out errors
+    }
+  };
+
   const handleSecretAdminAccess = async () => {
     if (isAuthorizedAdmin) {
       setAdminStockModalOpen(true);
       return;
     }
-    try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      const email = cred.user.email?.toLowerCase() || '';
-      const allowed =
-        cred.user.emailVerified &&
-        ADMIN_EMAILS.some((admin) => admin.toLowerCase() === email);
-      if (allowed) {
-        setAdminStockModalOpen(true);
-      } else {
-        await signOut(auth);
-        setAdminStockModalOpen(false);
-      }
-    } catch {
-      // Sign-in popup closed or cancelled
-    }
+    await handleGoogleSignIn();
   };
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const email = user.email?.toLowerCase() || '';
-        const allowed =
-          user.emailVerified &&
-          ADMIN_EMAILS.some((admin) => admin.toLowerCase() === email);
-        if (!allowed) {
-          await signOut(auth);
-          setCurrentUser(null);
-          setAdminStockModalOpen(false);
-          return;
-        }
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      // Keep non-anonymous signed-in users (both customers and admins) active
+      if (user && user.isAnonymous) {
+        setCurrentUser(null);
+        return;
       }
       setCurrentUser(user);
     });
     return () => unsubscribeAuth();
   }, []);
+
+  // Subscribe to Order Manifest (/order_index/active_orders) for Admin
+  useEffect(() => {
+    if (!isAuthorizedAdmin) return;
+    const unsubscribeOrderManifest = onSnapshot(
+      doc(db, 'order_index', 'active_orders'),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (Array.isArray(data.orderIds)) {
+            setCloudOrderIds(
+              data.orderIds.filter(
+                (id: unknown): id is string =>
+                  typeof id === 'string' && id.trim().length > 0
+              )
+            );
+          }
+        }
+      },
+      () => {
+        // Ignore read error if manifest not created yet
+      }
+    );
+    return () => unsubscribeOrderManifest();
+  }, [isAuthorizedAdmin]);
+
+  // Subscribe to individual order documents (/orders/{orderId}) for Admin
+  useEffect(() => {
+    if (!isAuthorizedAdmin || cloudOrderIds.length === 0) return;
+    const unsubs = cloudOrderIds.map((orderId) =>
+      onSnapshot(
+        doc(db, 'orders', orderId),
+        (snap) => {
+          if (snap.exists()) {
+            const d = snap.data();
+            setCloudOrdersMap((prev) => ({
+              ...prev,
+              [orderId]: {
+                orderId: d.orderId || orderId,
+                customerUid: d.customerUid || '',
+                timestamp:
+                  d.createdAt && typeof d.createdAt.toDate === 'function'
+                    ? d.createdAt.toDate().toLocaleString('en-PK', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })
+                    : 'Recent Order',
+                companyName: d.companyName || '',
+                contactName: d.contactName || '',
+                email: d.email || '',
+                phone: d.phone || '',
+                ntnNumber: d.ntnNumber || '',
+                strnNumber: d.strnNumber || '',
+                city: d.city || '',
+                address: d.address || '',
+                orderNotes: d.orderNotes || '',
+                invoiceType:
+                  d.invoiceType === 'Standard Commercial Receipt'
+                    ? 'Standard Commercial Receipt'
+                    : 'Official Tax Invoice (18% GST)',
+                paymentMethod:
+                  d.paymentMethod === 'Online Bank Transfer (UBL)'
+                    ? 'Online Bank Transfer (UBL)'
+                    : 'Cash on Pick Up (Lahore Facility)',
+                transactionRef: d.transactionRef || '',
+                itemsSummary: d.itemsSummary || '',
+                items: [],
+                subtotalPKR: typeof d.subtotalPKR === 'number' ? d.subtotalPKR : 0,
+                salesTaxRate: d.salesTaxRate === 0 ? 0 : 18,
+                salesTaxPKR: typeof d.salesTaxPKR === 'number' ? d.salesTaxPKR : 0,
+                totalPKR: typeof d.totalPKR === 'number' ? d.totalPKR : 0,
+                orderStatus: d.orderStatus || 'New Order',
+                autoDispatchStatus: 'recorded',
+              },
+            }));
+          }
+        },
+        () => {
+          // Ignore individual doc error
+        }
+      )
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [isAuthorizedAdmin, cloudOrderIds]);
+
+  const combinedOrders = useMemo(() => {
+    const byId = new Map<string, SubmittedCustomerOrder>();
+    for (const loc of localOrders) {
+      byId.set(loc.orderId, loc);
+    }
+    for (const [id, cld] of Object.entries(cloudOrdersMap)) {
+      byId.set(id, cld);
+    }
+    return Array.from(byId.values()).reverse();
+  }, [localOrders, cloudOrdersMap]);
+
+  const handleOrderSubmitted = (newOrder: SubmittedCustomerOrder) => {
+    setLocalOrders((prev) => [...prev, newOrder]);
+  };
+
+  const handleUpdateOrderStatus = async (
+    orderId: string,
+    newStatus: SubmittedCustomerOrder['orderStatus']
+  ) => {
+    setLocalOrders((prev) =>
+      prev.map((o) =>
+        o.orderId === orderId ? { ...o, orderStatus: newStatus } : o
+      )
+    );
+    if (isAuthorizedAdmin) {
+      try {
+        await updateDoc(doc(db, 'orders', orderId), {
+          orderStatus: newStatus,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // Order may only exist locally
+      }
+    }
+  };
 
   // Secret Admin Entry Triggers: Ctrl+Shift+A / Alt+Shift+A or URL ?admin=1 / #admin
   useEffect(() => {
@@ -648,8 +807,12 @@ export default function App() {
         onToggleTheme={toggleTheme}
         cartCount={totalCartItems}
         onOpenCart={() => setCartDrawerOpen(true)}
+        currentUser={currentUser}
         isAdmin={isAuthorizedAdmin}
+        onSignIn={handleGoogleSignIn}
+        onSignOut={handleGoogleSignOut}
         onOpenAdminStock={() => setAdminStockModalOpen(true)}
+        ordersCount={combinedOrders.length}
       />
 
       <main className="flex-1">
@@ -1225,9 +1388,12 @@ export default function App() {
         onUpdateQuantity={handleUpdateCartQuantity}
         onRemoveItem={handleRemoveCartItem}
         onClearCart={handleClearCart}
+        currentUser={currentUser}
+        onSignIn={handleGoogleSignIn}
+        onOrderSubmitted={handleOrderSubmitted}
       />
 
-      {/* Live Firebase Inventory & Stock Manager Modal */}
+      {/* Live Firebase Inventory, Excel Tracker & Orders Manager Modal */}
       <AdminStockModal
         isOpen={adminStockModalOpen}
         onClose={() => setAdminStockModalOpen(false)}
@@ -1235,6 +1401,8 @@ export default function App() {
         currentUser={currentUser}
         syncedProductIds={syncedProductIds}
         customProductIds={customProductIds}
+        orders={combinedOrders}
+        onUpdateOrderStatus={handleUpdateOrderStatus}
       />
 
       {/* Persistent WhatsApp Live Chat Icon Across All Pages */}

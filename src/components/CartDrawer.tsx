@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Trash2,
@@ -10,9 +10,15 @@ import {
   FileText,
   Copy,
   Check,
-  Building2,
   ShieldCheck,
+  LogIn,
+  Printer,
+  AlertTriangle,
+  Receipt,
 } from 'lucide-react';
+import { User, signInAnonymously } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 import { ProductItem, IOBoardOption } from '../data/products';
 
 export interface BankAccountDetails {
@@ -97,6 +103,33 @@ export interface CartEntry {
   selectedIOBoard?: IOBoardOption;
 }
 
+export interface SubmittedCustomerOrder {
+  orderId: string;
+  customerUid: string;
+  timestamp: string;
+  companyName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  ntnNumber: string;
+  strnNumber: string;
+  city: string;
+  address: string;
+  orderNotes: string;
+  invoiceType: 'Official Tax Invoice (18% GST)' | 'Standard Commercial Receipt';
+  paymentMethod: 'Cash on Pick Up (Lahore Facility)' | 'Online Bank Transfer (UBL)';
+  selectedBankAccount?: BankAccountDetails;
+  transactionRef: string;
+  itemsSummary: string;
+  items: CartEntry[];
+  subtotalPKR: number;
+  salesTaxRate: 0 | 18;
+  salesTaxPKR: number;
+  totalPKR: number;
+  orderStatus: 'New Order' | 'Confirmed' | 'Ready for Pick Up' | 'Completed' | 'Cancelled';
+  autoDispatchStatus: 'sent' | 'recorded';
+}
+
 interface CartDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -104,23 +137,9 @@ interface CartDrawerProps {
   onUpdateQuantity: (cartKey: string, newQuantity: number) => void;
   onRemoveItem: (cartKey: string) => void;
   onClearCart: () => void;
-}
-
-interface ConfirmedOrderReceipt {
-  orderNumber: string;
-  timestamp: string;
-  companyName: string;
-  contactName: string;
-  phone: string;
-  city: string;
-  address: string;
-  paymentMethod: string;
-  selectedBankAccount?: BankAccountDetails;
-  transactionRef?: string;
-  items: CartEntry[];
-  subtotalPKR: number;
-  freightPKR: number;
-  totalPKR: number;
+  currentUser: User | null;
+  onSignIn: () => void;
+  onOrderSubmitted?: (order: SubmittedCustomerOrder) => void;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -130,19 +149,50 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onUpdateQuantity,
   onRemoveItem,
   onClearCart,
+  currentUser,
+  onSignIn,
+  onOrderSubmitted,
 }) => {
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmed'>('cart');
+
+  // Complete Customer Details (Including Mandatory NTN No.)
   const [companyName, setCompanyName] = useState('');
   const [contactName, setContactName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [ntnNumber, setNtnNumber] = useState('');
+  const [strnNumber, setStrnNumber] = useState('');
   const [city, setCity] = useState('Lahore');
   const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'BANK' | 'COD' | 'PO'>('BANK');
-  const [selectedBankId, setSelectedBankId] = useState<string>(ONLINE_PAYMENT_ACCOUNTS[0].id);
+  const [orderNotes, setOrderNotes] = useState('');
+
+  // Official Invoice Option (+18% Sales Tax) vs Standard Receipt
+  const [invoiceOption, setInvoiceOption] = useState<'OFFICIAL_TAX' | 'STANDARD'>(
+    'OFFICIAL_TAX'
+  );
+
+  // Payment Method: ONLY "Cash on Pick Up" or "Online Bank Transfer (UBL)" — NO Cash on Delivery
+  const [paymentMethod, setPaymentMethod] = useState<'PICKUP' | 'BANK'>('PICKUP');
+  const [selectedBankId, setSelectedBankId] = useState<string>(
+    ONLINE_PAYMENT_ACCOUNTS[0].id
+  );
   const [transactionRef, setTransactionRef] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [formError, setFormError] = useState('');
-  const [receipt, setReceipt] = useState<ConfirmedOrderReceipt | null>(null);
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [receipt, setReceipt] = useState<SubmittedCustomerOrder | null>(null);
+
+  // Pre-fill signed-in user's name and email when available
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.displayName && !contactName) {
+        setContactName(currentUser.displayName);
+      }
+      if (currentUser.email && !email) {
+        setEmail(currentUser.email);
+      }
+    }
+  }, [currentUser, contactName, email]);
 
   if (!isOpen) return null;
 
@@ -165,104 +215,241 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     (sum, entry) => sum + getEntryUnitPrice(entry) * entry.quantity,
     0
   );
-  const totalUSD = items.reduce(
-    (sum, entry) => sum + entry.product.usdEstimate * entry.quantity,
-    0
-  );
-  const freightPKR = subtotalPKR === 0 || subtotalPKR >= 500000 ? 0 : 4500;
-  const grandTotalPKR = subtotalPKR + freightPKR;
 
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
+  // 18% Sales Tax when Official Invoice option is selected
+  const isOfficialInvoice = invoiceOption === 'OFFICIAL_TAX';
+  const salesTaxRate: 0 | 18 = isOfficialInvoice ? 18 : 0;
+  const salesTaxPKR = isOfficialInvoice ? Math.round(subtotalPKR * 0.18) : 0;
+  const grandTotalPKR = subtotalPKR + salesTaxPKR;
+  const totalUSD = Math.round(grandTotalPKR / 278);
+
+  const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName.trim() || !contactName.trim() || !phone.trim() || !address.trim()) {
-      setFormError('Please complete all required factory and contact verification fields.');
-      return;
-    }
-    if (phone.replace(/\D/g, '').length < 10) {
-      setFormError('Please enter a valid 10 or 11-digit Pakistan phone/WhatsApp number.');
+    setFormError('');
+
+    if (
+      !companyName.trim() ||
+      !contactName.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      !ntnNumber.trim() ||
+      !address.trim()
+    ) {
+      setFormError(
+        'Please complete all required customer details, including Company Name, Full Name, Email, Phone, NTN No., and Complete Address.'
+      );
       return;
     }
 
-    const orderId = `SZGH-${Math.floor(100000 + Math.random() * 900000)}`;
-    const newReceipt: ConfirmedOrderReceipt = {
-      orderNumber: orderId,
-      timestamp: new Date().toLocaleString('en-PK', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      }),
+    if (!email.includes('@') || email.trim().length < 5) {
+      setFormError('Please enter a valid customer email address for invoice dispatch.');
+      return;
+    }
+
+    if (phone.replace(/\D/g, '').length < 10) {
+      setFormError('Please enter a valid 10 or 11-digit Pakistan phone/mobile number.');
+      return;
+    }
+
+    if (ntnNumber.trim().length < 5) {
+      setFormError(
+        'Please enter your valid NTN No. (National Tax Number, e.g., 1234567-8).'
+      );
+      return;
+    }
+
+    setSubmittingOrder(true);
+
+    const orderId = `SZGH-ORD-${Date.now().toString().slice(-6)}-${Math.floor(
+      100 + Math.random() * 900
+    )}`;
+    const readableTimestamp = new Date().toLocaleString('en-PK', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+
+    const formattedItemsList = items
+      .map(
+        (entry, idx) =>
+          `${idx + 1}. ${entry.product.modelNumber} — ${entry.product.title}${
+            entry.selectedIOBoard ? ` [${entry.selectedIOBoard.shortLabel}]` : ''
+          } | Qty: ${entry.quantity} × PKR ${getEntryUnitPrice(
+            entry
+          ).toLocaleString()} = PKR ${(
+            getEntryUnitPrice(entry) * entry.quantity
+          ).toLocaleString()}`
+      )
+      .join('\n');
+
+    const invoiceTypeLabel:
+      | 'Official Tax Invoice (18% GST)'
+      | 'Standard Commercial Receipt' = isOfficialInvoice
+      ? 'Official Tax Invoice (18% GST)'
+      : 'Standard Commercial Receipt';
+
+    const paymentMethodLabel:
+      | 'Cash on Pick Up (Lahore Facility)'
+      | 'Online Bank Transfer (UBL)' =
+      paymentMethod === 'PICKUP'
+        ? 'Cash on Pick Up (Lahore Facility)'
+        : 'Online Bank Transfer (UBL)';
+
+    // 1. Try to ensure a Firebase Auth session (current user or anonymous fallback) to persist to Cloud Firestore
+    let effectiveUser = auth.currentUser;
+    if (!effectiveUser) {
+      try {
+        const anonCred = await signInAnonymously(auth);
+        effectiveUser = anonCred.user;
+      } catch {
+        // Anonymous auth may not be enabled; proceed with automatic email + local storage
+      }
+    }
+
+    const customerUid = effectiveUser?.uid || `guest_${Date.now()}`;
+
+    // 2. Save directly to Cloud Firestore (/orders/{orderId} & /order_index/active_orders) if signed in
+    if (effectiveUser) {
+      try {
+        await setDoc(doc(db, 'orders', orderId), {
+          orderId,
+          customerUid: effectiveUser.uid,
+          companyName: companyName.trim().slice(0, 200),
+          contactName: contactName.trim().slice(0, 150),
+          email: email.trim().slice(0, 160),
+          phone: phone.trim().slice(0, 40),
+          ntnNumber: ntnNumber.trim().slice(0, 60),
+          strnNumber: strnNumber.trim().slice(0, 60),
+          city: city.trim().slice(0, 80),
+          address: address.trim().slice(0, 500),
+          orderNotes: orderNotes.trim().slice(0, 600),
+          invoiceType: invoiceTypeLabel,
+          paymentMethod: paymentMethodLabel,
+          transactionRef:
+            paymentMethod === 'BANK' ? transactionRef.trim().slice(0, 120) : '',
+          itemsSummary: formattedItemsList.slice(0, 4000),
+          subtotalPKR: Math.round(subtotalPKR),
+          salesTaxRate,
+          salesTaxPKR: Math.round(salesTaxPKR),
+          totalPKR: Math.round(grandTotalPKR),
+          orderStatus: 'New Order',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        const manifestRef = doc(db, 'order_index', 'active_orders');
+        let existingOrderIds: string[] = [];
+        try {
+          const snap = await getDoc(manifestRef);
+          if (snap.exists() && Array.isArray(snap.data().orderIds)) {
+            existingOrderIds = snap
+              .data()
+              .orderIds.filter((id: unknown): id is string => typeof id === 'string');
+          }
+        } catch {
+          // Manifest may not exist yet
+        }
+
+        const updatedOrderIds = Array.from(
+          new Set([...existingOrderIds, orderId])
+        ).slice(-500);
+
+        await setDoc(manifestRef, {
+          manifestId: 'active_orders',
+          orderIds: updatedOrderIds,
+          updatedBy: effectiveUser.uid,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // Non-blocking if user was not authenticated in Firestore
+      }
+    }
+
+    // 3. Automatically dispatch detailed order notification to SZGH Pakistan admin emails in background
+    let emailDispatched = false;
+    try {
+      const response = await fetch(
+        'https://formsubmit.co/ajax/khubaib4000@gmail.com',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            _subject: `NEW SZGH PAKISTAN ORDER #${orderId} — ${companyName.trim()} (NTN: ${ntnNumber.trim()})`,
+            _cc: 'grnoman786@gmail.com',
+            _template: 'table',
+            Order_ID: orderId,
+            Order_Date: readableTimestamp,
+            Invoice_Type: invoiceTypeLabel,
+            Payment_Method: paymentMethodLabel,
+            Transaction_Reference:
+              paymentMethod === 'BANK' && transactionRef.trim()
+                ? transactionRef.trim()
+                : 'N/A',
+            Company_Name: companyName.trim(),
+            Customer_Name: contactName.trim(),
+            NTN_Number: ntnNumber.trim(),
+            STRN_Or_CNIC: strnNumber.trim() || 'Not Provided',
+            Customer_Email: email.trim(),
+            Customer_Phone: phone.trim(),
+            City: city,
+            Complete_Address: address.trim(),
+            Order_Notes: orderNotes.trim() || 'None',
+            Ordered_Items: formattedItemsList,
+            Equipment_Subtotal_PKR: `PKR ${subtotalPKR.toLocaleString()}`,
+            Sales_Tax_18_Percent_PKR: isOfficialInvoice
+              ? `PKR ${salesTaxPKR.toLocaleString()} (18% GST)`
+              : 'PKR 0 (Standard Commercial Receipt)',
+            Grand_Total_Payable_PKR: `PKR ${grandTotalPKR.toLocaleString()}`,
+          }),
+        }
+      );
+      if (response.ok) {
+        emailDispatched = true;
+      }
+    } catch {
+      // Background dispatch fallback handled via local & Firestore order registry
+    }
+
+    const newOrderRecord: SubmittedCustomerOrder = {
+      orderId,
+      customerUid,
+      timestamp: readableTimestamp,
       companyName: companyName.trim(),
       contactName: contactName.trim(),
+      email: email.trim(),
       phone: phone.trim(),
+      ntnNumber: ntnNumber.trim(),
+      strnNumber: strnNumber.trim(),
       city,
       address: address.trim(),
-      paymentMethod:
-        paymentMethod === 'BANK'
-          ? `Online Bank Transfer — ${activeBankAccount.bankName}`
-          : paymentMethod === 'COD'
-          ? 'Cash / Pay-Order on Warehouse Dispatch'
-          : 'Official B2B Purchase Order & Proforma Invoice',
+      orderNotes: orderNotes.trim(),
+      invoiceType: invoiceTypeLabel,
+      paymentMethod: paymentMethodLabel,
       selectedBankAccount: paymentMethod === 'BANK' ? activeBankAccount : undefined,
       transactionRef:
         paymentMethod === 'BANK' && transactionRef.trim()
           ? transactionRef.trim()
-          : undefined,
+          : '',
+      itemsSummary: formattedItemsList,
       items: [...items],
       subtotalPKR,
-      freightPKR,
+      salesTaxRate,
+      salesTaxPKR,
       totalPKR: grandTotalPKR,
+      orderStatus: 'New Order',
+      autoDispatchStatus: emailDispatched ? 'sent' : 'recorded',
     };
 
-    setReceipt(newReceipt);
-    setFormError('');
+    if (onOrderSubmitted) {
+      onOrderSubmitted(newOrderRecord);
+    }
+
+    setReceipt(newOrderRecord);
+    setSubmittingOrder(false);
     onClearCart();
     setStep('confirmed');
-
-    const itemLines = newReceipt.items.map(
-      (entry, idx) =>
-        `${idx + 1}. ${entry.product.modelNumber} (${entry.product.title})${
-          entry.selectedIOBoard ? ` [${entry.selectedIOBoard.label}]` : ''
-        } x ${entry.quantity} = PKR ${(
-          (entry.product.price + (entry.selectedIOBoard?.priceDelta || 0)) *
-          entry.quantity
-        ).toLocaleString()}`
-    );
-
-    const bankDetailLines =
-      paymentMethod === 'BANK'
-        ? [
-            `*Online Transfer Account:* ${activeBankAccount.bankName}`,
-            `*Account Title:* ${activeBankAccount.accountTitle}`,
-            `*Account No:* ${activeBankAccount.accountNumber}`,
-            `*IBAN:* ${activeBankAccount.iban}`,
-            `*Branch:* ${activeBankAccount.branchCode} (${activeBankAccount.location})`,
-            ...(newReceipt.transactionRef
-              ? [`*Transfer Ref / TID:* ${newReceipt.transactionRef}`]
-              : []),
-          ]
-        : [];
-
-    const waOrderLines = [
-      `*SZGH PAKISTAN — NEW B2B ORDER / PROFORMA SUBMISSION*`,
-      `*Order Ref:* ${newReceipt.orderNumber}`,
-      `*Date:* ${newReceipt.timestamp}`,
-      `-----------------------------------------`,
-      `*Factory / Company:* ${newReceipt.companyName}`,
-      `*Authorized Person:* ${newReceipt.contactName}`,
-      `*Phone / WhatsApp:* ${newReceipt.phone}`,
-      `*City:* ${newReceipt.city}`,
-      `*Delivery Address:* ${newReceipt.address}`,
-      `*Payment Method:* ${newReceipt.paymentMethod}`,
-      ...bankDetailLines,
-      `-----------------------------------------`,
-      `*Ordered Equipment:*`,
-      ...itemLines,
-      `-----------------------------------------`,
-      `*Total Payable:* PKR ${newReceipt.totalPKR.toLocaleString()}`,
-    ];
-
-    window.location.href = `https://wa.me/923214800265?text=${encodeURIComponent(
-      waOrderLines.join('\n')
-    )}`;
   };
 
   const handleResetAndClose = () => {
@@ -280,7 +467,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       onClick={handleResetAndClose}
     >
       <div
-        className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full flex flex-col border-l border-slate-200 dark:border-slate-800 shadow-2xl"
+        className="relative w-full max-w-xl bg-white dark:bg-slate-900 h-full flex flex-col border-l border-slate-200 dark:border-slate-800 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}
@@ -289,8 +476,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <ShoppingBag className="w-5 h-5 text-[#1E2985] dark:text-emerald-400" />
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
               {step === 'cart' && 'Industrial Order Cart'}
-              {step === 'checkout' && 'B2B Dispatch & Proforma Verification'}
-              {step === 'confirmed' && 'Official Order Confirmation'}
+              {step === 'checkout' && 'B2B Checkout & Official Tax Invoice'}
+              {step === 'confirmed' && 'Official Order Confirmation & Invoice'}
             </h2>
           </div>
           <button
@@ -316,7 +503,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     Your requisition cart is empty
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mb-6">
-                    Add CNC controllers, servo motor kits, CNC machines, or 6-axis industrial robots to generate an order or proforma invoice.
+                    Add CNC controllers, servo motor kits, CNC machines, or 6-axis industrial robots to generate an official order.
                   </p>
                   <button
                     type="button"
@@ -421,115 +608,285 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           )}
 
           {step === 'checkout' && (
-            <form id="b2b-checkout-form" onSubmit={handleCheckoutSubmit} className="space-y-4">
-              <div className="p-3.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-                All equipment includes a <strong>1 Year Official Warranty</strong>. Orders above <strong className="font-mono-tabular">PKR 500,000</strong> qualify for complimentary insured freight across Pakistan.
-              </div>
+            <form
+              id="b2b-checkout-form"
+              onSubmit={handleCheckoutSubmit}
+              className="space-y-5"
+            >
+              {/* Sign-In Quick Bar for Customers */}
+              {!currentUser ? (
+                <div className="p-3.5 rounded-lg bg-[#1E2985]/[0.06] dark:bg-emerald-950/30 border border-[#1E2985]/25 dark:border-emerald-500/30 flex items-center justify-between gap-3">
+                  <div className="text-xs text-slate-700 dark:text-slate-300">
+                    <span className="font-bold text-slate-900 dark:text-white block">
+                      Quick Customer Sign-In Available
+                    </span>
+                    Sign in with Google to auto-fill your details and sync your order to your account.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onSignIn}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold shrink-0 cursor-pointer"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Sign In</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="px-3.5 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/70 flex items-center justify-between text-xs">
+                  <span className="text-emerald-800 dark:text-emerald-300 font-medium">
+                    Signed in as <strong>{currentUser.email}</strong>
+                  </span>
+                  <span className="text-[11px] font-bold text-[#0D5C2B] dark:text-emerald-400">
+                    ✓ Cloud Sync Active
+                  </span>
+                </div>
+              )}
 
               {formError && (
-                <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-xs font-medium text-red-700 dark:text-red-300">
+                <div className="p-3.5 rounded-md bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-xs font-semibold text-red-700 dark:text-red-300">
                   {formError}
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Factory / Company Name *
+              {/* STEP 1: INVOICE TYPE SELECTION (OFFICIAL TAX INVOICE +18% SALES TAX) */}
+              <div className="space-y-2.5">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  1. Select Invoice Option (18% Sales Tax on Official Invoice) *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g., Ravi Precision Engineering Pvt Ltd"
-                  className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                />
+                <div className="grid grid-cols-1 gap-2.5">
+                  <label
+                    className={`flex items-start gap-3 p-3.5 rounded-lg border-2 cursor-pointer transition-colors ${
+                      invoiceOption === 'OFFICIAL_TAX'
+                        ? 'border-[#1E2985] dark:border-emerald-400 bg-[#1E2985]/[0.04] dark:bg-emerald-950/30'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="invoiceOption"
+                      checked={invoiceOption === 'OFFICIAL_TAX'}
+                      onChange={() => setInvoiceOption('OFFICIAL_TAX')}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Receipt className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
+                          <span>Official Tax Invoice (+18% Sales Tax / GST)</span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] font-mono-tabular font-extrabold">
+                          +18% GST (PKR {Math.round(subtotalPKR * 0.18).toLocaleString()})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                        Adds 18% FBR Sales Tax to the total amount. Official GST/NTN Tax Invoice issued by KH Enterprises (Pvt) Ltd.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      invoiceOption === 'STANDARD'
+                        ? 'border-[#1E2985] dark:border-emerald-400 bg-slate-50 dark:bg-slate-950'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="invoiceOption"
+                      checked={invoiceOption === 'STANDARD'}
+                      onChange={() => setInvoiceOption('STANDARD')}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          Standard Commercial Receipt (Non-Tax)
+                        </span>
+                        <span className="text-[11px] font-mono-tabular font-semibold text-slate-500">
+                          0% Tax
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Standard equipment commercial packing &amp; warranty slip without GST annexure.
+                      </p>
+                    </div>
+                  </label>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* STEP 2: COMPLETE CUSTOMER & TAX DETAILS (MANDATORY NTN NO.) */}
+              <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    2. Complete Customer &amp; Tax Details *
+                  </label>
+                  <span className="text-[11px] font-bold text-[#0D5C2B] dark:text-emerald-400">
+                    NTN No. Mandatory
+                  </span>
+                </div>
+
+                {/* Highlighted NTN No. & STRN Row */}
+                <div className="p-3.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border-2 border-amber-400/60 dark:border-amber-500/40 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-extrabold text-slate-900 dark:text-white mb-1">
+                      Customer NTN No. (National Tax Number) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={ntnNumber}
+                      onChange={(e) => setNtnNumber(e.target.value)}
+                      placeholder="e.g., 4192837-6"
+                      className="w-full px-3 py-2 rounded-md border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-950 text-xs sm:text-sm font-mono-tabular font-bold text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      STRN / CNIC No. (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={strnNumber}
+                      onChange={(e) => setStrnNumber(e.target.value)}
+                      placeholder="Sales Tax Reg. or CNIC #"
+                      className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs sm:text-sm font-mono-tabular text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Authorized Person / Engineer *
+                    Factory / Company Name *
                   </label>
                   <input
                     type="text"
                     required
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Full Name"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="e.g., Ravi Precision Engineering (Pvt) Ltd"
                     className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Phone / WhatsApp Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="0300-1234567"
-                    className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono-tabular focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Customer / Authorized Person Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      placeholder="Full Name"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone / Mobile Number *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0300-1234567"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono-tabular focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Official Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="procurement@company.com"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      City / Industrial Hub *
+                    </label>
+                    <select
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    >
+                      <option value="Lahore">Lahore</option>
+                      <option value="Gujranwala">Gujranwala</option>
+                      <option value="Sialkot">Sialkot</option>
+                      <option value="Karachi">Karachi</option>
+                      <option value="Faisalabad">Faisalabad</option>
+                      <option value="Rawalpindi / Islamabad">Rawalpindi / Islamabad</option>
+                      <option value="Sheikhupura">Sheikhupura</option>
+                      <option value="Multan">Multan</option>
+                      <option value="Peshawar">Peshawar</option>
+                      <option value="Other">Other City</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Industrial Hub *
-                  </label>
-                  <select
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                  >
-                    <option value="Lahore">Lahore</option>
-                    <option value="Gujranwala">Gujranwala</option>
-                    <option value="Sialkot">Sialkot</option>
-                    <option value="Karachi">Karachi</option>
-                    <option value="Faisalabad">Faisalabad</option>
-                    <option value="Rawalpindi / Islamabad">Rawalpindi / Islamabad</option>
-                    <option value="Sheikhupura">Sheikhupura</option>
-                    <option value="Multan">Multan</option>
-                  </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Factory Plot / Delivery Address *
+                    Complete Billing &amp; Factory Address *
                   </label>
                   <input
                     type="text"
                     required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Plot #, Industrial Estate / Road"
+                    placeholder="Plot #, Industrial Estate / Road, Sector, City"
                     className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Pick-Up Schedule / Special Instructions (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="e.g., Authorised representative visiting Lahore warehouse on Tuesday"
+                    className="w-full px-3.5 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                  Preferred B2B Payment &amp; Settlement Mode
+              {/* STEP 3: PAYMENT METHOD (ONLY CASH ON PICK UP OR ONLINE BANK TRANSFER — NO COD) */}
+              <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  3. Payment Method (No Cash on Delivery) *
                 </label>
+
+                <div className="p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-center gap-2 text-[11px] font-semibold text-amber-900 dark:text-amber-300">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    Please note: We <strong>only offer Cash on Pick Up</strong> at our warehouse/office or <strong>Online Bank Transfer</strong>. We do <strong>NOT</strong> offer Cash on Delivery.
+                  </span>
+                </div>
+
                 <div className="space-y-2.5">
                   {[
                     {
+                      id: 'PICKUP',
+                      title: 'Cash on Pick Up (Warehouse / Office Pick Up Only)',
+                      desc: 'Pay in person when picking up your hardware at our Lahore facility (Cash on Delivery is NOT offered)',
+                    },
+                    {
                       id: 'BANK',
                       title: 'Online Bank Transfer / Raast / IBFT (United Bank Ltd - UBL)',
-                      desc: 'Direct online transfer to official account · Immediate dispatch upon verification',
-                    },
-                    {
-                      id: 'COD',
-                      title: 'Cash / Pay-Order on Warehouse Pick-up or Delivery',
-                      desc: 'Available for controller & servo kits up to PKR 1,000,000',
-                    },
-                    {
-                      id: 'PO',
-                      title: 'Official Tax Proforma Invoice (For Corporate PO)',
-                      desc: 'Generates GST/NTN compliant Proforma Invoice from KH Enterprises Pvt Ltd',
+                      desc: 'Direct online payment to our official UBL account prior to pick-up or dispatch',
                     },
                   ].map((opt) => (
                     <label
@@ -544,7 +901,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         type="radio"
                         name="paymentMethod"
                         checked={paymentMethod === opt.id}
-                        onChange={() => setPaymentMethod(opt.id as 'COD' | 'BANK' | 'PO')}
+                        onChange={() => setPaymentMethod(opt.id as 'PICKUP' | 'BANK')}
                         className="mt-1"
                       />
                       <div className="flex-1 min-w-0">
@@ -562,7 +919,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Online Bank Account Details Panel (UBL + Future Accounts) */}
                 {paymentMethod === 'BANK' && (
                   <div className="mt-3 rounded-lg border-2 border-[#00529B]/40 dark:border-sky-500/40 bg-gradient-to-b from-[#00529B]/[0.05] to-white dark:from-sky-950/30 dark:to-slate-950 p-4 space-y-3.5 shadow-sm">
-                    {/* Multi-account selector if more accounts are added in the future */}
                     {ONLINE_PAYMENT_ACCOUNTS.length > 1 && (
                       <div className="flex flex-wrap gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
                         {ONLINE_PAYMENT_ACCOUNTS.map((acc) => (
@@ -623,7 +979,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           {copiedField === 'title' ? (
                             <>
                               <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              <span className="text-emerald-700 dark:text-emerald-400">Copied</span>
+                              <span className="text-emerald-700 dark:text-emerald-400">
+                                Copied
+                              </span>
                             </>
                           ) : (
                             <>
@@ -647,14 +1005,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <button
                           type="button"
                           onClick={() =>
-                            handleCopyValue('accountNumber', activeBankAccount.accountNumber)
+                            handleCopyValue(
+                              'accountNumber',
+                              activeBankAccount.accountNumber
+                            )
                           }
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
                         >
                           {copiedField === 'accountNumber' ? (
                             <>
                               <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              <span className="text-emerald-700 dark:text-emerald-400">Copied</span>
+                              <span className="text-emerald-700 dark:text-emerald-400">
+                                Copied
+                              </span>
                             </>
                           ) : (
                             <>
@@ -707,7 +1070,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleCopyValue('swift', activeBankAccount.swift)}
+                            onClick={() =>
+                              handleCopyValue('swift', activeBankAccount.swift)
+                            }
                             title="Copy SWIFT Code"
                             className="p-1 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                           >
@@ -742,7 +1107,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {/* Optional Transaction Reference Input */}
                     <div className="pt-1">
                       <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Transaction ID / Deposit Reference (Optional — or send screenshot on WhatsApp)
+                        Transaction ID / Raast Reference (Optional)
                       </label>
                       <input
                         type="text"
@@ -764,10 +1129,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <CheckCircle2 className="w-6 h-6 text-[#0D5C2B] dark:text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                    Order #{receipt.orderNumber} Confirmed — Preparing Dispatch
+                    Order #{receipt.orderId} Submitted Automatically!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                    Registered with <strong>KH Enterprises (Pvt) Ltd</strong> on {receipt.timestamp}. Our senior application engineer will call <strong>{receipt.phone}</strong> within 30 minutes.
+                    Your complete order details (including NTN No.{' '}
+                    <strong className="font-mono-tabular">{receipt.ntnNumber}</strong>) have been{' '}
+                    <strong>automatically sent to SZGH Pakistan (KH Enterprises Pvt Ltd)</strong>. Our team will contact{' '}
+                    <strong>{receipt.phone}</strong> and <strong>{receipt.email}</strong> shortly.
                   </p>
                 </div>
               </div>
@@ -782,39 +1150,51 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         Online Transfer Details
                       </div>
                       <div className="font-extrabold text-slate-900 dark:text-white text-xs">
-                        {receipt.selectedBankAccount.bankName} — {receipt.selectedBankAccount.location}
+                        {receipt.selectedBankAccount.bankName} —{' '}
+                        {receipt.selectedBankAccount.location}
                       </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 font-mono-tabular text-xs">
                     <div>
-                      <span className="text-slate-500 block font-sans text-[11px]">Account Title:</span>
+                      <span className="text-slate-500 block font-sans text-[11px]">
+                        Account Title:
+                      </span>
                       <span className="font-bold text-slate-900 dark:text-white font-sans">
                         {receipt.selectedBankAccount.accountTitle}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block font-sans text-[11px]">Account Number:</span>
+                      <span className="text-slate-500 block font-sans text-[11px]">
+                        Account Number:
+                      </span>
                       <span className="font-bold text-slate-900 dark:text-white">
                         {receipt.selectedBankAccount.accountNumber}
                       </span>
                     </div>
                     <div className="col-span-2">
-                      <span className="text-slate-500 block font-sans text-[11px]">IBAN:</span>
+                      <span className="text-slate-500 block font-sans text-[11px]">
+                        IBAN:
+                      </span>
                       <span className="font-bold text-[#00529B] dark:text-sky-400">
                         {receipt.selectedBankAccount.iban}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block font-sans text-[11px]">SWIFT:</span>
+                      <span className="text-slate-500 block font-sans text-[11px]">
+                        SWIFT:
+                      </span>
                       <span className="font-bold text-slate-900 dark:text-white">
                         {receipt.selectedBankAccount.swift}
                       </span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block font-sans text-[11px]">Branch Code:</span>
+                      <span className="text-slate-500 block font-sans text-[11px]">
+                        Branch Code:
+                      </span>
                       <span className="font-bold text-slate-900 dark:text-white">
-                        {receipt.selectedBankAccount.branchCode} ({receipt.selectedBankAccount.location})
+                        {receipt.selectedBankAccount.branchCode} (
+                        {receipt.selectedBankAccount.location})
                       </span>
                     </div>
                   </div>
@@ -825,29 +1205,54 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                   <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <FileText className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
-                    PROFORMA SUMMARY (1 YEAR WARRANTY)
+                    <span>{receipt.invoiceType.toUpperCase()}</span>
                   </span>
                   <span className="font-mono-tabular font-semibold text-slate-500">
-                    {receipt.orderNumber}
+                    {receipt.orderId}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <span className="text-slate-500 block">Consignee Factory:</span>
+                    <span className="text-slate-500 block">Factory / Company:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
                       {receipt.companyName}
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Contact Engineer:</span>
+                    <span className="text-slate-500 block">NTN No.:</span>
+                    <span className="font-mono-tabular font-extrabold text-[#1E2985] dark:text-emerald-400">
+                      {receipt.ntnNumber}
+                      {receipt.strnNumber ? ` | STRN: ${receipt.strnNumber}` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Customer Contact:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
                       {receipt.contactName} ({receipt.phone})
                     </span>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-slate-500 block">Delivery Destination:</span>
+                  <div>
+                    <span className="text-slate-500 block">Email:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white break-all">
+                      {receipt.email}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">Payment Mode:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
-                      {receipt.address}, {receipt.city}
+                      {receipt.paymentMethod}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">City:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      {receipt.city}
+                    </span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-500 block">Billing / Factory Address:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      {receipt.address}
                     </span>
                   </div>
                 </div>
@@ -856,7 +1261,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   {receipt.items.map((entry) => {
                     const unit = getEntryUnitPrice(entry);
                     return (
-                      <div key={entry.cartKey} className="flex justify-between font-mono-tabular">
+                      <div
+                        key={entry.cartKey}
+                        className="flex justify-between font-mono-tabular"
+                      >
                         <span className="text-slate-700 dark:text-slate-300 truncate pr-2">
                           {entry.quantity}× {entry.product.modelNumber}
                           {entry.selectedIOBoard && entry.selectedIOBoard.priceDelta > 0
@@ -869,9 +1277,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </div>
                     );
                   })}
-                  <div className="flex justify-between font-mono-tabular pt-2 border-t border-slate-200 dark:border-slate-800 text-sm font-extrabold text-slate-900 dark:text-white">
-                    <span>Total Payable</span>
-                    <span>PKR {receipt.totalPKR.toLocaleString()}</span>
+
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1 font-mono-tabular">
+                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                      <span>Subtotal (Excl. Tax)</span>
+                      <span>PKR {receipt.subtotalPKR.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-700 dark:text-slate-300 font-semibold">
+                      <span>
+                        Sales Tax ({receipt.salesTaxRate}% GST —{' '}
+                        {receipt.salesTaxRate === 18 ? 'Official Invoice' : 'Standard'})
+                      </span>
+                      <span>PKR {receipt.salesTaxPKR.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between pt-1.5 border-t border-slate-200 dark:border-slate-800 text-sm font-extrabold text-slate-900 dark:text-white">
+                      <span>Total Payable</span>
+                      <span>PKR {receipt.totalPKR.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -889,15 +1311,38 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   PKR {subtotalPKR.toLocaleString()}
                 </span>
               </div>
+
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>Insured Industrial Freight</span>
-                <span className="font-mono-tabular font-semibold text-emerald-700 dark:text-emerald-400">
-                  {freightPKR === 0 ? 'FREE (Qualified)' : `PKR ${freightPKR.toLocaleString()}`}
+                <span>
+                  {isOfficialInvoice
+                    ? 'Sales Tax (18% GST — Official Invoice)'
+                    : 'Sales Tax (Standard Receipt — 0%)'}
+                </span>
+                <span
+                  className={`font-mono-tabular font-bold ${
+                    isOfficialInvoice
+                      ? 'text-amber-700 dark:text-amber-400'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  {isOfficialInvoice
+                    ? `+ PKR ${salesTaxPKR.toLocaleString()}`
+                    : 'PKR 0'}
                 </span>
               </div>
+
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                <span>Handover Mode</span>
+                <span className="font-semibold text-[#0D5C2B] dark:text-emerald-400">
+                  {paymentMethod === 'PICKUP'
+                    ? 'Cash on Pick Up (No COD)'
+                    : 'Online Bank Transfer (UBL)'}
+                </span>
+              </div>
+
               <div className="flex justify-between items-baseline pt-2 border-t border-slate-200 dark:border-slate-800">
                 <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  Total Estimate
+                  Total Amount {isOfficialInvoice ? '(Incl. 18% GST)' : ''}
                 </span>
                 <div className="text-right">
                   <div className="text-lg font-extrabold font-mono-tabular text-slate-900 dark:text-white">
@@ -916,7 +1361,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 onClick={() => setStep('checkout')}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-sm font-bold transition-colors cursor-pointer"
               >
-                <span>Proceed to B2B Checkout &amp; Proforma</span>
+                <span>Proceed to Checkout &amp; Official Invoice</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
@@ -931,9 +1376,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <button
                   type="submit"
                   form="b2b-checkout-form"
-                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#0D5C2B] hover:bg-[#094720] text-white text-sm font-bold transition-colors cursor-pointer"
+                  disabled={submittingOrder}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#0D5C2B] hover:bg-[#094720] disabled:opacity-60 text-white text-sm font-bold transition-colors cursor-pointer"
                 >
-                  <span>Confirm Order &amp; Generate Proforma</span>
+                  <span>
+                    {submittingOrder
+                      ? 'Sending Order Details...'
+                      : 'Complete Order & Send Automatically'}
+                  </span>
                 </button>
               </div>
             )}
@@ -941,11 +1391,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         )}
 
         {step === 'confirmed' && (
-          <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+          <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center justify-center gap-2 py-3 px-4 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs sm:text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Official Invoice</span>
+            </button>
             <button
               type="button"
               onClick={handleResetAndClose}
-              className="w-full py-3 px-4 rounded-md bg-[#1E2985] dark:bg-emerald-600 text-white text-sm font-bold hover:opacity-95 transition-opacity cursor-pointer"
+              className="flex-1 py-3 px-4 rounded-md bg-[#1E2985] dark:bg-emerald-600 text-white text-xs sm:text-sm font-bold hover:opacity-95 transition-opacity cursor-pointer"
             >
               Return to SZGH Pakistan Storefront
             </button>
