@@ -1,0 +1,217 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1 & Phase 4.1: Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email in ['khubaib4000@gmail.com', 'grnoman786@gmail.com'] ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Pillar 2 & Pillar 5: Validation Blueprint for InventoryItem (with 4-image gallery & defaultImageIndex)
+    function isValidInventoryItem(data, docId) {
+      return data.keys().hasAll([
+          'productId',
+          'modelNumber',
+          'title',
+          'category',
+          'subcategory',
+          'description',
+          'price',
+          'stockCount',
+          'stockStatus',
+          'defaultImageIndex',
+          'images',
+          'updatedBy',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'productId',
+          'modelNumber',
+          'title',
+          'category',
+          'subcategory',
+          'description',
+          'price',
+          'stockCount',
+          'stockStatus',
+          'defaultImageIndex',
+          'images',
+          'updatedBy',
+          'updatedAt'
+        ]) &&
+        data.productId is string &&
+        data.productId == docId &&
+        data.productId.size() >= 1 &&
+        data.productId.size() <= 128 &&
+        data.productId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.modelNumber is string &&
+        data.modelNumber.size() >= 1 &&
+        data.modelNumber.size() <= 120 &&
+        data.title is string &&
+        data.title.size() >= 0 &&
+        data.title.size() <= 200 &&
+        data.category is string &&
+        data.category in ['Controllers', 'Motors', 'Machines', 'Robots'] &&
+        data.subcategory is string &&
+        data.subcategory.size() >= 0 &&
+        data.subcategory.size() <= 120 &&
+        data.description is string &&
+        data.description.size() >= 0 &&
+        data.description.size() <= 1500 &&
+        data.price is int &&
+        data.price >= 0 &&
+        data.price <= 1000000000 &&
+        data.stockCount is int &&
+        data.stockCount >= 0 &&
+        data.stockCount <= 100000 &&
+        data.stockStatus is string &&
+        data.stockStatus in ['In Stock', 'Low Stock', 'Pre-Order'] &&
+        data.defaultImageIndex is int &&
+        data.defaultImageIndex >= 0 &&
+        data.defaultImageIndex <= 3 &&
+        data.images is list &&
+        data.images.size() >= 1 &&
+        data.images.size() <= 4 &&
+        data.images[0] is string &&
+        data.images[0].size() >= 0 &&
+        data.images[0].size() <= 220000 &&
+        data.updatedBy is string &&
+        data.updatedBy.size() >= 1 &&
+        data.updatedBy.size() <= 128 &&
+        data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.updatedBy == request.auth.uid &&
+        data.updatedAt is timestamp &&
+        data.updatedAt == request.time;
+    }
+
+    // Pillar 2 & Pillar 5: Validation Blueprint for CatalogManifest
+    function isValidCatalogManifest(data, docId) {
+      return data.keys().hasAll(['manifestId', 'customProductIds', 'updatedBy', 'updatedAt']) &&
+        data.keys().hasOnly(['manifestId', 'customProductIds', 'updatedBy', 'updatedAt']) &&
+        data.manifestId is string &&
+        data.manifestId == docId &&
+        data.manifestId.size() >= 1 &&
+        data.manifestId.size() <= 128 &&
+        data.manifestId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.customProductIds is list &&
+        data.customProductIds.size() <= 500 &&
+        (data.customProductIds.size() == 0 || (data.customProductIds[0] is string && data.customProductIds[0].size() <= 128)) &&
+        data.updatedBy is string &&
+        data.updatedBy.size() >= 1 &&
+        data.updatedBy.size() <= 128 &&
+        data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.updatedBy == request.auth.uid &&
+        data.updatedAt is timestamp &&
+        data.updatedAt == request.time;
+    }
+
+    // Pillar 2: Validation Blueprint for AdminUser
+    function isValidAdminUser(data, adminUid) {
+      return data.keys().hasAll(['uid', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'role', 'createdAt']) &&
+        data.uid is string &&
+        data.uid == adminUid &&
+        data.uid.size() >= 1 &&
+        data.uid.size() <= 128 &&
+        data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.role is string &&
+        data.role == 'admin' &&
+        data.createdAt is timestamp &&
+        data.createdAt == request.time;
+    }
+
+    // Collection 1: Live Catalog Inventory (/inventory/{productId})
+    match /inventory/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if false;
+
+      allow create: if isAdmin() &&
+        isValidId(productId) &&
+        isValidInventoryItem(incoming(), productId);
+
+      allow update: if isAdmin() &&
+        isValidId(productId) &&
+        isValidInventoryItem(incoming(), productId) &&
+        incoming().productId == existing().productId &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'modelNumber',
+          'title',
+          'category',
+          'subcategory',
+          'description',
+          'price',
+          'stockCount',
+          'stockStatus',
+          'defaultImageIndex',
+          'images',
+          'updatedBy',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(productId);
+    }
+
+    // Collection 2: Custom Catalog Manifest (/catalog_index/{manifestId})
+    match /catalog_index/{manifestId} {
+      allow get: if isValidId(manifestId);
+      allow list: if false;
+
+      allow create: if isAdmin() &&
+        isValidId(manifestId) &&
+        isValidCatalogManifest(incoming(), manifestId);
+
+      allow update: if isAdmin() &&
+        isValidId(manifestId) &&
+        isValidCatalogManifest(incoming(), manifestId) &&
+        incoming().manifestId == existing().manifestId &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'customProductIds',
+          'updatedBy',
+          'updatedAt'
+        ]);
+
+      allow delete: if isAdmin() && isValidId(manifestId);
+    }
+
+    // Collection 3: Trusted Admins Registry (/admins/{adminUid})
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if false;
+
+      allow create: if isAdmin() &&
+        isValidId(adminUid) &&
+        isValidAdminUser(incoming(), adminUid);
+
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(adminUid);
+    }
+  }
+}

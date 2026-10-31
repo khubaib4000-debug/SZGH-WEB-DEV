@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Live product listing, stock quantity, price, 4-image gallery, and default display image index managed by SZGH Pakistan administrators.",
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "Unique product identifier.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "modelNumber": {
+          "type": "string",
+          "description": "Official SZGH model number.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "title": {
+          "type": "string",
+          "description": "Product display title (can be empty if not provided in Excel stock list).",
+          "minLength": 0,
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "description": "Primary storefront category.",
+          "enum": ["Controllers", "Motors", "Machines", "Robots"]
+        },
+        "subcategory": {
+          "type": "string",
+          "description": "Technical subcategory label (can be empty if not provided in Excel stock list).",
+          "minLength": 0,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "description": "Product technical description (can be empty if not provided in Excel stock list).",
+          "minLength": 0,
+          "maxLength": 1500
+        },
+        "price": {
+          "type": "integer",
+          "description": "Live unit price in PKR."
+        },
+        "stockCount": {
+          "type": "integer",
+          "description": "Current available physical stock count."
+        },
+        "stockStatus": {
+          "type": "string",
+          "description": "Availability status badge.",
+          "enum": ["In Stock", "Low Stock", "Pre-Order"]
+        },
+        "defaultImageIndex": {
+          "type": "integer",
+          "description": "Index (0 to 3) of the highlighted default image displayed on product cards."
+        },
+        "images": {
+          "type": "array",
+          "description": "Array of up to 4 product image URLs or compressed data URLs."
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "Firebase Auth UID of the administrator who last updated the listing.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the latest update."
+        }
+      },
+      "required": [
+        "productId",
+        "modelNumber",
+        "title",
+        "category",
+        "subcategory",
+        "description",
+        "price",
+        "stockCount",
+        "stockStatus",
+        "defaultImageIndex",
+        "images",
+        "updatedBy",
+        "updatedAt"
+      ]
+    },
+    "CatalogManifest": {
+      "title": "CatalogManifest",
+      "description": "Manifest of custom product IDs added by administrators so the storefront can subscribe via single-document get without list queries.",
+      "type": "object",
+      "properties": {
+        "manifestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "customProductIds": {
+          "type": "array",
+          "description": "Bounded list of custom product document IDs."
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["manifestId", "customProductIds", "updatedBy", "updatedAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized SZGH Pakistan inventory administrator record.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/inventory/{productId}": {
+      "schema": {
+        "$ref": "#/entities/InventoryItem"
+      },
+      "description": "Stores live product details, stock quantities, PKR prices, 4-photo arrays, and default image index for each product ID."
+    },
+    "/catalog_index/{manifestId}": {
+      "schema": {
+        "$ref": "#/entities/CatalogManifest"
+      },
+      "description": "Stores the active manifest of custom product IDs added by administrators."
+    },
+    "/admins/{adminUid}": {
+      "schema": {
+        "$ref": "#/entities/AdminUser"
+      },
+      "description": "Trusted administrator lookup collection."
+    }
+  }
+}
