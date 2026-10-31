@@ -454,6 +454,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   const handleResetAndClose = () => {
     setStep('cart');
+    setPaymentMethod('PICKUP');
     setReceipt(null);
     onClose();
   };
@@ -648,78 +649,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               )}
 
-              {/* STEP 1: INVOICE TYPE SELECTION (OFFICIAL TAX INVOICE +18% SALES TAX) */}
-              <div className="space-y-2.5">
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  1. Select Invoice Option (18% Sales Tax on Official Invoice) *
-                </label>
-                <div className="grid grid-cols-1 gap-2.5">
-                  <label
-                    className={`flex items-start gap-3 p-3.5 rounded-lg border-2 cursor-pointer transition-colors ${
-                      invoiceOption === 'OFFICIAL_TAX'
-                        ? 'border-[#1E2985] dark:border-emerald-400 bg-[#1E2985]/[0.04] dark:bg-emerald-950/30'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="invoiceOption"
-                      checked={invoiceOption === 'OFFICIAL_TAX'}
-                      onChange={() => setInvoiceOption('OFFICIAL_TAX')}
-                      className="mt-1"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <Receipt className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
-                          <span>Official Tax Invoice (+18% Sales Tax / GST)</span>
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] font-mono-tabular font-extrabold">
-                          +18% GST (PKR {Math.round(subtotalPKR * 0.18).toLocaleString()})
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                        Adds 18% FBR Sales Tax to the total amount. Official GST/NTN Tax Invoice issued by KH Enterprises (Pvt) Ltd.
-                      </p>
-                    </div>
-                  </label>
-
-                  <label
-                    className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                      invoiceOption === 'STANDARD'
-                        ? 'border-[#1E2985] dark:border-emerald-400 bg-slate-50 dark:bg-slate-950'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="invoiceOption"
-                      checked={invoiceOption === 'STANDARD'}
-                      onChange={() => setInvoiceOption('STANDARD')}
-                      className="mt-1"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">
-                          Standard Commercial Receipt (Non-Tax)
-                        </span>
-                        <span className="text-[11px] font-mono-tabular font-semibold text-slate-500">
-                          0% Tax
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Standard equipment commercial packing &amp; warranty slip without GST annexure.
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* STEP 2: COMPLETE CUSTOMER & TAX DETAILS (MANDATORY NTN NO.) */}
-              <div className="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+              {/* STEP 1: COMPLETE CUSTOMER & TAX DETAILS (MANDATORY NTN NO.) */}
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    2. Complete Customer &amp; Tax Details *
+                    1. Complete Customer &amp; Tax Details *
                   </label>
                   <span className="text-[11px] font-bold text-[#0D5C2B] dark:text-emerald-400">
                     NTN No. Mandatory
@@ -863,11 +797,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               </div>
 
-              {/* STEP 3: PAYMENT METHOD (ONLY CASH ON PICK UP OR ONLINE BANK TRANSFER — NO COD) */}
-              <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  3. Payment Method (No Cash on Delivery) *
-                </label>
+              {/* STEP 2: PAYMENT METHOD (DEFAULT: CASH ON PICK UP — NO COD) */}
+              <div className="space-y-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    2. Payment Method (No Cash on Delivery) *
+                  </label>
+                  <span className="text-[11px] font-bold text-[#1E2985] dark:text-emerald-400">
+                    Default: Cash on Pick Up
+                  </span>
+                </div>
 
                 <div className="p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-center gap-2 text-[11px] font-semibold text-amber-900 dark:text-amber-300">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -881,7 +820,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {
                       id: 'PICKUP',
                       title: 'Cash on Pick Up (Warehouse / Office Pick Up Only)',
-                      desc: 'Pay in person when picking up your hardware at our Lahore facility (Cash on Delivery is NOT offered)',
+                      desc: 'Pay in person when picking up your hardware at our Lahore facility (Default)',
                     },
                     {
                       id: 'BANK',
@@ -919,6 +858,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 {/* Online Bank Account Details Panel (UBL + Future Accounts) */}
                 {paymentMethod === 'BANK' && (
                   <div className="mt-3 rounded-lg border-2 border-[#00529B]/40 dark:border-sky-500/40 bg-gradient-to-b from-[#00529B]/[0.05] to-white dark:from-sky-950/30 dark:to-slate-950 p-4 space-y-3.5 shadow-sm">
+                    {/* Prominent Payment Proof Note */}
+                    <div className="p-3 rounded-md bg-emerald-600 dark:bg-emerald-700 text-white shadow-xs flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <AlertTriangle className="w-5 h-5 text-amber-300 shrink-0" />
+                        <div>
+                          <div className="text-xs sm:text-sm font-extrabold tracking-wide">
+                            Send Payment Proof To Whatsapp to Proceed Order
+                          </div>
+                          <div className="text-[11px] text-emerald-100 font-medium">
+                            Official WhatsApp: <strong className="font-mono-tabular text-white">+92 321 4800265 (0321-4800265)</strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {ONLINE_PAYMENT_ACCOUNTS.length > 1 && (
                       <div className="flex flex-wrap gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
                         {ONLINE_PAYMENT_ACCOUNTS.map((acc) => (
@@ -1120,6 +1074,73 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* STEP 3 (AT THE END): INVOICE TYPE SELECTION (OFFICIAL TAX INVOICE +18% SALES TAX) */}
+              <div className="space-y-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  3. Select Invoice Option (18% Sales Tax on Official Invoice) *
+                </label>
+                <div className="grid grid-cols-1 gap-2.5">
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      invoiceOption === 'STANDARD'
+                        ? 'border-[#1E2985] dark:border-emerald-400 bg-slate-50 dark:bg-slate-950'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="invoiceOption"
+                      checked={invoiceOption === 'STANDARD'}
+                      onChange={() => setInvoiceOption('STANDARD')}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          Standard Commercial Receipt (Non-Tax)
+                        </span>
+                        <span className="text-[11px] font-mono-tabular font-semibold text-slate-500">
+                          0% Tax
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Standard equipment commercial packing &amp; warranty slip without GST annexure.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start gap-3 p-3.5 rounded-lg border-2 cursor-pointer transition-colors ${
+                      invoiceOption === 'OFFICIAL_TAX'
+                        ? 'border-[#1E2985] dark:border-emerald-400 bg-[#1E2985]/[0.04] dark:bg-emerald-950/30'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="invoiceOption"
+                      checked={invoiceOption === 'OFFICIAL_TAX'}
+                      onChange={() => setInvoiceOption('OFFICIAL_TAX')}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Receipt className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
+                          <span>Official Tax Invoice (+18% Sales Tax / GST)</span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] font-mono-tabular font-extrabold">
+                          +18% GST (PKR {Math.round(subtotalPKR * 0.18).toLocaleString()})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                        Adds 18% FBR Sales Tax to the total amount. Official GST/NTN Tax Invoice issued by KH Enterprises (Pvt) Ltd.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </form>
           )}
 
@@ -1143,6 +1164,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               {/* Show UBL Bank Account Card on Receipt if Bank Transfer selected */}
               {receipt.selectedBankAccount && (
                 <div className="p-4 rounded-lg border-2 border-[#00529B]/40 dark:border-sky-500/40 bg-[#00529B]/[0.04] dark:bg-sky-950/20 space-y-2.5 text-xs">
+                  <div className="p-2.5 rounded bg-emerald-600 text-white font-extrabold text-xs flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0" />
+                    <span>Send Payment Proof To Whatsapp to Proceed Order (+92 321 4800265)</span>
+                  </div>
                   <div className="flex items-center gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
                     <UBLLogo className="w-14 h-9 shrink-0 rounded" />
                     <div>
