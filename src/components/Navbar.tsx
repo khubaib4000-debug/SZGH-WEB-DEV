@@ -104,15 +104,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors duration-150">
-        <div className="max-w-[1360px] mx-auto px-2 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-1.5 sm:gap-4">
+      <header className="sticky top-0 z-40 w-full bg-white/95 dark:bg-white backdrop-blur-md border-b border-slate-200 transition-colors duration-150">
+        <div className="max-w-[1360px] mx-auto px-2 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-1.5 sm:gap-4 bg-transparent dark:bg-white">
           {/* Zone 1: Brand Logo & Wordmark */}
           <a
             href="#home"
             onClick={(e) => handleNavClick('home', e)}
             className="flex items-center gap-1.5 sm:gap-3 whitespace-nowrap min-w-0 shrink group focus:outline-none"
           >
-            <div className="h-7 sm:h-12 w-auto flex items-center justify-center overflow-hidden bg-white rounded px-1 sm:px-1.5 py-0.5 border border-slate-100 dark:border-transparent shrink-0">
+            <div className="h-7 sm:h-12 w-auto flex items-center justify-center overflow-hidden bg-white rounded px-1 sm:px-1.5 py-0.5 border border-slate-100 shrink-0">
               <img
                 src="/assets/aistudio/szgh-pakistan-logo_baed6be7.png"
                 alt="SZGH Pakistan - KH Enterprises Pvt Ltd Logo"
@@ -120,8 +120,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 referrerPolicy="no-referrer"
               />
             </div>
-            <span className="text-[11px] sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white truncate">
-              SZGH <span className="text-[#0D5C2B] dark:text-emerald-400">PAKISTAN</span>
+            <span className="text-[11px] sm:text-xl font-extrabold tracking-tight text-slate-900 truncate">
+              SZGH <span className="text-[#0D5C2B]">PAKISTAN</span>
             </span>
           </a>
 
@@ -142,8 +142,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onClick={(e) => handleNavClick('products', e)}
                       className={`relative py-2 inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors duration-150 ${
                         isActive
-                          ? 'text-[#1E2985] dark:text-emerald-400'
-                          : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                          ? 'text-[#1E2985]'
+                          : 'text-slate-600 hover:text-slate-950'
                       }`}
                     >
                       <span>{item.label}</span>
@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         }`}
                       />
                       {isActive && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0D5C2B] dark:bg-emerald-400 rounded-full" />
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0D5C2B] rounded-full" />
                       )}
                     </a>
 
@@ -231,20 +231,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={(e) => handleNavClick(item.id, e)}
                   className={`relative py-2 whitespace-nowrap shrink-0 transition-colors duration-150 ${
                     isActive
-                      ? 'text-[#1E2985] dark:text-emerald-400'
-                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white'
+                      ? 'text-[#1E2985]'
+                      : 'text-slate-600 hover:text-slate-950'
                   }`}
                 >
                   {item.label}
                   {isActive && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0D5C2B] dark:bg-emerald-400 rounded-full" />
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0D5C2B] rounded-full" />
                   )}
                 </a>
               );
             })}
           </nav>
 
-          {/* Zone 3: Theme Toggle, Sign In / Account, Admin Portal, Cart & 3-Bar Navigation Button */}
+          {/* Zone 3: Theme Toggle, Sign In / Account, Admin Portal (Admin Only), Cart & 3-Bar Navigation Button */}
           <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
             {/* Persistent Theme Switcher */}
             <button
@@ -260,11 +260,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'Switch to Moderate Light Theme'
                   : 'Switch to Industrial Dark Theme'
               }
-              className="flex items-center justify-center gap-1.5 h-8 w-8 sm:h-10 sm:w-auto sm:px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-slate-700 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="flex items-center justify-center gap-1.5 h-8 w-8 sm:h-10 sm:w-auto sm:px-2.5 rounded-md border border-slate-200 bg-slate-100/80 text-slate-700 hover:bg-slate-200/80 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               {theme === 'dark' ? (
                 <>
-                  <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+                  <Sun className="w-4 h-4 text-amber-500 shrink-0" />
                   <span className="hidden md:inline">Light</span>
                 </>
               ) : (
@@ -275,38 +275,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Visible Sign In / Signed-In User Account Controls (Compact on Mobile so it never pushes the 3-bar button) */}
+            {/* Visible Sign In / Signed-In User Account Controls */}
             {!currentUser ? (
               <button
                 type="button"
                 onClick={onSignIn}
                 title="Sign in with Google (Customers & Administrators)"
-                className="flex items-center justify-center gap-1 sm:gap-1.5 h-8 sm:h-10 px-2 sm:px-3 rounded-md border border-[#1E2985] sm:border-2 dark:border-emerald-500 bg-white dark:bg-slate-950 text-[#1E2985] dark:text-emerald-400 hover:bg-[#1E2985] hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white text-[11px] sm:text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 h-8 sm:h-10 px-2 sm:px-3 rounded-md border border-[#1E2985] sm:border-2 bg-white text-[#1E2985] hover:bg-[#1E2985] hover:text-white text-[11px] sm:text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
               >
                 <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 <span>Sign In</span>
               </button>
             ) : (
               <div className="flex items-center gap-1 sm:gap-1.5">
-                <button
-                  type="button"
-                  onClick={onOpenAdminStock}
-                  title={`Signed in as ${currentUser.email}. Click to open Account / Admin Portal.`}
-                  className="hidden sm:flex items-center gap-1.5 h-10 px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                <div
+                  title={`Signed in as ${currentUser.email}`}
+                  className="hidden sm:flex items-center gap-1.5 h-10 px-2.5 rounded-md border border-slate-200 bg-slate-50 text-slate-800 text-xs font-bold whitespace-nowrap shrink-0"
                 >
                   {isAdmin ? (
-                    <ShieldCheck className="w-4 h-4 text-[#0D5C2B] dark:text-emerald-400" />
+                    <ShieldCheck className="w-4 h-4 text-[#0D5C2B]" />
                   ) : (
-                    <UserCheck className="w-4 h-4 text-[#1E2985] dark:text-sky-400" />
+                    <UserCheck className="w-4 h-4 text-[#1E2985]" />
                   )}
                   <span className="max-w-28 truncate">{userShortLabel}</span>
-                </button>
+                </div>
 
                 <button
                   type="button"
                   onClick={onSignOut}
                   title={`Sign out (${currentUser.email})`}
-                  className="flex items-center justify-center gap-1 h-8 w-8 sm:h-10 sm:w-auto sm:px-2.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                  className="flex items-center justify-center gap-1 h-8 w-8 sm:h-10 sm:w-auto sm:px-2.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:text-red-600 hover:border-red-300 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 shrink-0" />
                   <span className="hidden md:inline">Sign Out</span>
@@ -314,34 +312,30 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-            {/* Admin Stock & Orders Manager Button */}
-            <button
-              type="button"
-              onClick={onOpenAdminStock}
-              title="Admin Portal — Live Stock, Excel (.xlsx) & Customer Orders"
-              className={`relative flex items-center justify-center gap-1.5 h-8 w-8 sm:h-10 sm:w-auto sm:px-3 rounded-md border text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                isAdmin
-                  ? 'border-emerald-500/50 bg-emerald-50 dark:bg-emerald-950/60 text-[#0D5C2B] dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
-                  : 'border-slate-200 dark:border-slate-700 bg-slate-100/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200/80 dark:hover:bg-slate-700'
-              }`}
-            >
-              <Package className="w-4 h-4 text-[#0D5C2B] dark:text-emerald-400 shrink-0" />
-              <span className="hidden lg:inline">
-                {isAdmin ? 'Stock & Orders Admin' : 'Admin Portal'}
-              </span>
-              {isAdmin && ordersCount > 0 && (
-                <span className="hidden sm:inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-mono-tabular font-extrabold bg-[#0D5C2B] text-white">
-                  {ordersCount}
-                </span>
-              )}
-            </button>
+            {/* Admin Stock & Orders Manager Button — ONLY VISIBLE WHEN SIGNED IN WITH AUTHORIZED ADMIN EMAIL */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdminStock}
+                title="Admin Portal — Live Stock, Excel (.xlsx) & Customer Orders"
+                className="relative flex items-center justify-center gap-1.5 h-8 w-8 sm:h-10 sm:w-auto sm:px-3 rounded-md border border-emerald-500/50 bg-emerald-50 text-[#0D5C2B] hover:bg-emerald-100 text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <Package className="w-4 h-4 text-[#0D5C2B] shrink-0" />
+                <span className="hidden lg:inline">Stock &amp; Orders Admin</span>
+                {ordersCount > 0 && (
+                  <span className="hidden sm:inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-mono-tabular font-extrabold bg-[#0D5C2B] text-white">
+                    {ordersCount}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Shopping Cart Drawer Button */}
             <button
               type="button"
               onClick={onOpenCart}
               aria-label={`Shopping Cart (${cartCount} items)`}
-              className="relative flex items-center justify-center gap-1 sm:gap-2 h-8 sm:h-10 px-2 sm:px-3.5 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
+              className="relative flex items-center justify-center gap-1 sm:gap-2 h-8 sm:h-10 px-2 sm:px-3.5 rounded-md bg-[#1E2985] hover:bg-[#161f69] text-white text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
             >
               <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="hidden sm:inline">Cart</span>
@@ -358,7 +352,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle navigation menu"
-              className="xl:hidden flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
+              className="xl:hidden flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 shrink-0 cursor-pointer"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -489,22 +483,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenAdminStock();
-                }}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/50 text-[#0D5C2B] dark:text-emerald-300 text-xs font-extrabold cursor-pointer"
-              >
-                <Package className="w-4 h-4" />
-                <span>Stock &amp; Orders Admin</span>
-                {isAdmin && ordersCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-mono-tabular font-extrabold bg-[#0D5C2B] text-white">
-                    {ordersCount}
-                  </span>
-                )}
-              </button>
+              {/* Admin Stock & Orders Manager Button in Mobile Drawer — ONLY VISIBLE FOR AUTHORIZED ADMINS */}
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenAdminStock();
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/50 text-[#0D5C2B] dark:text-emerald-300 text-xs font-extrabold cursor-pointer"
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Stock &amp; Orders Admin</span>
+                  {ordersCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-mono-tabular font-extrabold bg-[#0D5C2B] text-white">
+                      {ordersCount}
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}

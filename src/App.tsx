@@ -1546,9 +1546,9 @@ export default function App() {
         onOrderSubmitted={handleOrderSubmitted}
       />
 
-      {/* Live Firebase Inventory, Excel Tracker & Orders Manager Modal */}
+      {/* Live Firebase Inventory, Excel Tracker & Orders Manager Modal (Admin Only) */}
       <AdminStockModal
-        isOpen={adminStockModalOpen}
+        isOpen={adminStockModalOpen && isAuthorizedAdmin}
         onClose={() => setAdminStockModalOpen(false)}
         products={liveProducts}
         currentUser={currentUser}
