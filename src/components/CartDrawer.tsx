@@ -1266,7 +1266,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Factory / Company Name *
+                    Customer Name *
                   </label>
                   <input
                     type="text"
@@ -1281,7 +1281,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Customer / Authorized Person Name *
+                      Customer Address *
                     </label>
                     <input
                       type="text"
@@ -1294,7 +1294,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Phone / Mobile Number *
+                      Mobile Number *
                     </label>
                     <input
                       type="tel"
@@ -1310,7 +1310,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Official Email Address *
+                      Email Address *
                     </label>
                     <input
                       type="email"
@@ -1323,7 +1323,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      City / Industrial Hub *
+                      City *
                     </label>
                     <select
                       value={city}
@@ -1346,7 +1346,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Complete Billing &amp; Factory Address *
+                    Address *
                   </label>
                   <input
                     type="text"
