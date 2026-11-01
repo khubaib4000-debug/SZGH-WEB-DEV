@@ -16,6 +16,9 @@ import {
   AlertTriangle,
   Receipt,
   Send,
+  Mail,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 import { User, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -117,14 +120,20 @@ export interface SubmittedCustomerOrder {
   city: string;
   address: string;
   orderNotes: string;
-  invoiceType: 'Official Tax Invoice (18% GST)' | 'Standard Commercial Receipt';
+  invoiceType: string;
   paymentMethod:
+    | '1- Cash (Cash on Pick Up)'
+    | '2- Online (UBL Bank Transfer)'
+    | '3- Sales Tax Invoice (18% GST)'
     | 'Cash on Pick Up (Lahore Facility)'
     | 'Online Bank Transfer (UBL)'
     | 'Sales Tax Invoice (18% GST)';
   selectedBankAccount?: BankAccountDetails;
   transactionRef: string;
   whatsappRedirectUrl?: string;
+  mailtoUrl?: string;
+  gmailComposeUrl?: string;
+  emailStatusMessage?: string;
   itemsSummary: string;
   items: CartEntry[];
   subtotalPKR: number;
@@ -132,7 +141,7 @@ export interface SubmittedCustomerOrder {
   salesTaxPKR: number;
   totalPKR: number;
   orderStatus: 'New Order' | 'Confirmed' | 'Ready for Pick Up' | 'Completed' | 'Cancelled';
-  autoDispatchStatus: 'sent' | 'recorded';
+  autoDispatchStatus: 'sent' | 'activation_required' | 'recorded';
 }
 
 interface CartDrawerProps {
@@ -160,7 +169,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmed'>('cart');
 
-  // Complete Customer Details (NTN No. asked ONLY when Sales Tax Invoice is chosen)
+  // Complete Customer Details (NTN No. asked ONLY when 3- Sales Tax Invoice is chosen)
   const [companyName, setCompanyName] = useState('');
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
@@ -171,10 +180,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [address, setAddress] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
 
-  // Single Unified Payment Method (Choose ONLY 1 of 3 options; Default: Cash on Pick Up)
-  // 1- PICKUP (Cash on Pick Up)
-  // 2- BANK (Online Bank Transfer - UBL)
-  // 3- SALES_TAX_INVOICE (Sales Tax Invoice +18% GST -> Redirect to WhatsApp on checkout)
+  // Strictly 3 Payment Methods — Customer can choose ONLY a single one (Default: 1- Cash)
+  // 1- PICKUP -> "1- Cash" (Cash on Pick Up - Default)
+  // 2- BANK -> "2- Online" (Online Bank Transfer - UBL)
+  // 3- SALES_TAX_INVOICE -> "3- Sales Tax Invoice" (+18% Sales Tax & Redirect to WhatsApp on Check Out)
   const [paymentMethod, setPaymentMethod] = useState<
     'PICKUP' | 'BANK' | 'SALES_TAX_INVOICE'
   >('PICKUP');
@@ -186,6 +195,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [formError, setFormError] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [receipt, setReceipt] = useState<SubmittedCustomerOrder | null>(null);
+  const [retryingEmail, setRetryingEmail] = useState(false);
 
   // Pre-fill signed-in user's name and email when available
   useEffect(() => {
@@ -226,7 +236,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const salesTaxRate: 0 | 18 = isOfficialInvoice ? 18 : 0;
   const salesTaxPKR = isOfficialInvoice ? Math.round(subtotalPKR * 0.18) : 0;
   const grandTotalPKR = subtotalPKR + salesTaxPKR;
-  const totalUSD = Math.round(grandTotalPKR / 278);
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,57 +294,202 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       )
       .join('\n');
 
-    const invoiceTypeLabel:
-      | 'Official Tax Invoice (18% GST)'
-      | 'Standard Commercial Receipt' = isOfficialInvoice
-      ? 'Official Tax Invoice (18% GST)'
-      : 'Standard Commercial Receipt';
-
     const paymentMethodLabel:
-      | 'Cash on Pick Up (Lahore Facility)'
-      | 'Online Bank Transfer (UBL)'
-      | 'Sales Tax Invoice (18% GST)' =
+      | '1- Cash (Cash on Pick Up)'
+      | '2- Online (UBL Bank Transfer)'
+      | '3- Sales Tax Invoice (18% GST)' =
       paymentMethod === 'PICKUP'
-        ? 'Cash on Pick Up (Lahore Facility)'
+        ? '1- Cash (Cash on Pick Up)'
         : paymentMethod === 'BANK'
-          ? 'Online Bank Transfer (UBL)'
-          : 'Sales Tax Invoice (18% GST)';
+          ? '2- Online (UBL Bank Transfer)'
+          : '3- Sales Tax Invoice (18% GST)';
+
+    const invoiceTypeLabel = paymentMethodLabel;
 
     const effectiveNtn = isOfficialInvoice ? ntnNumber.trim() : '';
     const effectiveStrn = isOfficialInvoice ? strnNumber.trim() : '';
 
-    // Build WhatsApp redirect URL when Sales Tax Invoice is selected
-    let whatsappRedirectUrl: string | undefined;
-    if (isOfficialInvoice) {
-      const waMessage = [
-        `*SZGH PAKISTAN — OFFICIAL SALES TAX INVOICE ORDER*`,
-        `Order ID: *${orderId}*`,
-        `Date: ${readableTimestamp}`,
-        `-----------------------------------------`,
-        `*CUSTOMER & TAX DETAILS:*`,
-        `Company: ${companyName.trim()}`,
-        `Contact Person: ${contactName.trim()}`,
-        `Phone: ${phone.trim()}`,
-        `Email: ${email.trim()}`,
-        `NTN No.: *${effectiveNtn}*`,
-        effectiveStrn ? `STRN / CNIC: ${effectiveStrn}` : null,
-        `City: ${city}`,
-        `Address: ${address.trim()}`,
-        orderNotes.trim() ? `Notes: ${orderNotes.trim()}` : null,
-        `-----------------------------------------`,
-        `*ORDERED ITEMS:*`,
-        formattedItemsList,
-        `-----------------------------------------`,
-        `Subtotal (Excl. Tax): PKR ${subtotalPKR.toLocaleString()}`,
-        `Sales Tax (18% GST): + PKR ${salesTaxPKR.toLocaleString()}`,
-        `*Total Payable (Incl. 18% GST): PKR ${grandTotalPKR.toLocaleString()}*`,
-      ]
-        .filter(Boolean)
-        .join('\n');
+    // Build WhatsApp notification URL (+92 321 4800265) for ALL 3 payment methods (1- Cash, 2- Online, 3- Sales Tax Invoice)
+    const waHeaderTitle = isOfficialInvoice
+      ? '*SZGH PAKISTAN — SALES TAX INVOICE ORDER*'
+      : paymentMethod === 'BANK'
+        ? '*SZGH PAKISTAN — ONLINE BANK TRANSFER ORDER*'
+        : '*SZGH PAKISTAN — CASH ON PICK UP ORDER*';
 
-      whatsappRedirectUrl = `https://wa.me/923214800265?text=${encodeURIComponent(
-        waMessage
-      )}`;
+    const waMessage = [
+      waHeaderTitle,
+      `Order ID: *${orderId}*`,
+      `Date: ${readableTimestamp}`,
+      `Payment Method: *${paymentMethodLabel}*`,
+      paymentMethod === 'BANK' && transactionRef.trim()
+        ? `Transaction Ref: *${transactionRef.trim()}*`
+        : null,
+      paymentMethod === 'BANK'
+        ? `Note: Sending Payment Proof to WhatsApp (+92 321 4800265) to Proceed Order`
+        : null,
+      `-----------------------------------------`,
+      `*CUSTOMER DETAILS:*`,
+      `Company: ${companyName.trim()}`,
+      `Contact Person: ${contactName.trim()}`,
+      `Phone: ${phone.trim()}`,
+      `Email: ${email.trim()}`,
+      effectiveNtn ? `NTN No.: *${effectiveNtn}*` : null,
+      effectiveStrn ? `STRN / CNIC: ${effectiveStrn}` : null,
+      `City: ${city}`,
+      `Address: ${address.trim()}`,
+      orderNotes.trim() ? `Notes: ${orderNotes.trim()}` : null,
+      `-----------------------------------------`,
+      `*ORDERED ITEMS:*`,
+      formattedItemsList,
+      `-----------------------------------------`,
+      `Subtotal (Excl. Tax): PKR ${subtotalPKR.toLocaleString()}`,
+      isOfficialInvoice
+        ? `Sales Tax (18% GST): + PKR ${salesTaxPKR.toLocaleString()}`
+        : null,
+      `*Total Payable${isOfficialInvoice ? ' (Incl. 18% GST)' : ''}: PKR ${grandTotalPKR.toLocaleString()}*`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const whatsappRedirectUrl = `https://wa.me/923214800265?text=${encodeURIComponent(
+      waMessage
+    )}`;
+
+    // Build Email subject & body for direct fallback / Gmail / Mailto links
+    const emailSubject = `NEW SZGH PAKISTAN ORDER #${orderId} — ${companyName.trim()} (${paymentMethodLabel})`;
+    const emailPlainTextBody = [
+      `SZGH PAKISTAN (KH ENTERPRISES PVT LTD) — OFFICIAL ORDER NOTIFICATION`,
+      `====================================================================`,
+      `Order ID: ${orderId}`,
+      `Order Date: ${readableTimestamp}`,
+      `Payment Method: ${paymentMethodLabel}`,
+      paymentMethod === 'BANK' && transactionRef.trim()
+        ? `Bank Transfer Reference: ${transactionRef.trim()}`
+        : null,
+      ``,
+      `CUSTOMER & BILLING DETAILS:`,
+      `---------------------------`,
+      `Factory / Company Name: ${companyName.trim()}`,
+      `Customer Contact Name: ${contactName.trim()}`,
+      `Customer Phone: ${phone.trim()}`,
+      `Customer Email: ${email.trim()}`,
+      effectiveNtn ? `Customer NTN No.: ${effectiveNtn}` : null,
+      effectiveStrn ? `STRN / CNIC No.: ${effectiveStrn}` : null,
+      `City: ${city}`,
+      `Complete Address: ${address.trim()}`,
+      `Special Instructions: ${orderNotes.trim() || 'None'}`,
+      ``,
+      `ORDERED EQUIPMENT ITEMS:`,
+      `------------------------`,
+      formattedItemsList,
+      ``,
+      `FINANCIAL SUMMARY:`,
+      `------------------`,
+      `Equipment Subtotal: PKR ${subtotalPKR.toLocaleString()}`,
+      isOfficialInvoice
+        ? `Sales Tax (18% GST): PKR ${salesTaxPKR.toLocaleString()}`
+        : `Sales Tax: PKR 0 (Non-Tax)`,
+      `TOTAL PAYABLE: PKR ${grandTotalPKR.toLocaleString()}`,
+    ]
+      .filter((line) => line !== null)
+      .join('\n');
+
+    const mailtoUrl = `mailto:khubaib4000@gmail.com?cc=${encodeURIComponent(
+      `grnoman786@gmail.com,${email.trim()}`
+    )}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(
+      emailPlainTextBody
+    )}`;
+
+    const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+      'khubaib4000@gmail.com'
+    )}&cc=${encodeURIComponent(
+      `grnoman786@gmail.com,${email.trim()}`
+    )}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(
+      emailPlainTextBody
+    )}`;
+
+    // Trigger WhatsApp notification synchronously during the user click event (before any await)
+    // so the browser's user-gesture activation is preserved and popup blockers do not block it.
+    try {
+      const waLink = document.createElement('a');
+      waLink.href = whatsappRedirectUrl;
+      waLink.target = '_blank';
+      waLink.rel = 'noopener noreferrer';
+      document.body.appendChild(waLink);
+      waLink.click();
+      document.body.removeChild(waLink);
+    } catch {
+      // Fallback button is always available on the Order Confirmation screen
+    }
+
+    // Also submit a hidden standard HTML form POST to FormSubmit inside a hidden iframe.
+    // Standard form POST triggers immediate delivery / domain activation even when AJAX is blocked on new domains.
+    try {
+      const iframeName = 'szgh_hidden_order_email_iframe';
+      let hiddenIframe = document.getElementById(
+        iframeName
+      ) as HTMLIFrameElement | null;
+      if (!hiddenIframe) {
+        hiddenIframe = document.createElement('iframe');
+        hiddenIframe.id = iframeName;
+        hiddenIframe.name = iframeName;
+        hiddenIframe.style.display = 'none';
+        document.body.appendChild(hiddenIframe);
+      }
+
+      const hiddenForm = document.createElement('form');
+      hiddenForm.method = 'POST';
+      hiddenForm.action = 'https://formsubmit.co/khubaib4000@gmail.com';
+      hiddenForm.target = iframeName;
+      hiddenForm.style.display = 'none';
+
+      const formPayload: Record<string, string> = {
+        _subject: emailSubject,
+        _cc: `grnoman786@gmail.com,${email.trim()}`,
+        _replyto: email.trim(),
+        _template: 'table',
+        _captcha: 'false',
+        Order_ID: orderId,
+        Order_Date: readableTimestamp,
+        Payment_Method: paymentMethodLabel,
+        Transaction_Reference:
+          paymentMethod === 'BANK' && transactionRef.trim()
+            ? transactionRef.trim()
+            : 'N/A',
+        Company_Name: companyName.trim(),
+        Customer_Name: contactName.trim(),
+        NTN_Number: effectiveNtn || 'Not Applicable',
+        STRN_Or_CNIC: effectiveStrn || 'Not Provided',
+        Customer_Email: email.trim(),
+        Customer_Phone: phone.trim(),
+        City: city,
+        Complete_Address: address.trim(),
+        Order_Notes: orderNotes.trim() || 'None',
+        Ordered_Items: formattedItemsList,
+        Equipment_Subtotal_PKR: `PKR ${subtotalPKR.toLocaleString()}`,
+        Sales_Tax_18_Percent_PKR: isOfficialInvoice
+          ? `PKR ${salesTaxPKR.toLocaleString()} (18% GST)`
+          : 'PKR 0',
+        Grand_Total_Payable_PKR: `PKR ${grandTotalPKR.toLocaleString()}`,
+      };
+
+      Object.entries(formPayload).forEach(([key, val]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = val;
+        hiddenForm.appendChild(input);
+      });
+
+      document.body.appendChild(hiddenForm);
+      hiddenForm.submit();
+      setTimeout(() => {
+        if (hiddenForm.parentNode) {
+          hiddenForm.parentNode.removeChild(hiddenForm);
+        }
+      }, 2500);
+    } catch {
+      // Ignore hidden form error; AJAX dispatch runs next
     }
 
     // 1. Try to ensure a Firebase Auth session (current user or anonymous fallback) to persist to Cloud Firestore
@@ -408,51 +562,83 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       }
     }
 
-    // 3. Automatically dispatch detailed order notification to SZGH Pakistan admin emails in background
+    // 3. Automatically dispatch detailed order notification via FormSubmit AJAX to both admin emails
     let emailDispatched = false;
+    let needsActivation = false;
+    let emailStatusMessage = '';
+
+    const ajaxPayload = {
+      _subject: emailSubject,
+      _cc: `grnoman786@gmail.com,${email.trim()}`,
+      _replyto: email.trim(),
+      _template: 'table',
+      _captcha: 'false',
+      Order_ID: orderId,
+      Order_Date: readableTimestamp,
+      Payment_Method: paymentMethodLabel,
+      Transaction_Reference:
+        paymentMethod === 'BANK' && transactionRef.trim()
+          ? transactionRef.trim()
+          : 'N/A',
+      Company_Name: companyName.trim(),
+      Customer_Name: contactName.trim(),
+      NTN_Number: effectiveNtn || 'Not Applicable',
+      STRN_Or_CNIC: effectiveStrn || 'Not Provided',
+      Customer_Email: email.trim(),
+      Customer_Phone: phone.trim(),
+      City: city,
+      Complete_Address: address.trim(),
+      Order_Notes: orderNotes.trim() || 'None',
+      Ordered_Items: formattedItemsList,
+      Equipment_Subtotal_PKR: `PKR ${subtotalPKR.toLocaleString()}`,
+      Sales_Tax_18_Percent_PKR: isOfficialInvoice
+        ? `PKR ${salesTaxPKR.toLocaleString()} (18% GST)`
+        : 'PKR 0',
+      Grand_Total_Payable_PKR: `PKR ${grandTotalPKR.toLocaleString()}`,
+    };
+
     try {
-      const response = await fetch(
-        'https://formsubmit.co/ajax/khubaib4000@gmail.com',
-        {
+      const [primaryRes, secondaryRes] = await Promise.allSettled([
+        fetch('https://formsubmit.co/ajax/khubaib4000@gmail.com', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(ajaxPayload),
+        }),
+        fetch('https://formsubmit.co/ajax/grnoman786@gmail.com', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
           },
           body: JSON.stringify({
-            _subject: `NEW SZGH PAKISTAN ORDER #${orderId} — ${companyName.trim()} (${paymentMethodLabel})`,
-            _cc: 'grnoman786@gmail.com',
-            _template: 'table',
-            Order_ID: orderId,
-            Order_Date: readableTimestamp,
-            Payment_Method: paymentMethodLabel,
-            Transaction_Reference:
-              paymentMethod === 'BANK' && transactionRef.trim()
-                ? transactionRef.trim()
-                : 'N/A',
-            Company_Name: companyName.trim(),
-            Customer_Name: contactName.trim(),
-            NTN_Number: effectiveNtn || 'Not Applicable (Non-Tax)',
-            STRN_Or_CNIC: effectiveStrn || 'Not Provided',
-            Customer_Email: email.trim(),
-            Customer_Phone: phone.trim(),
-            City: city,
-            Complete_Address: address.trim(),
-            Order_Notes: orderNotes.trim() || 'None',
-            Ordered_Items: formattedItemsList,
-            Equipment_Subtotal_PKR: `PKR ${subtotalPKR.toLocaleString()}`,
-            Sales_Tax_18_Percent_PKR: isOfficialInvoice
-              ? `PKR ${salesTaxPKR.toLocaleString()} (18% GST)`
-              : 'PKR 0 (0% Tax)',
-            Grand_Total_Payable_PKR: `PKR ${grandTotalPKR.toLocaleString()}`,
+            ...ajaxPayload,
+            _cc: `khubaib4000@gmail.com,${email.trim()}`,
           }),
+        }),
+      ]);
+
+      for (const settled of [primaryRes, secondaryRes]) {
+        if (settled.status === 'fulfilled' && settled.value.ok) {
+          try {
+            const data = await settled.value.json();
+            if (data && (data.success === 'true' || data.success === true)) {
+              emailDispatched = true;
+            } else if (data && typeof data.message === 'string') {
+              emailStatusMessage = data.message;
+              if (data.message.toLowerCase().includes('activation')) {
+                needsActivation = true;
+              }
+            }
+          } catch {
+            emailDispatched = true;
+          }
         }
-      );
-      if (response.ok) {
-        emailDispatched = true;
       }
     } catch {
-      // Background dispatch fallback handled via local & Firestore order registry
+      // Fallback handled via hidden form POST and confirmation action buttons
     }
 
     const newOrderRecord: SubmittedCustomerOrder = {
@@ -476,6 +662,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           ? transactionRef.trim()
           : '',
       whatsappRedirectUrl,
+      mailtoUrl,
+      gmailComposeUrl,
+      emailStatusMessage,
       itemsSummary: formattedItemsList,
       items: [...items],
       subtotalPKR,
@@ -483,7 +672,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       salesTaxPKR,
       totalPKR: grandTotalPKR,
       orderStatus: 'New Order',
-      autoDispatchStatus: emailDispatched ? 'sent' : 'recorded',
+      autoDispatchStatus: emailDispatched
+        ? 'sent'
+        : needsActivation
+          ? 'activation_required'
+          : 'recorded',
     };
 
     if (onOrderSubmitted) {
@@ -494,17 +687,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     setSubmittingOrder(false);
     onClearCart();
     setStep('confirmed');
-
-    // If customer selected 3- Sales Tax Invoice, redirect to WhatsApp on checkout
-    if (whatsappRedirectUrl) {
-      const link = document.createElement('a');
-      link.href = whatsappRedirectUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
   };
 
   const handleResetAndClose = () => {
@@ -532,8 +714,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <ShoppingBag className="w-5 h-5 text-[#1E2985] dark:text-emerald-400" />
             <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
               {step === 'cart' && 'Industrial Order Cart'}
-              {step === 'checkout' && 'B2B Checkout & Official Tax Invoice'}
-              {step === 'confirmed' && 'Official Order Confirmation & Invoice'}
+              {step === 'checkout' && 'Checkout — Payment Method & Customer Details'}
+              {step === 'confirmed' && 'Order Confirmation'}
             </h2>
           </div>
           <button
@@ -704,142 +886,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               )}
 
-              {/* STEP 1: COMPLETE CUSTOMER DETAILS (NTN NO. NOT ASKED HERE) */}
-              <div className="space-y-3">
+              {/* STEP 1: ONLY 3 PAYMENT METHODS (CHOOSE ANY SINGLE ONE — NO MULTIPLE SELECTION, NO STANDARD INVOICE) */}
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    1. Complete Customer Details *
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Factory / Company Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="e.g., Ravi Precision Engineering (Pvt) Ltd"
-                    className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Customer / Authorized Person Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                      placeholder="Full Name"
-                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Phone / Mobile Number *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="0300-1234567"
-                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono-tabular focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Official Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="procurement@company.com"
-                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      City / Industrial Hub *
-                    </label>
-                    <select
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                    >
-                      <option value="Lahore">Lahore</option>
-                      <option value="Gujranwala">Gujranwala</option>
-                      <option value="Sialkot">Sialkot</option>
-                      <option value="Karachi">Karachi</option>
-                      <option value="Faisalabad">Faisalabad</option>
-                      <option value="Rawalpindi / Islamabad">Rawalpindi / Islamabad</option>
-                      <option value="Sheikhupura">Sheikhupura</option>
-                      <option value="Multan">Multan</option>
-                      <option value="Peshawar">Peshawar</option>
-                      <option value="Other">Other City</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Complete Billing &amp; Factory Address *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Plot #, Industrial Estate / Road, Sector, City"
-                    className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Pick-Up Schedule / Special Instructions (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={orderNotes}
-                    onChange={(e) => setOrderNotes(e.target.value)}
-                    placeholder="e.g., Authorised representative visiting Lahore warehouse on Tuesday"
-                    className="w-full px-3.5 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                  />
-                </div>
-              </div>
-
-              {/* STEP 2: UNIFIED 3-OPTION PAYMENT METHOD (CHOOSE ANY SINGLE ONE) */}
-              <div className="space-y-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    2. Payment Method (Choose Any Single Option) *
+                    1. Select Payment Method (Choose Any Single One) *
                   </label>
                   <span className="text-[11px] font-bold text-[#1E2985] dark:text-emerald-400">
-                    Default: Cash on Pick Up
+                    Default: 1- Cash
                   </span>
                 </div>
 
                 <div className="p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-center gap-2 text-[11px] font-semibold text-amber-900 dark:text-amber-300">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>
-                    Please note: We do <strong>NOT</strong> offer Cash on Delivery. Please select any <strong>one</strong> of the 3 payment methods below.
+                    Only 3 payment methods are available (select any <strong>single one</strong>). We do <strong>NOT</strong> offer Cash on Delivery.
                   </span>
                 </div>
 
-                <div className="space-y-2.5">
-                  {/* OPTION 1: CASH ON PICK UP (DEFAULT) */}
+                <div className="space-y-2.5" role="radiogroup" aria-label="Payment Method">
+                  {/* 1- CASH (DEFAULT) */}
                   <label
                     className={`flex items-start gap-3 p-3.5 rounded-md border-2 cursor-pointer transition-colors ${
                       paymentMethod === 'PICKUP'
@@ -850,26 +916,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <input
                       type="radio"
                       name="paymentMethod"
+                      value="PICKUP"
                       checked={paymentMethod === 'PICKUP'}
                       onChange={() => setPaymentMethod('PICKUP')}
                       className="mt-1"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">
-                          1. Cash on Pick Up (Warehouse / Office Pick Up Only)
+                        <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                          1- Cash (Cash on Pick Up)
                         </span>
-                        <span className="text-[11px] font-mono-tabular font-semibold text-slate-500">
+                        <span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono-tabular font-extrabold uppercase">
                           Default
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Pay in person when picking up your hardware at our Lahore facility (Cash on Delivery is NOT offered)
+                        Pay in person when picking up your hardware at our Lahore warehouse/office (No Cash on Delivery)
                       </div>
                     </div>
                   </label>
 
-                  {/* OPTION 2: ONLINE BANK TRANSFER (UBL) */}
+                  {/* 2- ONLINE */}
                   <label
                     className={`flex items-start gap-3 p-3.5 rounded-md border-2 cursor-pointer transition-colors ${
                       paymentMethod === 'BANK'
@@ -880,21 +947,22 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <input
                       type="radio"
                       name="paymentMethod"
+                      value="BANK"
                       checked={paymentMethod === 'BANK'}
                       onChange={() => setPaymentMethod('BANK')}
                       className="mt-1"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold text-slate-900 dark:text-white">
-                        2. Online Bank Transfer / Raast / IBFT (United Bank Ltd - UBL)
+                      <div className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        2- Online (United Bank Ltd - UBL / Raast / IBFT)
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Direct online payment to our official UBL account prior to pick-up or dispatch
+                        Direct online transfer to our official UBL bank account prior to pick-up or dispatch
                       </div>
                     </div>
                   </label>
 
-                  {/* Online Bank Account Details Panel (When Option 2 is selected) */}
+                  {/* Online Bank Account Details Panel (When 2- Online is selected) */}
                   {paymentMethod === 'BANK' && (
                     <div className="rounded-lg border-2 border-[#00529B]/40 dark:border-sky-500/40 bg-gradient-to-b from-[#00529B]/[0.05] to-white dark:from-sky-950/30 dark:to-slate-950 p-4 space-y-3.5 shadow-sm">
                       {/* Prominent Payment Proof Note — WhatsApp No. written ONLY 1 time */}
@@ -1113,7 +1181,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                   )}
 
-                  {/* OPTION 3: SALES TAX INVOICE (+18% SALES TAX / GST — REDIRECT TO WHATSAPP ON CHECKOUT) */}
+                  {/* 3- SALES TAX INVOICE (REDIRECT TO WHATSAPP ON CHECK OUT) */}
                   <label
                     className={`flex items-start gap-3 p-3.5 rounded-md border-2 cursor-pointer transition-colors ${
                       paymentMethod === 'SALES_TAX_INVOICE'
@@ -1124,6 +1192,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <input
                       type="radio"
                       name="paymentMethod"
+                      value="SALES_TAX_INVOICE"
                       checked={paymentMethod === 'SALES_TAX_INVOICE'}
                       onChange={() => setPaymentMethod('SALES_TAX_INVOICE')}
                       className="mt-1"
@@ -1132,27 +1201,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
                           <Receipt className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
-                          <span>3. Sales Tax Invoice (+18% Sales Tax / GST)</span>
+                          <span>3- Sales Tax Invoice (Redirect to WhatsApp on Check Out)</span>
                         </span>
-                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] font-mono-tabular font-extrabold">
+                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] font-mono-tabular font-extrabold shrink-0">
                           +18% GST (PKR {Math.round(subtotalPKR * 0.18).toLocaleString()})
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                        Adds 18% FBR Sales Tax to the total amount. Official GST/NTN Tax Invoice issued by KH Enterprises (Pvt) Ltd (Redirects to WhatsApp on checkout).
+                        Adds 18% Sales Tax to total amount and redirects to WhatsApp on check out with your complete order &amp; NTN No. details.
                       </p>
                     </div>
                   </label>
 
-                  {/* ASK NTN NO. ONLY WHEN CUSTOMER CHOOSES SALES TAX INVOICE OPTION */}
+                  {/* ASK NTN NO. ONLY WHEN CUSTOMER CHOOSES 3- SALES TAX INVOICE OPTION */}
                   {paymentMethod === 'SALES_TAX_INVOICE' && (
-                    <div className="p-3.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border-2 border-amber-400/60 dark:border-amber-500/40 space-y-3">
+                    <div className="p-3.5 rounded-lg bg-amber-50/80 dark:bg-amber-950/30 border-2 border-amber-400/70 dark:border-amber-500/50 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                          Mandatory Tax Details for Sales Tax Invoice
+                          Customer NTN No. (Required for Sales Tax Invoice)
                         </span>
                         <span className="text-[11px] font-bold text-[#0D5C2B] dark:text-emerald-400">
-                          Redirects to WhatsApp on Checkout
+                          +18% Sales Tax Applied
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1186,6 +1255,122 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* STEP 2: COMPLETE CUSTOMER DETAILS (NTN NO. NOT ASKED UNLESS SALES TAX INVOICE IS CHOSEN) */}
+              <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                    2. Complete Customer Details *
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Factory / Company Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="e.g., Ravi Precision Engineering (Pvt) Ltd"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Customer / Authorized Person Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      placeholder="Full Name"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone / Mobile Number *
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0300-1234567"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white font-mono-tabular focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Official Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="procurement@company.com"
+                      className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      City / Industrial Hub *
+                    </label>
+                    <select
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                    >
+                      <option value="Lahore">Lahore</option>
+                      <option value="Gujranwala">Gujranwala</option>
+                      <option value="Sialkot">Sialkot</option>
+                      <option value="Karachi">Karachi</option>
+                      <option value="Faisalabad">Faisalabad</option>
+                      <option value="Rawalpindi / Islamabad">Rawalpindi / Islamabad</option>
+                      <option value="Sheikhupura">Sheikhupura</option>
+                      <option value="Multan">Multan</option>
+                      <option value="Peshawar">Peshawar</option>
+                      <option value="Other">Other City</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Complete Billing &amp; Factory Address *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Plot #, Industrial Estate / Road, Sector, City"
+                    className="w-full px-3.5 py-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Pick-Up Schedule / Special Instructions (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="e.g., Authorised representative visiting Lahore warehouse on Tuesday"
+                    className="w-full px-3.5 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                  />
+                </div>
+              </div>
             </form>
           )}
 
@@ -1205,17 +1390,136 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               </div>
 
-              {receipt.whatsappRedirectUrl && (
-                <a
-                  href={receipt.whatsappRedirectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#0D5C2B] hover:bg-[#094720] text-white text-xs sm:text-sm font-extrabold transition-colors shadow-xs"
+              {/* WhatsApp & Email Notification Action Hub (Available for ALL 3 Payment Methods) */}
+              <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-950 border-2 border-[#0D5C2B]/40 dark:border-emerald-500/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-[#0D5C2B] dark:text-emerald-400">
+                    Instant Order Notifications (WhatsApp & Email)
+                  </span>
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-[#0D5C2B] dark:text-emerald-300">
+                    {receipt.autoDispatchStatus === 'sent'
+                      ? 'Auto-Email Dispatched'
+                      : receipt.autoDispatchStatus === 'activation_required'
+                        ? 'Check Inbox/Spam to Activate FormSubmit'
+                        : 'Order Recorded'}
+                  </span>
+                </div>
+
+                {receipt.autoDispatchStatus === 'activation_required' && (
+                  <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700/70 text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
+                    <strong>One-Time Email Activation Notice:</strong> FormSubmit sent an activation email to{' '}
+                    <strong>khubaib4000@gmail.com</strong> and <strong>grnoman786@gmail.com</strong> (please check Inbox &amp; Spam folder and click <strong>&ldquo;Activate Form&rdquo;</strong> once so all future orders arrive automatically). You can also send this order immediately via WhatsApp or Gmail below:
+                  </div>
+                )}
+
+                {receipt.whatsappRedirectUrl && (
+                  <a
+                    href={receipt.whatsappRedirectUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#0D5C2B] hover:bg-[#094720] text-white text-xs sm:text-sm font-extrabold transition-colors shadow-xs"
+                  >
+                    <Send className="w-4 h-4 shrink-0" />
+                    <span>Send / Open Order Notification on WhatsApp (+92 321 4800265)</span>
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  </a>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {receipt.gmailComposeUrl && (
+                    <a
+                      href={receipt.gmailComposeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-md bg-[#1E2985] hover:bg-[#161f69] text-white text-xs font-bold transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5 shrink-0" />
+                      <span>Send Order via Gmail</span>
+                      <ExternalLink className="w-3 h-3 shrink-0 opacity-80" />
+                    </a>
+                  )}
+                  {receipt.mailtoUrl && (
+                    <a
+                      href={receipt.mailtoUrl}
+                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-bold transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5 shrink-0 text-[#1E2985] dark:text-emerald-400" />
+                      <span>Send via Default Email App</span>
+                    </a>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={retryingEmail}
+                  onClick={async () => {
+                    setRetryingEmail(true);
+                    try {
+                      const res = await fetch(
+                        'https://formsubmit.co/ajax/khubaib4000@gmail.com',
+                        {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json',
+                          },
+                          body: JSON.stringify({
+                            _subject: `RESEND SZGH PAKISTAN ORDER #${receipt.orderId} — ${receipt.companyName} (${receipt.paymentMethod})`,
+                            _cc: `grnoman786@gmail.com,${receipt.email}`,
+                            _replyto: receipt.email,
+                            _template: 'table',
+                            _captcha: 'false',
+                            Order_ID: receipt.orderId,
+                            Order_Date: receipt.timestamp,
+                            Payment_Method: receipt.paymentMethod,
+                            Company_Name: receipt.companyName,
+                            Customer_Name: receipt.contactName,
+                            Customer_Phone: receipt.phone,
+                            Customer_Email: receipt.email,
+                            NTN_Number: receipt.ntnNumber || 'Not Applicable',
+                            City: receipt.city,
+                            Complete_Address: receipt.address,
+                            Ordered_Items: receipt.itemsSummary,
+                            Grand_Total_Payable_PKR: `PKR ${receipt.totalPKR.toLocaleString()}`,
+                          }),
+                        }
+                      );
+                      const data = await res.json().catch(() => ({}));
+                      if (data && (data.success === 'true' || data.success === true)) {
+                        setReceipt((prev) =>
+                          prev ? { ...prev, autoDispatchStatus: 'sent' } : prev
+                        );
+                      } else if (
+                        data &&
+                        typeof data.message === 'string' &&
+                        data.message.toLowerCase().includes('activation')
+                      ) {
+                        setReceipt((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                autoDispatchStatus: 'activation_required',
+                                emailStatusMessage: data.message,
+                              }
+                            : prev
+                        );
+                      }
+                    } catch {
+                      // Ignore error
+                    } finally {
+                      setRetryingEmail(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Open WhatsApp with Sales Tax Invoice Details</span>
-                </a>
-              )}
+                  <RefreshCw className={`w-3 h-3 ${retryingEmail ? 'animate-spin' : ''}`} />
+                  <span>
+                    {retryingEmail
+                      ? 'Re-sending Automatic Email Notification...'
+                      : 'Re-trigger Automatic Email Notification (khubaib4000@gmail.com)'}
+                  </span>
+                </button>
+              </div>
 
               {/* Show UBL Bank Account Card on Receipt if Bank Transfer selected */}
               {receipt.selectedBankAccount && (
@@ -1321,7 +1625,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Payment Mode:</span>
+                    <span className="text-slate-500 block">Payment Method:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
                       {receipt.paymentMethod}
                     </span>
@@ -1404,13 +1708,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               )}
 
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>Payment Method</span>
+                <span>Selected Payment Method</span>
                 <span className="font-semibold text-[#0D5C2B] dark:text-emerald-400">
                   {paymentMethod === 'PICKUP'
-                    ? '1. Cash on Pick Up (Default)'
+                    ? '1- Cash (Cash on Pick Up)'
                     : paymentMethod === 'BANK'
-                      ? '2. Online Bank Transfer (UBL)'
-                      : '3. Sales Tax Invoice (+18% GST)'}
+                      ? '2- Online (UBL Bank Transfer)'
+                      : '3- Sales Tax Invoice (+18% GST)'}
                 </span>
               </div>
 
@@ -1421,9 +1725,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="text-right">
                   <div className="text-lg font-extrabold font-mono-tabular text-slate-900 dark:text-white">
                     PKR {grandTotalPKR.toLocaleString()}
-                  </div>
-                  <div className="text-[11px] font-mono-tabular text-slate-500">
-                    ≈ USD ${totalUSD.toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -1457,8 +1758,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {submittingOrder
                       ? 'Processing Order...'
                       : isOfficialInvoice
-                        ? 'Complete Checkout & Redirect to WhatsApp'
-                        : 'Complete Order & Send Automatically'}
+                        ? 'Check Out & Redirect to WhatsApp'
+                        : 'Complete Check Out'}
                   </span>
                 </button>
               </div>

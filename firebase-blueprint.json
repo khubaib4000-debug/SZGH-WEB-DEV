@@ -185,11 +185,20 @@
         },
         "invoiceType": {
           "type": "string",
-          "enum": ["Official Tax Invoice (18% GST)", "Standard Commercial Receipt"]
+          "enum": [
+            "1- Cash (Cash on Pick Up)",
+            "2- Online (UBL Bank Transfer)",
+            "3- Sales Tax Invoice (18% GST)",
+            "Official Tax Invoice (18% GST)",
+            "Standard Commercial Receipt"
+          ]
         },
         "paymentMethod": {
           "type": "string",
           "enum": [
+            "1- Cash (Cash on Pick Up)",
+            "2- Online (UBL Bank Transfer)",
+            "3- Sales Tax Invoice (18% GST)",
             "Cash on Pick Up (Lahore Facility)",
             "Online Bank Transfer (UBL)",
             "Sales Tax Invoice (18% GST)"

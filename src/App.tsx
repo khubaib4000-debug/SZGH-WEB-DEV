@@ -335,16 +335,15 @@ export default function App() {
                 city: d.city || '',
                 address: d.address || '',
                 orderNotes: d.orderNotes || '',
-                invoiceType:
-                  d.invoiceType === 'Standard Commercial Receipt'
-                    ? 'Standard Commercial Receipt'
-                    : 'Official Tax Invoice (18% GST)',
+                invoiceType: d.invoiceType || d.paymentMethod || '1- Cash (Cash on Pick Up)',
                 paymentMethod:
+                  d.paymentMethod === '2- Online (UBL Bank Transfer)' ||
                   d.paymentMethod === 'Online Bank Transfer (UBL)'
-                    ? 'Online Bank Transfer (UBL)'
-                    : d.paymentMethod === 'Sales Tax Invoice (18% GST)'
-                      ? 'Sales Tax Invoice (18% GST)'
-                      : 'Cash on Pick Up (Lahore Facility)',
+                    ? '2- Online (UBL Bank Transfer)'
+                    : d.paymentMethod === '3- Sales Tax Invoice (18% GST)' ||
+                        d.paymentMethod === 'Sales Tax Invoice (18% GST)'
+                      ? '3- Sales Tax Invoice (18% GST)'
+                      : '1- Cash (Cash on Pick Up)',
                 transactionRef: d.transactionRef || '',
                 itemsSummary: d.itemsSummary || '',
                 items: [],

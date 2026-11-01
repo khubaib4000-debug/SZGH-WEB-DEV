@@ -220,9 +220,9 @@ service cloud.firestore {
         data.orderNotes.size() >= 0 &&
         data.orderNotes.size() <= 600 &&
         data.invoiceType is string &&
-        data.invoiceType in ['Official Tax Invoice (18% GST)', 'Standard Commercial Receipt'] &&
+        data.invoiceType in ['1- Cash (Cash on Pick Up)', '2- Online (UBL Bank Transfer)', '3- Sales Tax Invoice (18% GST)', 'Official Tax Invoice (18% GST)', 'Standard Commercial Receipt'] &&
         data.paymentMethod is string &&
-        data.paymentMethod in ['Cash on Pick Up (Lahore Facility)', 'Online Bank Transfer (UBL)', 'Sales Tax Invoice (18% GST)'] &&
+        data.paymentMethod in ['1- Cash (Cash on Pick Up)', '2- Online (UBL Bank Transfer)', '3- Sales Tax Invoice (18% GST)', 'Cash on Pick Up (Lahore Facility)', 'Online Bank Transfer (UBL)', 'Sales Tax Invoice (18% GST)'] &&
         data.transactionRef is string &&
         data.transactionRef.size() >= 0 &&
         data.transactionRef.size() <= 120 &&

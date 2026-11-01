@@ -1445,9 +1445,11 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                           <span className="text-xs font-bold text-slate-900 dark:text-white">
                             {order.companyName}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 font-mono-tabular text-xs font-extrabold">
-                            NTN: {order.ntnNumber}
-                          </span>
+                          {order.ntnNumber && (
+                            <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 font-mono-tabular text-xs font-extrabold">
+                              NTN: {order.ntnNumber}
+                            </span>
+                          )}
                           {order.strnNumber && (
                             <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono-tabular text-[11px] font-semibold">
                               STRN: {order.strnNumber}
@@ -1458,7 +1460,39 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <a
+                            href={
+                              order.whatsappRedirectUrl ||
+                              `https://wa.me/923214800265?text=${encodeURIComponent(
+                                `*SZGH PAKISTAN ORDER #${order.orderId}*\nCompany: ${order.companyName}\nCustomer: ${order.contactName} (${order.phone})\nEmail: ${order.email}\nPayment: ${order.paymentMethod}\nItems:\n${order.itemsSummary}\n*Total: PKR ${order.totalPKR.toLocaleString()}*`
+                              )}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0D5C2B] hover:bg-[#094720] text-white text-[11px] font-bold transition-colors"
+                          >
+                            <span>WhatsApp Order</span>
+                          </a>
+                          <a
+                            href={
+                              order.gmailComposeUrl ||
+                              `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                                'khubaib4000@gmail.com'
+                              )}&cc=${encodeURIComponent(
+                                `grnoman786@gmail.com,${order.email}`
+                              )}&su=${encodeURIComponent(
+                                `SZGH PAKISTAN ORDER #${order.orderId} — ${order.companyName}`
+                              )}&body=${encodeURIComponent(
+                                `Order ID: ${order.orderId}\nCompany: ${order.companyName}\nContact: ${order.contactName} (${order.phone})\nEmail: ${order.email}\nPayment: ${order.paymentMethod}\nAddress: ${order.address}, ${order.city}\n\nItems:\n${order.itemsSummary}\n\nTotal Payable: PKR ${order.totalPKR.toLocaleString()}`
+                              )}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1E2985] hover:bg-[#161f69] text-white text-[11px] font-bold transition-colors"
+                          >
+                            <span>Email (Gmail)</span>
+                          </a>
                           <label className="text-[11px] font-bold text-slate-500">
                             Status:
                           </label>
@@ -1499,12 +1533,14 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                           <div>
                             <strong>Email:</strong> {order.email}
                           </div>
-                          <div>
-                            <strong>NTN No.:</strong>{' '}
-                            <span className="font-mono-tabular font-bold text-[#1E2985] dark:text-emerald-400">
-                              {order.ntnNumber}
-                            </span>
-                          </div>
+                          {order.ntnNumber && (
+                            <div>
+                              <strong>NTN No.:</strong>{' '}
+                              <span className="font-mono-tabular font-bold text-[#1E2985] dark:text-emerald-400">
+                                {order.ntnNumber}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="p-3 rounded bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-1">
@@ -1540,19 +1576,21 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
                         <div className="p-3 rounded bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 space-y-1 font-mono-tabular">
                           <div className="text-[10px] font-sans font-bold uppercase tracking-wider text-slate-400">
-                            Invoice &amp; 18% GST Breakdown
+                            Invoice &amp; Payment Breakdown
                           </div>
                           <div className="font-sans text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                            {order.invoiceType}
+                            {order.paymentMethod}
                           </div>
                           <div className="flex justify-between">
                             <span>Subtotal:</span>
                             <span>PKR {order.subtotalPKR.toLocaleString()}</span>
                           </div>
-                          <div className="flex justify-between text-amber-700 dark:text-amber-400 font-bold">
-                            <span>Sales Tax ({order.salesTaxRate}%):</span>
-                            <span>+ PKR {order.salesTaxPKR.toLocaleString()}</span>
-                          </div>
+                          {order.salesTaxRate === 18 && (
+                            <div className="flex justify-between text-amber-700 dark:text-amber-400 font-bold">
+                              <span>Sales Tax (18% GST):</span>
+                              <span>+ PKR {order.salesTaxPKR.toLocaleString()}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-800 text-sm font-extrabold text-slate-900 dark:text-white">
                             <span>Total:</span>
                             <span>PKR {order.totalPKR.toLocaleString()}</span>
