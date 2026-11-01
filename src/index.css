@@ -11,14 +11,14 @@
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 }
 

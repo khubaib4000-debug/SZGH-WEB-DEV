@@ -811,7 +811,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col pb-16 md:pb-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-150">
+    <div className="min-h-screen flex flex-col pt-16 sm:pt-20 pb-16 md:pb-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-150">
       {/* Sticky Navigation Bar */}
       <Navbar
         activeSection={activeSection}
