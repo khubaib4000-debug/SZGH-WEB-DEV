@@ -110,18 +110,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           <a
             href="#home"
             onClick={(e) => handleNavClick('home', e)}
-            className="flex items-center gap-1.5 sm:gap-3 whitespace-nowrap min-w-0 shrink group focus:outline-none"
+            className="flex items-center gap-1.5 sm:gap-3 min-w-0 shrink group focus:outline-none"
           >
-            <div className="h-7 sm:h-12 w-auto flex items-center justify-center overflow-hidden bg-white rounded px-1 sm:px-1.5 py-0.5 border border-slate-100 shrink-0">
+            <div className="h-11 sm:h-16 w-auto flex items-center justify-center overflow-hidden bg-white rounded px-1 sm:px-1.5 py-0.5 border border-slate-100 shrink-0">
               <img
                 src="/assets/aistudio/szgh-pakistan-logo_baed6be7.png"
                 alt="SZGH Pakistan - KH Enterprises Pvt Ltd Logo"
-                className="h-6 sm:h-11 w-auto object-contain"
+                className="h-10 sm:h-15 w-auto object-contain"
                 referrerPolicy="no-referrer"
               />
             </div>
-            <span className="text-[11px] sm:text-xl font-extrabold tracking-tight text-slate-900 truncate">
-              SZGH <span className="text-[#0D5C2B]">PAKISTAN</span>
+            <span className="flex flex-col sm:inline text-xs sm:text-xl font-extrabold tracking-tight text-slate-900 leading-tight whitespace-nowrap">
+              <span>SZGH</span>{' '}
+              <span className="text-[#0D5C2B]">PAKISTAN</span>
             </span>
           </a>
 

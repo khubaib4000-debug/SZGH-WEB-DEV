@@ -1441,11 +1441,11 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-10 border-b border-slate-800">
             <div className="lg:col-span-5 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-auto px-2 py-1 rounded bg-white flex items-center justify-center overflow-hidden">
+                <div className="h-16 w-auto px-2.5 py-1 rounded bg-white flex items-center justify-center overflow-hidden">
                   <img
                     src="/assets/aistudio/szgh-pakistan-logo_baed6be7.png"
                     alt="SZGH Pakistan - KH Enterprises Pvt Ltd Logo"
-                    className="h-10 w-auto object-contain"
+                    className="h-14 w-auto object-contain"
                     referrerPolicy="no-referrer"
                   />
                 </div>
