@@ -230,18 +230,234 @@ function createIndustrialProductGallery(
   return [view1, view2, view3, view4];
 }
 
+export interface SubcategoryGroup {
+  id: string;
+  groupTitle: string;
+  category: ProductCategory;
+  subcategories: string[];
+}
+
+/**
+ * Official SZGH Product Category & Subcategory Hierarchy
+ * Distributed directly from the official SZGH subcategory structure:
+ * 1. CNC System (Controllers)
+ * 2. Servo Motors and Drives (Motors)
+ * 3. Spindle Servo Motors and Drivers (Motors)
+ * 4. Stepper Motors and Drivers (Motors)
+ * 5. CNC Machine (Machines)
+ * 6. Industrial Robots (Robots)
+ */
+export const OFFICIAL_SUBCATEGORY_GROUPS: SubcategoryGroup[] = [
+  {
+    id: 'cnc-system',
+    groupTitle: 'CNC System',
+    category: 'Controllers',
+    subcategories: [
+      'Drilling and milling machine CNC controller',
+      'Lathe controller',
+      'Engraving CNC controller',
+      'Grinder controller',
+    ],
+  },
+  {
+    id: 'servo-motors-and-drives',
+    groupTitle: 'Servo Motors and Drives',
+    category: 'Motors',
+    subcategories: [
+      'Servo Driver',
+      'Servo motor',
+    ],
+  },
+  {
+    id: 'spindle-servo-motors-and-drivers',
+    groupTitle: 'Spindle Servo Motors and Drivers',
+    category: 'Motors',
+    subcategories: [
+      'Spindle servo motor',
+      'Spindle servo driver',
+    ],
+  },
+  {
+    id: 'stepper-motors-and-drivers',
+    groupTitle: 'Stepper Motors and Drivers',
+    category: 'Motors',
+    subcategories: [
+      'Closed Loop Stepper Motors and Drivers',
+      'Two-phase stepper motor and driver',
+      'Three-phase stepper motors and drivers',
+    ],
+  },
+  {
+    id: 'cnc-machine',
+    groupTitle: 'CNC Machine',
+    category: 'Machines',
+    subcategories: [
+      'CNC lathe machine',
+      'CNC milling machine',
+      'Milling machine center',
+    ],
+  },
+  {
+    id: 'industrial-robots',
+    groupTitle: 'Industrial Robots',
+    category: 'Robots',
+    subcategories: [
+      'Robotic Welding Cell',
+      'Pick-and-Place & Machine Tending',
+      'Spraying & Grinding Robot',
+    ],
+  },
+];
+
+export const ALL_OFFICIAL_SUBCATEGORIES: string[] = OFFICIAL_SUBCATEGORY_GROUPS.flatMap(
+  (g) => g.subcategories
+);
+
+/**
+ * Automatically distributes any product (built-in, Firestore cloud override, or Excel import)
+ * into its exact official subcategory based on its existing subcategory, model number, title, and description.
+ */
+export function resolveOfficialSubcategory(item: {
+  category?: ProductCategory | '';
+  subcategory?: string;
+  modelNumber?: string;
+  title?: string;
+  description?: string;
+}): string {
+  const rawSub = (item.subcategory || '').trim();
+  // If already an exact official subcategory (case-insensitive), return canonical casing
+  const exactMatch = ALL_OFFICIAL_SUBCATEGORIES.find(
+    (s) => s.toLowerCase() === rawSub.toLowerCase()
+  );
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const model = (item.modelNumber || '').toUpperCase();
+  const combined = `${rawSub} ${item.modelNumber || ''} ${item.title || ''} ${
+    item.description || ''
+  }`.toLowerCase();
+  const cat = item.category || 'Controllers';
+
+  if (cat === 'Controllers') {
+    if (combined.includes('grind') || /SZGH[-\s]*G|CNC[-\s]*G/i.test(model)) {
+      return 'Grinder controller';
+    }
+    if (
+      combined.includes('engrav') ||
+      combined.includes('router') ||
+      /1000MD[C]|880MD|990MD/i.test(model)
+    ) {
+      return 'Engraving CNC controller';
+    }
+    if (
+      combined.includes('lathe') ||
+      combined.includes('turning') ||
+      combined.includes('turn-mill') ||
+      combined.includes('turret') ||
+      /TD|TC|990T|1000T|880T|1080T/i.test(model)
+    ) {
+      return 'Lathe controller';
+    }
+    if (
+      combined.includes('milling') ||
+      combined.includes('drilling') ||
+      combined.includes('vmc') ||
+      combined.includes('machining center') ||
+      /MD|MC|1000M|880M|990M|1080M/i.test(model)
+    ) {
+      return 'Drilling and milling machine CNC controller';
+    }
+    return 'Drilling and milling machine CNC controller';
+  }
+
+  if (cat === 'Motors') {
+    // 1. Stepper Motors and Drivers
+    if (combined.includes('stepper') || combined.includes('stepping') || /86HS|57HS|110HS|130BYG|3DM|2DM|CL86/i.test(model)) {
+      if (combined.includes('three-phase') || combined.includes('3-phase') || combined.includes('three phase') || /3DM|110|130BYG/i.test(model)) {
+        return 'Three-phase stepper motors and drivers';
+      }
+      if (combined.includes('two-phase') || combined.includes('2-phase') || combined.includes('two phase') || /2DM/i.test(model)) {
+        return 'Two-phase stepper motor and driver';
+      }
+      return 'Closed Loop Stepper Motors and Drivers';
+    }
+
+    // 2. Spindle Servo Motors and Drivers
+    if (combined.includes('spindle') || /SZGH-08|SZGH-10|SZGH-12|S4T2P|SPINDLE/i.test(model)) {
+      if (
+        (combined.includes('driver') || combined.includes('drive') || combined.includes('inverter') || /S4T2P|SD500|SPD/i.test(model)) &&
+        !combined.includes('motor &') &&
+        !combined.includes('motor and') &&
+        !combined.includes('asynchronous servo spindle motor')
+      ) {
+        return 'Spindle servo driver';
+      }
+      return 'Spindle servo motor';
+    }
+
+    // 3. Servo Motors and Drives
+    if (
+      (combined.includes('servo driver') ||
+        combined.includes('servo drive') ||
+        combined.includes('amplifier') ||
+        /^SZGH[-\s]*SD|^SD[0-9]|[-+\s]SD[0-9]/i.test(model)) &&
+      !combined.includes('servo motor')
+    ) {
+      return 'Servo Driver';
+    }
+    return 'Servo motor';
+  }
+
+  if (cat === 'Machines') {
+    if (
+      combined.includes('lathe') ||
+      combined.includes('turning') ||
+      combined.includes('turn-mill') ||
+      /SZGH-36|SZGH-46|SZGH-25|SZGH-T/i.test(model)
+    ) {
+      return 'CNC lathe machine';
+    }
+    if (
+      combined.includes('center') ||
+      combined.includes('vmc') ||
+      /VMC|SZGH-650|SZGH-850|SZGH-1060/i.test(model)
+    ) {
+      return 'Milling machine center';
+    }
+    return 'CNC milling machine';
+  }
+
+  if (cat === 'Robots') {
+    if (combined.includes('weld')) {
+      return 'Robotic Welding Cell';
+    }
+    if (combined.includes('spray') || combined.includes('grind') || combined.includes('paint')) {
+      return 'Spraying & Grinding Robot';
+    }
+    return 'Pick-and-Place & Machine Tending';
+  }
+
+  return rawSub || 'Drilling and milling machine CNC controller';
+}
+
 export const PRODUCTS_DATABASE: ProductItem[] = [
   // ==========================================================================
-  // CATEGORY 1: CNC CONTROLLERS (Supports I/O Board Selection)
+  // CATEGORY 1: CNC SYSTEM (Controllers — Supports I/O Board Selection)
+  // Subcategories:
+  //   - Drilling and milling machine CNC controller
+  //   - Lathe controller
+  //   - Engraving CNC controller
+  //   - Grinder controller
   // ==========================================================================
   {
     id: 'prod-cnc-1000mdb',
-    title: 'Universal CNC Milling & Machining Center Controller',
+    title: 'Universal CNC Milling & Drilling Machine Controller',
     modelNumber: 'SZGH-CNC1000MDb-5',
     category: 'Controllers',
-    subcategory: 'CNC Milling Controller',
+    subcategory: 'Drilling and milling machine CNC controller',
     description:
-      'Industrial simultaneous interpolation CNC milling controller for VMCs, gantry mills, and precision mold making. Features 8.4" LCD, full ATC PLC support, and USB DNC.',
+      'Industrial simultaneous interpolation CNC drilling and milling controller for VMCs, gantry mills, and precision mold making. Features 8.4" LCD, full ATC PLC support, and USB DNC.',
     features: [
       'Simultaneous linear, circular, and helical interpolation with RTCP look-ahead smoothing',
       'Built-in open PLC ladder supporting Umbrella, Linear, and Arm-Type Automatic Tool Changers (up to 32 tools)',
@@ -279,16 +495,90 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
       { label: 'Communication Interface', value: 'USB Flash, RS232 DNC, EtherCAT / Pulse Option' },
       { label: 'Built-in PLC I/O', value: '32 Opto-Isolated Inputs / 32 Relay-Drive Outputs' },
     ],
-    compatibility: ['Vertical Machining Centers (VMC)', 'Bed Mills', 'Engraving & Mold Centres'],
+    compatibility: ['Vertical Machining Centers (VMC)', 'Drilling & Milling Machines', 'Mold Centres'],
+  },
+  {
+    id: 'prod-cnc-1000mdb-3',
+    title: 'Universal CNC Drilling & Milling Machine Controller',
+    modelNumber: 'SZGH-CNC1000MDb-3',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Industrial simultaneous CNC drilling and milling controller for Vertical Machining Centers (VMCs), bed mills, and precision drilling-milling machines.',
+    features: [
+      'High-speed interpolation with look-ahead smoothing',
+      'Built-in open PLC ladder for Umbrella and Arm-Type Automatic Tool Changers',
+    ],
+    price: 215000,
+    usdEstimate: 775,
+    inStock: true,
+    stockCount: 18,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [
+      HERO_SHOWCASE_PHOTOS.controllers,
+      ...createIndustrialProductGallery(
+        'SZGH-CNC1000MDb-3',
+        'Controllers',
+        '#16a34a',
+        '420 × 260 × 115 mm',
+        '24VDC Isolated / VMC Control'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Front Operator Panel',
+      'CAD Panel Cutout',
+      'Rear DB25 & PLC I/O',
+      'VMC Retrofit Topology',
+    ],
+    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
+    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Drilling & Milling Machines'],
+  },
+  {
+    id: 'prod-cnc-1000mdb-4',
+    title: 'Universal CNC Drilling, Milling & Rotary Indexing Controller',
+    modelNumber: 'SZGH-CNC1000MDb-4',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Industrial simultaneous CNC drilling and milling controller for VMCs with rotary indexing tables and cylindrical milling.',
+    features: [
+      'Simultaneous interpolation for rotary table machining',
+      'Built-in open PLC ladder for Umbrella and Arm-Type Automatic Tool Changers',
+    ],
+    price: 240000,
+    usdEstimate: 865,
+    inStock: true,
+    stockCount: 11,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [
+      HERO_SHOWCASE_PHOTOS.controllers,
+      ...createIndustrialProductGallery(
+        'SZGH-CNC1000MDb-4',
+        'Controllers',
+        '#16a34a',
+        '420 × 260 × 115 mm',
+        '24VDC Isolated / VMC Control'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Front Operator Panel',
+      'CAD Panel Cutout',
+      'Rear DB25 & PLC I/O',
+      'VMC Retrofit Topology',
+    ],
+    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
+    compatibility: ['VMCs', 'Rotary Table Drilling & Milling Machines'],
   },
   {
     id: 'prod-cnc-1000tdb',
     title: 'High-Precision CNC Lathe & Turning Center Controller',
     modelNumber: 'SZGH-CNC1000TDb-3',
     category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
+    subcategory: 'Lathe controller',
     description:
-      'Flagship CNC turning controller designed for slant-bed CNC lathes and live-tooling turning centers. Supports 4-to-12 station turrets, constant surface speed (G96), and rigid tapping.',
+      'Flagship CNC lathe controller designed for slant-bed CNC lathes and live-tooling turning centers. Supports 4-to-12 station turrets, constant surface speed (G96), and rigid tapping.',
     features: [
       'Dedicated live-tooling control for complex turning and milling operations',
       'Supports multi-start metric/inch/taper threading, rigid tapping, and constant surface speed (G96)',
@@ -329,11 +619,85 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     compatibility: ['Slant-Bed CNC Lathes', 'Turn-Mill Centers', 'Conventional Lathe Retrofits'],
   },
   {
+    id: 'prod-cnc-1000tdb-2',
+    title: 'High-Precision CNC Lathe & Turning Center Controller',
+    modelNumber: 'SZGH-CNC1000TDb-2',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'SZGH-CNC1000TDb lathe controller for slant-bed CNC lathes with 8.4" LCD, constant surface speed (G96), and 4–12 station turret control.',
+    features: [
+      'Precision turning with 0.001mm resolution and G96 constant surface speed',
+      'Pre-programmed PLC logic for electric and hydraulic turrets',
+    ],
+    price: 205000,
+    usdEstimate: 737,
+    inStock: true,
+    stockCount: 22,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [
+      HERO_SHOWCASE_PHOTOS.controllers,
+      ...createIndustrialProductGallery(
+        'SZGH-CNC1000TDb-2',
+        'Controllers',
+        '#2563eb',
+        '400 × 245 × 110 mm',
+        '24VDC / Slant-Bed Turning'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Front Turning Console',
+      'Mounting Blueprint',
+      'Turret & Spindle I/O',
+      'Slant-Bed Lathe Wiring',
+    ],
+    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
+    compatibility: ['Slant-Bed CNC Lathes', 'Production Turning Centers'],
+  },
+  {
+    id: 'prod-cnc-1000tdb-4',
+    title: 'High-Precision CNC Turn-Mill Lathe Controller',
+    modelNumber: 'SZGH-CNC1000TDb-4',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'SZGH-CNC1000TDb lathe controller for multi-tasking turn-mill centers with off-center milling and live tooling.',
+    features: [
+      'Simultaneous control for complex turn-mill centers',
+      'Dual analog spindle outputs + full turret & live-tool PLC integration',
+    ],
+    price: 252000,
+    usdEstimate: 906,
+    inStock: true,
+    stockCount: 8,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [
+      HERO_SHOWCASE_PHOTOS.controllers,
+      ...createIndustrialProductGallery(
+        'SZGH-CNC1000TDb-4',
+        'Controllers',
+        '#2563eb',
+        '400 × 245 × 110 mm',
+        '24VDC / Turn-Mill Control'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Front Turning Console',
+      'Mounting Blueprint',
+      'Turret & Spindle I/O',
+      'Slant-Bed Lathe Wiring',
+    ],
+    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
+    compatibility: ['Turn-Mill Centers', 'Multi-Tasking CNC Lathes'],
+  },
+  {
     id: 'prod-cnc-990tdb',
     title: 'Economical CNC Lathe Controller for Standard Turning',
     modelNumber: 'SZGH-CNC990TDb-2',
     category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
+    subcategory: 'Lathe controller',
     description:
       'Cost-effective CNC lathe controller ideal for upgrading conventional lathes and flat-bed production turning machines. Features 8" color LCD and USB program transfer.',
     features: [
@@ -373,11 +737,85 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     compatibility: ['Flat-Bed CNC Lathes', 'Conventional Lathe Conversions', 'Auto-Feeder Turning Machines'],
   },
   {
+    id: 'prod-cnc-990tdb-3',
+    title: 'Economical CNC Lathe & Turning Controller',
+    modelNumber: 'SZGH-CNC990TDb-3',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'Cost-effective CNC lathe controller for turning machines with spindle indexing and side/axial live milling.',
+    features: [
+      'High-speed interpolation with 0.001mm resolution',
+      'Direct support for 4-to-8 station electric tool posts and live spindles',
+    ],
+    price: 185000,
+    usdEstimate: 665,
+    inStock: true,
+    stockCount: 15,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [
+      HERO_SHOWCASE_PHOTOS.controllers,
+      ...createIndustrialProductGallery(
+        'SZGH-CNC990TDb-3',
+        'Controllers',
+        '#0284c7',
+        '380 × 240 × 110 mm',
+        '24VDC / Live-Milling Lathe'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Front Operator Panel',
+      'CAD Panel Cutout',
+      'Rear DB25 & PLC I/O',
+      'Lathe Retrofit Topology',
+    ],
+    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
+    compatibility: ['CNC Lathes', 'Conventional Lathe Conversions'],
+  },
+  {
+    id: 'prod-cnc-990tdb-4',
+    title: 'Economical CNC Lathe & Milling Controller',
+    modelNumber: 'SZGH-CNC990TDb-4',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'Economical CNC lathe controller for turning, drilling, and milling retrofits.',
+    features: [
+      'Precision control in a compact 8.0" LCD operator console',
+      'Supports electric turrets, gang tooling, and external I/O relay boards',
+    ],
+    price: 205000,
+    usdEstimate: 737,
+    inStock: true,
+    stockCount: 10,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [
+      HERO_SHOWCASE_PHOTOS.controllers,
+      ...createIndustrialProductGallery(
+        'SZGH-CNC990TDb-4',
+        'Controllers',
+        '#0284c7',
+        '380 × 240 × 110 mm',
+        '24VDC / Turn-Mill Retrofit'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Front Operator Panel',
+      'CAD Panel Cutout',
+      'Rear DB25 & PLC I/O',
+      'Lathe Retrofit Topology',
+    ],
+    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
+    compatibility: ['CNC Lathes', 'Multi-Tool Turning Machines'],
+  },
+  {
     id: 'prod-cnc-880tc-2',
     title: 'Industrial CNC Lathe & Turning Controller (880TC Series)',
     modelNumber: 'SZGH-880TC-2',
     category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
+    subcategory: 'Lathe controller',
     description:
       'High-stability SZGH-880TC CNC lathe controller with 8.4" color LCD, macro programming, electric/hydraulic turret control, and USB DNC interface.',
     features: [
@@ -419,9 +857,9 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     title: 'Industrial CNC Lathe & Milling-Turn Controller (880TC Series)',
     modelNumber: 'SZGH-880TC-3',
     category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
+    subcategory: 'Lathe controller',
     description:
-      'SZGH-880TC CNC turning & live-tooling controller supporting spindle indexing, rigid tapping, and multi-station ATC turrets.',
+      'SZGH-880TC CNC turning & live-tooling lathe controller supporting spindle indexing, rigid tapping, and multi-station ATC turrets.',
     features: [
       'Simultaneous interpolation for turn-mill machining',
       'Built-in PLC logic for 4–12 station turrets, hydraulic chucks, and tailstocks',
@@ -459,7 +897,7 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     title: 'Industrial CNC Turning & Dual-Slide Controller (880TC Series)',
     modelNumber: 'SZGH-880TC-4',
     category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
+    subcategory: 'Lathe controller',
     description:
       'SZGH-880TC CNC turning controller for complex turn-mill centers, off-center drilling/milling, and dual-spindle lathes.',
     features: [
@@ -495,237 +933,147 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     compatibility: ['Turn-Mill Centers', 'Production Lathes'],
   },
   {
-    id: 'prod-cnc-1000mdb-3',
-    title: 'Universal CNC Milling & VMC Controller',
-    modelNumber: 'SZGH-CNC1000MDb-3',
+    id: 'prod-cnc-990mdb-3',
+    title: 'High-Speed CNC Engraving & Mold Milling Controller',
+    modelNumber: 'SZGH-CNC990MDb-3',
     category: 'Controllers',
-    subcategory: 'CNC Milling Controller',
+    subcategory: 'Engraving CNC controller',
     description:
-      'Industrial simultaneous CNC milling controller for Vertical Machining Centers (VMCs), bed mills, and precision engraving machines.',
+      'Dedicated high-speed engraving CNC controller for die/mold engraving, precision routing, and high-RPM spindle engraving centers with USB DNC drip-feeding.',
     features: [
-      'High-speed interpolation with look-ahead smoothing',
-      'Built-in open PLC ladder for Umbrella and Arm-Type Automatic Tool Changers',
+      'High-speed small-segment look-ahead interpolation for smooth 3D engraving and mold cavities',
+      'Supports high-frequency engraving spindles (up to 24,000–60,000 RPM) via 0-10V analog and RS485 Modbus',
+      'Automatic Z-axis tool length setter macro and power-failure resume engraving function',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
     ],
-    price: 215000,
-    usdEstimate: 775,
+    price: 172000,
+    usdEstimate: 618,
     inStock: true,
-    stockCount: 18,
+    stockCount: 14,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
     images: [
       HERO_SHOWCASE_PHOTOS.controllers,
       ...createIndustrialProductGallery(
-        'SZGH-CNC1000MDb-3',
+        'SZGH-CNC990MDb-3',
         'Controllers',
         '#16a34a',
-        '420 × 260 × 115 mm',
-        '24VDC Isolated / VMC Control'
+        '380 × 240 × 110 mm',
+        '24VDC / High-Speed Engraving'
       ).slice(1),
     ] as [string, string, string, string],
     imageLabels: [
-      'Front Operator Panel',
+      'Engraving Operator Console',
       'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'VMC Retrofit Topology',
+      'High-Speed Pulse & Spindle I/O',
+      'Engraving Machine Wiring',
     ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
-    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Bed Mills'],
+    specs: [
+      { label: 'Application Focus', value: 'High-Speed 3D Engraving, Mold & Router Control' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
+    ],
+    compatibility: ['CNC Engraving Machines', 'Die & Brass Mold Engravers', 'Gantry CNC Routers'],
   },
   {
-    id: 'prod-cnc-1000mdb-4',
-    title: 'Universal CNC Milling & Rotary Indexing Controller',
-    modelNumber: 'SZGH-CNC1000MDb-4',
+    id: 'prod-cnc-1000g-2',
+    title: 'Precision Cylindrical & Surface CNC Grinder Controller',
+    modelNumber: 'SZGH-CNC1000G-2',
     category: 'Controllers',
-    subcategory: 'CNC Milling Controller',
+    subcategory: 'Grinder controller',
     description:
-      'Industrial simultaneous CNC milling controller for VMCs with rotary indexing tables and cylindrical engraving.',
+      'Specialized CNC grinder controller for cylindrical grinders, surface grinding machines, and centerless grinding systems with automatic wheel dressing compensation.',
     features: [
-      'Simultaneous interpolation for rotary table machining',
-      'Built-in open PLC ladder for Umbrella and Arm-Type Automatic Tool Changers',
+      'Dedicated grinding canned cycles: plunge grinding, traverse grinding, oscillation, and spark-out dwell',
+      'Automatic diamond wheel dressing cycle with real-time wheel diameter wear compensation',
+      'Sub-micron 0.0005mm interpolation resolution for mirror-finish cylindrical and surface grinding',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
     ],
-    price: 240000,
-    usdEstimate: 865,
+    price: 235000,
+    usdEstimate: 845,
     inStock: true,
-    stockCount: 11,
+    stockCount: 7,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
     images: [
       HERO_SHOWCASE_PHOTOS.controllers,
       ...createIndustrialProductGallery(
-        'SZGH-CNC1000MDb-4',
+        'SZGH-CNC1000G-2',
+        'Controllers',
+        '#0d9488',
+        '400 × 245 × 110 mm',
+        '24VDC / Precision Grinding Control'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Grinder Operator Console',
+      'CAD Panel Cutout',
+      'Wheel Dresser & Gauge I/O',
+      'Grinding Machine Topology',
+    ],
+    specs: [
+      { label: 'Grinding Cycles', value: 'Plunge, Traverse, Shoulder & Automatic Wheel Dressing' },
+      { label: 'Minimum Command Unit', value: '0.001 mm / 0.0005 mm Fine Mode' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD' },
+    ],
+    compatibility: ['Cylindrical Grinders', 'Reciprocating Surface Grinders', 'Internal Bore Grinders'],
+  },
+  {
+    id: 'prod-cnc-io12',
+    title: 'Optical Isolated I/O Expansion Board for CNC Controllers',
+    modelNumber: 'CNC-IO12',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'I/O board is recommended for controllers. Provides optically isolated 24VDC input/output terminal conditioning and relay outputs for SZGH CNC lathe, milling, engraving, and grinder controllers.',
+    features: [
+      'Optically isolated inputs and relay outputs protecting the main CNC controller CPU from shop-floor voltage spikes',
+      'Direct DB25 / ribbon cable plug-and-play connection with SZGH 880, 990, and 1000 series controllers',
+      'DIN-rail mountable industrial PCB with LED status indicators on every channel',
+    ],
+    price: 20000,
+    usdEstimate: 72,
+    inStock: true,
+    stockCount: 45,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: false,
+    images: [
+      HERO_SHOWCASE_PHOTOS.controllers,
+      ...createIndustrialProductGallery(
+        'CNC-IO12',
         'Controllers',
         '#16a34a',
-        '420 × 260 × 115 mm',
-        '24VDC Isolated / VMC Control'
+        'DIN Rail Terminal Module',
+        '24VDC Opto-Isolated I/O Board'
       ).slice(1),
     ] as [string, string, string, string],
     imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'VMC Retrofit Topology',
+      'CNC-IO12 I/O Board',
+      'DIN-Rail Footprint',
+      'Relay & Opto Pinout',
+      'Cabinet Wiring Topology',
     ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
-    compatibility: ['VMCs', 'Rotary Table Milling Machines'],
-  },
-  {
-    id: 'prod-cnc-1000tdb-2',
-    title: 'High-Precision CNC Lathe & Turning Center Controller',
-    modelNumber: 'SZGH-CNC1000TDb-2',
-    category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
-    description:
-      'SZGH-CNC1000TDb turning controller for slant-bed CNC lathes with 8.4" LCD, constant surface speed (G96), and 4–12 station turret control.',
-    features: [
-      'Precision turning with 0.001mm resolution and G96 constant surface speed',
-      'Pre-programmed PLC logic for electric and hydraulic turrets',
+    specs: [
+      { label: 'Model Number', value: 'CNC-IO12' },
+      { label: 'Protection', value: '24VDC Opto-Isolated Inputs & Relay Outputs' },
+      { label: 'Mounting', value: 'Standard 35mm Electrical Cabinet DIN Rail' },
     ],
-    price: 205000,
-    usdEstimate: 737,
-    inStock: true,
-    stockCount: 22,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000TDb-2',
-        'Controllers',
-        '#2563eb',
-        '400 × 245 × 110 mm',
-        '24VDC / Slant-Bed Turning'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Turning Console',
-      'Mounting Blueprint',
-      'Turret & Spindle I/O',
-      'Slant-Bed Lathe Wiring',
-    ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
-    compatibility: ['Slant-Bed CNC Lathes', 'Production Turning Centers'],
-  },
-  {
-    id: 'prod-cnc-1000tdb-4',
-    title: 'High-Precision CNC Turn-Mill Lathe Controller',
-    modelNumber: 'SZGH-CNC1000TDb-4',
-    category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
-    description:
-      'SZGH-CNC1000TDb turning controller for multi-tasking turn-mill centers with off-center milling and live tooling.',
-    features: [
-      'Simultaneous control for complex turn-mill centers',
-      'Dual analog spindle outputs + full turret & live-tool PLC integration',
-    ],
-    price: 252000,
-    usdEstimate: 906,
-    inStock: true,
-    stockCount: 8,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000TDb-4',
-        'Controllers',
-        '#2563eb',
-        '400 × 245 × 110 mm',
-        '24VDC / Turn-Mill Control'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Turning Console',
-      'Mounting Blueprint',
-      'Turret & Spindle I/O',
-      'Slant-Bed Lathe Wiring',
-    ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
-    compatibility: ['Turn-Mill Centers', 'Multi-Tasking CNC Lathes'],
-  },
-  {
-    id: 'prod-cnc-990tdb-3',
-    title: 'Economical CNC Lathe & Turning Controller',
-    modelNumber: 'SZGH-CNC990TDb-3',
-    category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
-    description:
-      'Cost-effective CNC lathe controller for turning machines with spindle indexing and side/axial live milling.',
-    features: [
-      'High-speed interpolation with 0.001mm resolution',
-      'Direct support for 4-to-8 station electric tool posts and live spindles',
-    ],
-    price: 185000,
-    usdEstimate: 665,
-    inStock: true,
-    stockCount: 15,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC990TDb-3',
-        'Controllers',
-        '#0284c7',
-        '380 × 240 × 110 mm',
-        '24VDC / Live-Milling Lathe'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
-    ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
-    compatibility: ['CNC Lathes', 'Conventional Lathe Conversions'],
-  },
-  {
-    id: 'prod-cnc-990tdb-4',
-    title: 'Economical CNC Lathe & Milling Controller',
-    modelNumber: 'SZGH-CNC990TDb-4',
-    category: 'Controllers',
-    subcategory: 'CNC Turning Controller',
-    description:
-      'Economical CNC lathe controller for turning, drilling, and milling retrofits.',
-    features: [
-      'Precision control in a compact 8.0" LCD operator console',
-      'Supports electric turrets, gang tooling, and external I/O relay boards',
-    ],
-    price: 205000,
-    usdEstimate: 737,
-    inStock: true,
-    stockCount: 10,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC990TDb-4',
-        'Controllers',
-        '#0284c7',
-        '380 × 240 × 110 mm',
-        '24VDC / Turn-Mill Retrofit'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
-    ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
-    compatibility: ['CNC Lathes', 'Multi-Tool Turning Machines'],
+    compatibility: ['All SZGH CNC Lathe, Milling, Engraving & Grinder Controllers'],
   },
 
   // ==========================================================================
-  // CATEGORY 2: SERVO MOTORS & DRIVES
+  // CATEGORY 2: MOTORS & DRIVERS
+  //   Group A: Servo Motors and Drives -> 'Servo motor', 'Servo Driver'
+  //   Group B: Spindle Servo Motors and Drivers -> 'Spindle servo motor', 'Spindle servo driver'
+  //   Group C: Stepper Motors and Drivers -> 'Closed Loop Stepper Motors and Drivers',
+  //            'Two-phase stepper motor and driver', 'Three-phase stepper motors and drivers'
   // ==========================================================================
   {
     id: 'prod-servo-13200cc',
     title: '2.0kW High-Torque AC Servo Motor & Matched Digital Drive Kit',
     modelNumber: 'SZGH-13200CC + SD2026',
     category: 'Motors',
-    subcategory: 'AC Servo Motor & Drive Set',
+    subcategory: 'Servo motor',
     description:
       'Complete 130mm flange 2.0kW industrial AC servo motor paired with the SZGH-SD2026 digital servo amplifier and 5m shielded power & encoder cables.',
     features: [
@@ -767,18 +1115,61 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     compatibility: ['Ballscrew Feed Axes', 'Heavy Duty Gantry Routers', 'Automated Indexing Tables'],
   },
   {
+    id: 'prod-servo-driver-sd2026',
+    title: 'SZGH-SD2026 Digital AC Servo Driver (Position / Speed / Torque)',
+    modelNumber: 'SZGH-SD2026',
+    category: 'Motors',
+    subcategory: 'Servo Driver',
+    description:
+      'High-response digital AC servo driver supporting pulse/direction, analog voltage, and RS485 Modbus communication for 1.0kW to 2.6kW AC servo motors.',
+    features: [
+      'Triple-loop DSP vector control (Position, Speed, and Current/Torque modes) with online auto-tuning',
+      'Supports 2500-PPR incremental and 17-bit/23-bit absolute optical encoders',
+      'Built-in regenerative braking circuit, over-current, over-voltage, and encoder fault protection',
+      'Direct plug-and-play CN1/CN2 interface with all SZGH CNC controllers',
+    ],
+    price: 62000,
+    usdEstimate: 223,
+    inStock: true,
+    stockCount: 28,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: false,
+    images: [
+      HERO_SHOWCASE_PHOTOS.motors,
+      ...createIndustrialProductGallery(
+        'SZGH-SD2026',
+        'Motors',
+        '#2563eb',
+        '185 × 85 × 170 mm',
+        '220VAC / 2.6kW Digital Servo Driver'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'SZGH-SD2026 Servo Driver',
+      'Cabinet Mounting Footprint',
+      'CN1 & CN2 Terminal Wiring',
+      'Multi-Axis Drive Bank',
+    ],
+    specs: [
+      { label: 'Matched Motor Power', value: '1.0 kW – 2.6 kW AC Servo Motors' },
+      { label: 'Control Modes', value: 'Position (Pulse/Dir), Speed, Torque & Modbus' },
+      { label: 'Power Supply', value: 'Single/Three-Phase 220VAC 50/60Hz' },
+    ],
+    compatibility: ['SZGH 110mm & 130mm AC Servo Motors', 'CNC Lathe & VMC Feed Axes'],
+  },
+  {
     id: 'prod-spindle-55kw',
-    title: '5.5kW / 7.5kW Asynchronous Servo Spindle Motor & Vector Drive',
+    title: '5.5kW / 7.5kW Asynchronous Servo Spindle Motor',
     modelNumber: 'SZGH-08-2-5.5/7.5KW',
     category: 'Motors',
-    subcategory: 'CNC Spindle Servo System',
+    subcategory: 'Spindle servo motor',
     description:
-      'High-rigidity CNC spindle servo motor and closed-loop vector drive delivering constant high torque at low RPM and vibration-free 8,000 RPM finishing with spindle orientation.',
+      'High-rigidity CNC spindle servo motor delivering constant high torque at low RPM and vibration-free 8,000 RPM finishing with ±0.01° spindle orientation.',
     features: [
       'Constant torque from 0 to 1,500 RPM for heavy steel roughing and constant power up to 8,000 RPM',
       'Precision ±0.01° spindle orientation for VMC Automatic Tool Changers (ATC) and live-tooling lathes',
       'Supports rigid tapping without floating tap holders when paired with SZGH CNC controllers',
-      'Includes matched 3-phase 380VAC closed-loop vector drive and external dynamic braking resistor',
+      'Forced independent axial cooling fan and IP55 cast-iron ribbed frame',
     ],
     price: 345000,
     usdEstimate: 1240,
@@ -797,9 +1188,9 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
       ).slice(1),
     ] as [string, string, string, string],
     imageLabels: [
-      'Spindle Motor & Vector Drive',
+      'Spindle Servo Motor',
       'B35 Mounting Footprint',
-      'Braking Resistor & Encoder',
+      'Encoder & Fan Interface',
       'VMC Headstock Assembly',
     ],
     specs: [
@@ -812,18 +1203,191 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     ],
     compatibility: ['BT40 / BT50 VMC Spindles', 'CNC Lathe Chuck Spindles', 'Deep-Hole Tapping Machines'],
   },
+  {
+    id: 'prod-spindle-driver-s4t2p',
+    title: '380V Closed-Loop Vector Spindle Servo Driver (5.5kW / 7.5kW)',
+    modelNumber: 'SZGH-S4T2P-5.5/7.5KW',
+    category: 'Motors',
+    subcategory: 'Spindle servo driver',
+    description:
+      'Industrial 3-phase 380VAC closed-loop spindle servo driver with built-in PG encoder feedback card for C-axis positioning, quasi-stop orientation, and rigid tapping.',
+    features: [
+      'Closed-loop flux vector control with 150% starting torque at 0 Hz for heavy lathe and VMC cuts',
+      'Supports 1-point and multi-point spindle orientation (M19) for umbrella and arm-type ATCs',
+      'Seamless pulse synchronization for high-speed rigid tapping and thread milling',
+      'Includes heavy-duty external aluminum-housed dynamic braking resistor unit',
+    ],
+    price: 128000,
+    usdEstimate: 460,
+    inStock: true,
+    stockCount: 11,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: false,
+    images: [
+      HERO_SHOWCASE_PHOTOS.motors,
+      ...createIndustrialProductGallery(
+        'SZGH-S4T2P-7.5KW',
+        'Motors',
+        '#ea580c',
+        '320 × 195 × 205 mm',
+        '3-Phase 380VAC / Closed-Loop Vector'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Spindle Servo Driver',
+      'Panel Mounting Dimensions',
+      'PG Encoder & Braking Wiring',
+      'Spindle Cabinet Integration',
+    ],
+    specs: [
+      { label: 'Input Supply', value: '3-Phase 380VAC 50/60Hz' },
+      { label: 'Applicable Motor', value: '5.5 kW / 7.5 kW Asynchronous Spindle Servo Motor' },
+      { label: 'Feedback Interface', value: 'Orthogonal ABZ Incremental / Resolver PG Card' },
+    ],
+    compatibility: ['SZGH Spindle Servo Motors', 'VMC ATC Spindle Orientation', 'CNC Lathe C-Axis'],
+  },
+  {
+    id: 'prod-stepper-closed-loop-86',
+    title: 'NEMA34 8.5N·m Closed-Loop Hybrid Stepper Motor & Driver Kit',
+    modelNumber: 'SZGH-86HS85-EC + CL86',
+    category: 'Motors',
+    subcategory: 'Closed Loop Stepper Motors and Drivers',
+    description:
+      'Closed-loop hybrid servo stepper motor (86mm flange, 8.5 N·m) with integrated 1000-line optical encoder and digital closed-loop driver eliminating lost steps.',
+    features: [
+      '1000-PPR optical encoder continuously monitors rotor position to prevent stalling or lost steps under load',
+      'High low-speed torque with automatic current regulation for 40% lower motor heating',
+      'Plug-and-play compatibility with 200kHz differential pulse outputs from SZGH controllers',
+    ],
+    price: 42000,
+    usdEstimate: 151,
+    inStock: true,
+    stockCount: 25,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: false,
+    images: [
+      HERO_SHOWCASE_PHOTOS.motors,
+      ...createIndustrialProductGallery(
+        'SZGH-86HS85-EC',
+        'Motors',
+        '#059669',
+        '86 × 86 mm Flange (NEMA 34)',
+        '8.5 N·m Closed-Loop Stepper Kit'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Closed-Loop Stepper & Driver',
+      'NEMA34 Flange CAD',
+      'Encoder & Pulse Pinout',
+      'Router & Auxiliary Axis Setup',
+    ],
+    specs: [
+      { label: 'Holding Torque', value: '8.5 N·m (Closed-Loop with 1000-Line Encoder)' },
+      { label: 'Frame Size', value: '86 × 86 mm (NEMA 34)' },
+      { label: 'Driver Supply', value: '24–80 VDC / 20–60 VAC' },
+    ],
+    compatibility: ['CNC Engraving Machines', 'Auxiliary Tool Magazines', 'Small Lathe Conversions'],
+  },
+  {
+    id: 'prod-stepper-two-phase-86',
+    title: 'Two-Phase NEMA34 6.0N·m Stepper Motor & Microstepping Driver Set',
+    modelNumber: 'SZGH-86BYG250C + 2DM860',
+    category: 'Motors',
+    subcategory: 'Two-phase stepper motor and driver',
+    description:
+      'Industrial two-phase NEMA 34 stepper motor (6.0 N·m) paired with the 2DM860 digital DSP microstepping driver for economical CNC feed and auxiliary axes.',
+    features: [
+      '32-bit DSP anti-resonance algorithm ensures smooth motion across mid-range speeds',
+      'DIP-switch selectable microstepping up to 40,000 steps/rev and automatic idle-current halving',
+      'Optically isolated differential step/direction inputs up to 200 kHz',
+    ],
+    price: 29500,
+    usdEstimate: 106,
+    inStock: true,
+    stockCount: 30,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: false,
+    images: [
+      HERO_SHOWCASE_PHOTOS.motors,
+      ...createIndustrialProductGallery(
+        'SZGH-86BYG250C + 2DM860',
+        'Motors',
+        '#0284c7',
+        '86 × 86 mm Two-Phase NEMA 34',
+        '6.0 N·m / 2DM860 Digital Driver'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Two-Phase Stepper & Driver',
+      'NEMA34 Mounting CAD',
+      'A+/A-/B+/B- Phase Wiring',
+      'Economical CNC Feed Axis',
+    ],
+    specs: [
+      { label: 'Holding Torque', value: '6.0 N·m (Two-Phase Hybrid)' },
+      { label: 'Phase Current', value: '5.0 A / Phase' },
+      { label: 'Matched Driver', value: 'SZGH-2DM860 Digital Microstepping Driver' },
+    ],
+    compatibility: ['CNC Routers & Plasma Tables', 'Economical Lathe Feeds', 'Packaging Automation'],
+  },
+  {
+    id: 'prod-stepper-three-phase-110',
+    title: 'Three-Phase 110mm 16N·m High-Torque Stepper Motor & 220V Driver',
+    modelNumber: 'SZGH-110BYG350C + 3DM2283',
+    category: 'Motors',
+    subcategory: 'Three-phase stepper motors and drivers',
+    description:
+      'Heavy-duty 110mm flange three-phase stepper motor (16.0 N·m) with direct 220VAC 3DM2283 driver—no external DC power supply transformer required.',
+    features: [
+      'Direct 220VAC mains input to the 3DM2283 three-phase driver simplifies electrical cabinet layout',
+      'Three-phase sinusoidal current control delivers servo-like smoothness and 16 N·m high holding torque',
+      'Ideal for heavy Z-axis knees, turret indexing, and large gantry tables',
+    ],
+    price: 58000,
+    usdEstimate: 208,
+    inStock: true,
+    stockCount: 18,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: false,
+    images: [
+      HERO_SHOWCASE_PHOTOS.motors,
+      ...createIndustrialProductGallery(
+        'SZGH-110BYG350C + 3DM2283',
+        'Motors',
+        '#4f46e5',
+        '110 × 110 mm Flange / 19mm Shaft',
+        '16.0 N·m / 220VAC Three-Phase Stepper'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'Three-Phase Stepper & 220V Driver',
+      '110mm Flange Blueprint',
+      'U/V/W Three-Phase Wiring',
+      'Heavy Feed Axis Installation',
+    ],
+    specs: [
+      { label: 'Holding Torque', value: '16.0 N·m (Three-Phase High Torque)' },
+      { label: 'Flange Size', value: '110 × 110 mm' },
+      { label: 'Driver Input Voltage', value: 'Direct Single-Phase 220VAC 50/60Hz' },
+    ],
+    compatibility: ['Heavy Turret & Knee Feeds', 'Large Gantry Milling Routers', 'Flat-Bed Lathe Conversions'],
+  },
 
   // ==========================================================================
-  // CATEGORY 3: CNC MACHINE TOOLS
+  // CATEGORY 3: CNC MACHINE
+  // Subcategories:
+  //   - CNC lathe machine
+  //   - CNC milling machine
+  //   - Milling machine center
   // ==========================================================================
   {
     id: 'prod-machine-szgh650',
-    title: 'SZGH-650 High-Rigidity Vertical Machining Center (VMC)',
+    title: 'SZGH-650 High-Rigidity Vertical Milling Machine Center (VMC)',
     modelNumber: 'SZGH-VMC650-PRO',
     category: 'Machines',
-    subcategory: 'Vertical Machining Center',
+    subcategory: 'Milling machine center',
     description:
-      'Turnkey Vertical Machining Center equipped with SZGH-CNC1000MDb controller, BT40 8000-RPM spindle, 16-station disc ATC, and Taiwan HIWIN linear roller guides.',
+      'Turnkey Vertical Milling Machine Center (VMC) equipped with SZGH-CNC1000MDb controller, BT40 8000-RPM spindle, 16-station disc ATC, and Taiwan HIWIN linear roller guides.',
     features: [
       'Meehanite HT300 resin-sand cast iron bed and column stress-relieved for zero thermal deformation',
       'Equipped with SZGH-CNC1000MDb controller and absolute AC servo motors',
@@ -864,13 +1428,55 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     compatibility: ['Surgical Forging Dies', 'Automotive Mold Cavities', 'Aerospace & Defense Parts'],
   },
   {
+    id: 'prod-machine-szgh540',
+    title: 'SZGH-540 Precision CNC Milling & Drilling Machine',
+    modelNumber: 'SZGH-M540-CNC',
+    category: 'Machines',
+    subcategory: 'CNC milling machine',
+    description:
+      'Compact high-speed CNC milling machine with 540 × 320 × 400 mm travel, BT30/BT40 rigid tapping spindle, and SZGH-CNC1000MDb control system for precision parts production.',
+    features: [
+      'Heavy-duty Meehanite cast iron frame with high-speed linear guideways on all axes',
+      'Equipped with SZGH-CNC1000MDb milling controller and high-torque AC servo feed motors',
+      'Ideal for Sialkot surgical instrument milling, brass/steel fixtures, and electrode machining',
+    ],
+    price: 5450000,
+    usdEstimate: 19600,
+    inStock: true,
+    stockCount: 3,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: false,
+    images: [
+      HERO_SHOWCASE_PHOTOS.machines,
+      ...createIndustrialProductGallery(
+        'SZGH-M540-CNC',
+        'Machines',
+        '#059669',
+        'Travel: 540 × 320 × 400 mm',
+        '5.5kW Servo Spindle / CNC Milling'
+      ).slice(1),
+    ] as [string, string, string, string],
+    imageLabels: [
+      'SZGH-540 CNC Milling Machine',
+      'Worktable & Travel CAD',
+      'SZGH Control & Servo Cabinet',
+      'Precision Milling Setup',
+    ],
+    specs: [
+      { label: 'Table Travel', value: '540 × 320 × 400 mm' },
+      { label: 'Spindle Speed', value: '8,000 / 12,000 RPM Servo Spindle' },
+      { label: 'Positioning Accuracy', value: '±0.005 mm' },
+    ],
+    compatibility: ['Surgical Instrument Milling', 'Precision Mold Electrodes', 'Production Milling'],
+  },
+  {
     id: 'prod-machine-szgh46y',
-    title: 'SZGH-46Y Slant-Bed CNC Turn-Mill Center with Live Tooling',
+    title: 'SZGH-46Y Slant-Bed CNC Lathe & Turn-Mill Machine',
     modelNumber: 'SZGH-46Y-TURNMILL',
     category: 'Machines',
-    subcategory: 'CNC Turning & Milling Machine',
+    subcategory: 'CNC lathe machine',
     description:
-      '45° heavy-duty slant-bed CNC turning center featuring a live-tooling BMT turret, hydraulic collet chuck, and SZGH-CNC1000TDb control.',
+      '45° heavy-duty slant-bed CNC lathe machine featuring a live-tooling BMT turret, hydraulic collet chuck, and SZGH-CNC1000TDb control.',
     features: [
       'Complete turning, off-center milling, cross-drilling, and rigid tapping in a single setup',
       '46mm bar-feeder spindle capacity with 8-inch hydraulic 3-jaw chuck option',
@@ -894,7 +1500,7 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
       ).slice(1),
     ] as [string, string, string, string],
     imageLabels: [
-      'SZGH-46Y Turn-Mill Center',
+      'SZGH-46Y CNC Lathe Machine',
       'Turning Envelope CAD',
       'BMT Live Turret Interface',
       'Bar-Feeder Integration',
@@ -1445,10 +2051,14 @@ export function mergeProductsByModelAndAxes(
         modelNumber: normalizedModel,
       });
 
-    // Strip number of axes from description & title for display
+    // Strip number of axes from description & title for display and normalize subcategory
     const cleanedProduct: ProductItem = {
       ...rawProduct,
       modelNumber: normalizedModel,
+      subcategory: resolveOfficialSubcategory({
+        ...rawProduct,
+        modelNumber: normalizedModel,
+      }),
       hasIOBoardOption: isIOBoardItem ? false : rawProduct.hasIOBoardOption,
       title: stripAxisCountFromText(rawProduct.title),
       description: stripAxisCountFromText(rawProduct.description),

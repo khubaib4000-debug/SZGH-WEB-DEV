@@ -45,6 +45,8 @@ import {
 import {
   ProductItem,
   ProductCategory,
+  OFFICIAL_SUBCATEGORY_GROUPS,
+  resolveOfficialSubcategory,
   stripAxisCountFromText,
 } from '../data/products';
 import { SubmittedCustomerOrder } from './CartDrawer';
@@ -524,8 +526,14 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     const trimmedModel = newModelNumber.trim();
     const trimmedDesc = newDescription.trim(); // Left '' if empty
     const trimmedTitle = extractTitleFromDescription(trimmedDesc, newTitle); // Auto-fetched from description if title is empty
-    const trimmedSubcat = newSubcategory.trim(); // Left '' if empty
     const resolvedCategory: ProductCategory = newCategory || 'Controllers';
+    const trimmedSubcat = resolveOfficialSubcategory({
+      category: resolvedCategory,
+      subcategory: newSubcategory.trim(),
+      modelNumber: trimmedModel,
+      title: trimmedTitle,
+      description: trimmedDesc,
+    });
 
     if (!trimmedModel) {
       setStatusBanner({
@@ -1911,15 +1919,28 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    2. Subcategory Tab (Leave empty if N/A)
+                    2. Subcategory Tab (Auto-Distributed if Empty)
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={newSubcategory}
                     onChange={(e) => setNewSubcategory(e.target.value)}
-                    placeholder="Empty if not available"
-                    className="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
-                  />
+                    className="w-full px-3 py-2 rounded-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white"
+                  >
+                    <option value="">
+                      — Auto-Distribute from Model / Description —
+                    </option>
+                    {OFFICIAL_SUBCATEGORY_GROUPS.filter(
+                      (g) => !newCategory || g.category === newCategory
+                    ).map((group) => (
+                      <optgroup key={group.id} label={group.groupTitle}>
+                        {group.subcategories.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

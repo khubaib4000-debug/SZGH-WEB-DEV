@@ -15,6 +15,7 @@ import {
   Printer,
   AlertTriangle,
   Receipt,
+  Send,
 } from 'lucide-react';
 import { User, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -117,9 +118,13 @@ export interface SubmittedCustomerOrder {
   address: string;
   orderNotes: string;
   invoiceType: 'Official Tax Invoice (18% GST)' | 'Standard Commercial Receipt';
-  paymentMethod: 'Cash on Pick Up (Lahore Facility)' | 'Online Bank Transfer (UBL)';
+  paymentMethod:
+    | 'Cash on Pick Up (Lahore Facility)'
+    | 'Online Bank Transfer (UBL)'
+    | 'Sales Tax Invoice (18% GST)';
   selectedBankAccount?: BankAccountDetails;
   transactionRef: string;
+  whatsappRedirectUrl?: string;
   itemsSummary: string;
   items: CartEntry[];
   subtotalPKR: number;
@@ -155,7 +160,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   const [step, setStep] = useState<'cart' | 'checkout' | 'confirmed'>('cart');
 
-  // Complete Customer Details (Including Mandatory NTN No.)
+  // Complete Customer Details (NTN No. asked ONLY when Sales Tax Invoice is chosen)
   const [companyName, setCompanyName] = useState('');
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
@@ -166,13 +171,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [address, setAddress] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
 
-  // Official Invoice Option (+18% Sales Tax) vs Standard Receipt
-  const [invoiceOption, setInvoiceOption] = useState<'OFFICIAL_TAX' | 'STANDARD'>(
-    'OFFICIAL_TAX'
-  );
-
-  // Payment Method: ONLY "Cash on Pick Up" or "Online Bank Transfer (UBL)" — NO Cash on Delivery
-  const [paymentMethod, setPaymentMethod] = useState<'PICKUP' | 'BANK'>('PICKUP');
+  // Single Unified Payment Method (Choose ONLY 1 of 3 options; Default: Cash on Pick Up)
+  // 1- PICKUP (Cash on Pick Up)
+  // 2- BANK (Online Bank Transfer - UBL)
+  // 3- SALES_TAX_INVOICE (Sales Tax Invoice +18% GST -> Redirect to WhatsApp on checkout)
+  const [paymentMethod, setPaymentMethod] = useState<
+    'PICKUP' | 'BANK' | 'SALES_TAX_INVOICE'
+  >('PICKUP');
   const [selectedBankId, setSelectedBankId] = useState<string>(
     ONLINE_PAYMENT_ACCOUNTS[0].id
   );
@@ -216,8 +221,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     0
   );
 
-  // 18% Sales Tax when Official Invoice option is selected
-  const isOfficialInvoice = invoiceOption === 'OFFICIAL_TAX';
+  // 18% Sales Tax ONLY when 3- Sales Tax Invoice option is selected
+  const isOfficialInvoice = paymentMethod === 'SALES_TAX_INVOICE';
   const salesTaxRate: 0 | 18 = isOfficialInvoice ? 18 : 0;
   const salesTaxPKR = isOfficialInvoice ? Math.round(subtotalPKR * 0.18) : 0;
   const grandTotalPKR = subtotalPKR + salesTaxPKR;
@@ -232,17 +237,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       !contactName.trim() ||
       !email.trim() ||
       !phone.trim() ||
-      !ntnNumber.trim() ||
       !address.trim()
     ) {
       setFormError(
-        'Please complete all required customer details, including Company Name, Full Name, Email, Phone, NTN No., and Complete Address.'
+        'Please complete all required customer details, including Company Name, Full Name, Email, Phone, and Complete Address.'
       );
       return;
     }
 
     if (!email.includes('@') || email.trim().length < 5) {
-      setFormError('Please enter a valid customer email address for invoice dispatch.');
+      setFormError('Please enter a valid customer email address.');
       return;
     }
 
@@ -251,9 +255,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       return;
     }
 
-    if (ntnNumber.trim().length < 5) {
+    if (isOfficialInvoice && ntnNumber.trim().length < 5) {
       setFormError(
-        'Please enter your valid NTN No. (National Tax Number, e.g., 1234567-8).'
+        'Please enter your valid Customer NTN No. (National Tax Number, e.g., 4192837-6) for the Sales Tax Invoice.'
       );
       return;
     }
@@ -289,10 +293,50 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
     const paymentMethodLabel:
       | 'Cash on Pick Up (Lahore Facility)'
-      | 'Online Bank Transfer (UBL)' =
+      | 'Online Bank Transfer (UBL)'
+      | 'Sales Tax Invoice (18% GST)' =
       paymentMethod === 'PICKUP'
         ? 'Cash on Pick Up (Lahore Facility)'
-        : 'Online Bank Transfer (UBL)';
+        : paymentMethod === 'BANK'
+          ? 'Online Bank Transfer (UBL)'
+          : 'Sales Tax Invoice (18% GST)';
+
+    const effectiveNtn = isOfficialInvoice ? ntnNumber.trim() : '';
+    const effectiveStrn = isOfficialInvoice ? strnNumber.trim() : '';
+
+    // Build WhatsApp redirect URL when Sales Tax Invoice is selected
+    let whatsappRedirectUrl: string | undefined;
+    if (isOfficialInvoice) {
+      const waMessage = [
+        `*SZGH PAKISTAN — OFFICIAL SALES TAX INVOICE ORDER*`,
+        `Order ID: *${orderId}*`,
+        `Date: ${readableTimestamp}`,
+        `-----------------------------------------`,
+        `*CUSTOMER & TAX DETAILS:*`,
+        `Company: ${companyName.trim()}`,
+        `Contact Person: ${contactName.trim()}`,
+        `Phone: ${phone.trim()}`,
+        `Email: ${email.trim()}`,
+        `NTN No.: *${effectiveNtn}*`,
+        effectiveStrn ? `STRN / CNIC: ${effectiveStrn}` : null,
+        `City: ${city}`,
+        `Address: ${address.trim()}`,
+        orderNotes.trim() ? `Notes: ${orderNotes.trim()}` : null,
+        `-----------------------------------------`,
+        `*ORDERED ITEMS:*`,
+        formattedItemsList,
+        `-----------------------------------------`,
+        `Subtotal (Excl. Tax): PKR ${subtotalPKR.toLocaleString()}`,
+        `Sales Tax (18% GST): + PKR ${salesTaxPKR.toLocaleString()}`,
+        `*Total Payable (Incl. 18% GST): PKR ${grandTotalPKR.toLocaleString()}*`,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      whatsappRedirectUrl = `https://wa.me/923214800265?text=${encodeURIComponent(
+        waMessage
+      )}`;
+    }
 
     // 1. Try to ensure a Firebase Auth session (current user or anonymous fallback) to persist to Cloud Firestore
     let effectiveUser = auth.currentUser;
@@ -317,8 +361,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           contactName: contactName.trim().slice(0, 150),
           email: email.trim().slice(0, 160),
           phone: phone.trim().slice(0, 40),
-          ntnNumber: ntnNumber.trim().slice(0, 60),
-          strnNumber: strnNumber.trim().slice(0, 60),
+          ntnNumber: effectiveNtn.slice(0, 60),
+          strnNumber: effectiveStrn.slice(0, 60),
           city: city.trim().slice(0, 80),
           address: address.trim().slice(0, 500),
           orderNotes: orderNotes.trim().slice(0, 600),
@@ -376,12 +420,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             Accept: 'application/json',
           },
           body: JSON.stringify({
-            _subject: `NEW SZGH PAKISTAN ORDER #${orderId} — ${companyName.trim()} (NTN: ${ntnNumber.trim()})`,
+            _subject: `NEW SZGH PAKISTAN ORDER #${orderId} — ${companyName.trim()} (${paymentMethodLabel})`,
             _cc: 'grnoman786@gmail.com',
             _template: 'table',
             Order_ID: orderId,
             Order_Date: readableTimestamp,
-            Invoice_Type: invoiceTypeLabel,
             Payment_Method: paymentMethodLabel,
             Transaction_Reference:
               paymentMethod === 'BANK' && transactionRef.trim()
@@ -389,8 +432,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 : 'N/A',
             Company_Name: companyName.trim(),
             Customer_Name: contactName.trim(),
-            NTN_Number: ntnNumber.trim(),
-            STRN_Or_CNIC: strnNumber.trim() || 'Not Provided',
+            NTN_Number: effectiveNtn || 'Not Applicable (Non-Tax)',
+            STRN_Or_CNIC: effectiveStrn || 'Not Provided',
             Customer_Email: email.trim(),
             Customer_Phone: phone.trim(),
             City: city,
@@ -400,7 +443,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             Equipment_Subtotal_PKR: `PKR ${subtotalPKR.toLocaleString()}`,
             Sales_Tax_18_Percent_PKR: isOfficialInvoice
               ? `PKR ${salesTaxPKR.toLocaleString()} (18% GST)`
-              : 'PKR 0 (Standard Commercial Receipt)',
+              : 'PKR 0 (0% Tax)',
             Grand_Total_Payable_PKR: `PKR ${grandTotalPKR.toLocaleString()}`,
           }),
         }
@@ -420,8 +463,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       contactName: contactName.trim(),
       email: email.trim(),
       phone: phone.trim(),
-      ntnNumber: ntnNumber.trim(),
-      strnNumber: strnNumber.trim(),
+      ntnNumber: effectiveNtn,
+      strnNumber: effectiveStrn,
       city,
       address: address.trim(),
       orderNotes: orderNotes.trim(),
@@ -432,6 +475,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         paymentMethod === 'BANK' && transactionRef.trim()
           ? transactionRef.trim()
           : '',
+      whatsappRedirectUrl,
       itemsSummary: formattedItemsList,
       items: [...items],
       subtotalPKR,
@@ -450,6 +494,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     setSubmittingOrder(false);
     onClearCart();
     setStep('confirmed');
+
+    // If customer selected 3- Sales Tax Invoice, redirect to WhatsApp on checkout
+    if (whatsappRedirectUrl) {
+      const link = document.createElement('a');
+      link.href = whatsappRedirectUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleResetAndClose = () => {
@@ -649,44 +704,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               )}
 
-              {/* STEP 1: COMPLETE CUSTOMER & TAX DETAILS (MANDATORY NTN NO.) */}
+              {/* STEP 1: COMPLETE CUSTOMER DETAILS (NTN NO. NOT ASKED HERE) */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    1. Complete Customer &amp; Tax Details *
+                    1. Complete Customer Details *
                   </label>
-                  <span className="text-[11px] font-bold text-[#0D5C2B] dark:text-emerald-400">
-                    NTN No. Mandatory
-                  </span>
-                </div>
-
-                {/* Highlighted NTN No. & STRN Row */}
-                <div className="p-3.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border-2 border-amber-400/60 dark:border-amber-500/40 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-extrabold text-slate-900 dark:text-white mb-1">
-                      Customer NTN No. (National Tax Number) *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={ntnNumber}
-                      onChange={(e) => setNtnNumber(e.target.value)}
-                      placeholder="e.g., 4192837-6"
-                      className="w-full px-3 py-2 rounded-md border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-950 text-xs sm:text-sm font-mono-tabular font-bold text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      STRN / CNIC No. (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={strnNumber}
-                      onChange={(e) => setStrnNumber(e.target.value)}
-                      placeholder="Sales Tax Reg. or CNIC #"
-                      className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs sm:text-sm font-mono-tabular text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
-                    />
-                  </div>
                 </div>
 
                 <div>
@@ -797,11 +820,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               </div>
 
-              {/* STEP 2: PAYMENT METHOD (DEFAULT: CASH ON PICK UP — NO COD) */}
+              {/* STEP 2: UNIFIED 3-OPTION PAYMENT METHOD (CHOOSE ANY SINGLE ONE) */}
               <div className="space-y-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                    2. Payment Method (No Cash on Delivery) *
+                    2. Payment Method (Choose Any Single Option) *
                   </label>
                   <span className="text-[11px] font-bold text-[#1E2985] dark:text-emerald-400">
                     Default: Cash on Pick Up
@@ -811,334 +834,356 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-center gap-2 text-[11px] font-semibold text-amber-900 dark:text-amber-300">
                   <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>
-                    Please note: We <strong>only offer Cash on Pick Up</strong> at our warehouse/office or <strong>Online Bank Transfer</strong>. We do <strong>NOT</strong> offer Cash on Delivery.
+                    Please note: We do <strong>NOT</strong> offer Cash on Delivery. Please select any <strong>one</strong> of the 3 payment methods below.
                   </span>
                 </div>
 
                 <div className="space-y-2.5">
-                  {[
-                    {
-                      id: 'PICKUP',
-                      title: 'Cash on Pick Up (Warehouse / Office Pick Up Only)',
-                      desc: 'Pay in person when picking up your hardware at our Lahore facility (Default)',
-                    },
-                    {
-                      id: 'BANK',
-                      title: 'Online Bank Transfer / Raast / IBFT (United Bank Ltd - UBL)',
-                      desc: 'Direct online payment to our official UBL account prior to pick-up or dispatch',
-                    },
-                  ].map((opt) => (
-                    <label
-                      key={opt.id}
-                      className={`flex items-start gap-3 p-3 rounded-md border-2 cursor-pointer transition-colors ${
-                        paymentMethod === opt.id
-                          ? 'border-[#1E2985] dark:border-emerald-400 bg-slate-50 dark:bg-slate-950'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        checked={paymentMethod === opt.id}
-                        onChange={() => setPaymentMethod(opt.id as 'PICKUP' | 'BANK')}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold text-slate-900 dark:text-white">
-                          {opt.title}
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {opt.desc}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-
-                {/* Online Bank Account Details Panel (UBL + Future Accounts) */}
-                {paymentMethod === 'BANK' && (
-                  <div className="mt-3 rounded-lg border-2 border-[#00529B]/40 dark:border-sky-500/40 bg-gradient-to-b from-[#00529B]/[0.05] to-white dark:from-sky-950/30 dark:to-slate-950 p-4 space-y-3.5 shadow-sm">
-                    {/* Prominent Payment Proof Note */}
-                    <div className="p-3 rounded-md bg-emerald-600 dark:bg-emerald-700 text-white shadow-xs flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <AlertTriangle className="w-5 h-5 text-amber-300 shrink-0" />
-                        <div>
-                          <div className="text-xs sm:text-sm font-extrabold tracking-wide">
-                            Send Payment Proof To Whatsapp to Proceed Order
-                          </div>
-                          <div className="text-[11px] text-emerald-100 font-medium">
-                            Official WhatsApp: <strong className="font-mono-tabular text-white">+92 321 4800265 (0321-4800265)</strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {ONLINE_PAYMENT_ACCOUNTS.length > 1 && (
-                      <div className="flex flex-wrap gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
-                        {ONLINE_PAYMENT_ACCOUNTS.map((acc) => (
-                          <button
-                            key={acc.id}
-                            type="button"
-                            onClick={() => setSelectedBankId(acc.id)}
-                            className={`px-3 py-1.5 rounded text-xs font-bold border transition-colors cursor-pointer ${
-                              activeBankAccount.id === acc.id
-                                ? 'bg-[#00529B] text-white border-[#00386B]'
-                                : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
-                            }`}
-                          >
-                            {acc.shortName}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Bank Header with UBL Logo */}
-                    <div className="flex items-center gap-3.5 pb-3 border-b border-slate-200/80 dark:border-slate-800">
-                      <UBLLogo className="w-16 h-10 shrink-0 rounded-md shadow-xs" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-extrabold text-[#00529B] dark:text-sky-400 uppercase tracking-wider">
-                            Official Online Payment Account
-                          </span>
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        </div>
-                        <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
-                          {activeBankAccount.bankName}
-                        </h4>
-                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                          Branch {activeBankAccount.branchCode} · {activeBankAccount.location}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Account Fields Grid */}
-                    <div className="grid grid-cols-1 gap-2 text-xs">
-                      {/* Account Title */}
-                      <div className="flex items-center justify-between px-3 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                            Account Title
-                          </span>
-                          <span className="font-extrabold text-slate-900 dark:text-white text-sm">
-                            {activeBankAccount.accountTitle}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleCopyValue('title', activeBankAccount.accountTitle)
-                          }
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-                        >
-                          {copiedField === 'title' ? (
-                            <>
-                              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              <span className="text-emerald-700 dark:text-emerald-400">
-                                Copied
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Account Number */}
-                      <div className="flex items-center justify-between px-3 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                            Account Number
-                          </span>
-                          <span className="font-mono-tabular font-extrabold text-slate-900 dark:text-white text-sm tracking-wide">
-                            {activeBankAccount.accountNumber}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleCopyValue(
-                              'accountNumber',
-                              activeBankAccount.accountNumber
-                            )
-                          }
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-                        >
-                          {copiedField === 'accountNumber' ? (
-                            <>
-                              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                              <span className="text-emerald-700 dark:text-emerald-400">
-                                Copied
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* IBAN */}
-                      <div className="flex items-center justify-between px-3 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                        <div className="min-w-0 pr-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                            IBAN (24-Digit Raast / IBFT)
-                          </span>
-                          <span className="font-mono-tabular font-extrabold text-[#00529B] dark:text-sky-400 text-xs sm:text-sm tracking-tight break-all">
-                            {activeBankAccount.iban}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyValue('iban', activeBankAccount.iban)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-[#00529B] hover:bg-[#00386B] text-white transition-colors shrink-0 cursor-pointer"
-                        >
-                          {copiedField === 'iban' ? (
-                            <>
-                              <Check className="w-3 h-3" />
-                              <span>Copied</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              <span>Copy IBAN</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* SWIFT, Branch Code & Location Row */}
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="px-2.5 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-1">
-                          <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                              SWIFT Code
-                            </span>
-                            <span className="font-mono-tabular font-bold text-slate-900 dark:text-white text-xs">
-                              {activeBankAccount.swift}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleCopyValue('swift', activeBankAccount.swift)
-                            }
-                            title="Copy SWIFT Code"
-                            className="p-1 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                          >
-                            {copiedField === 'swift' ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-
-                        <div className="px-2.5 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                            Branch Code
-                          </span>
-                          <span className="font-mono-tabular font-bold text-slate-900 dark:text-white text-xs">
-                            {activeBankAccount.branchCode}
-                          </span>
-                        </div>
-
-                        <div className="px-2.5 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
-                            Location
-                          </span>
-                          <span className="font-bold text-slate-900 dark:text-white text-[11px] leading-tight block">
-                            {activeBankAccount.location}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Optional Transaction Reference Input */}
-                    <div className="pt-1">
-                      <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Transaction ID / Raast Reference (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={transactionRef}
-                        onChange={(e) => setTransactionRef(e.target.value)}
-                        placeholder="e.g., UBL / Raast TID #8492014 (if already transferred)"
-                        className="w-full px-3 py-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono-tabular focus:outline-none focus:border-[#00529B] dark:focus:border-sky-400"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* STEP 3 (AT THE END): INVOICE TYPE SELECTION (OFFICIAL TAX INVOICE +18% SALES TAX) */}
-              <div className="space-y-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                  3. Select Invoice Option (18% Sales Tax on Official Invoice) *
-                </label>
-                <div className="grid grid-cols-1 gap-2.5">
+                  {/* OPTION 1: CASH ON PICK UP (DEFAULT) */}
                   <label
-                    className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                      invoiceOption === 'STANDARD'
+                    className={`flex items-start gap-3 p-3.5 rounded-md border-2 cursor-pointer transition-colors ${
+                      paymentMethod === 'PICKUP'
                         ? 'border-[#1E2985] dark:border-emerald-400 bg-slate-50 dark:bg-slate-950'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <input
                       type="radio"
-                      name="invoiceOption"
-                      checked={invoiceOption === 'STANDARD'}
-                      onChange={() => setInvoiceOption('STANDARD')}
+                      name="paymentMethod"
+                      checked={paymentMethod === 'PICKUP'}
+                      onChange={() => setPaymentMethod('PICKUP')}
                       className="mt-1"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-slate-900 dark:text-white">
-                          Standard Commercial Receipt (Non-Tax)
+                          1. Cash on Pick Up (Warehouse / Office Pick Up Only)
                         </span>
                         <span className="text-[11px] font-mono-tabular font-semibold text-slate-500">
-                          0% Tax
+                          Default
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Standard equipment commercial packing &amp; warranty slip without GST annexure.
-                      </p>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Pay in person when picking up your hardware at our Lahore facility (Cash on Delivery is NOT offered)
+                      </div>
                     </div>
                   </label>
 
+                  {/* OPTION 2: ONLINE BANK TRANSFER (UBL) */}
                   <label
-                    className={`flex items-start gap-3 p-3.5 rounded-lg border-2 cursor-pointer transition-colors ${
-                      invoiceOption === 'OFFICIAL_TAX'
-                        ? 'border-[#1E2985] dark:border-emerald-400 bg-[#1E2985]/[0.04] dark:bg-emerald-950/30'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    className={`flex items-start gap-3 p-3.5 rounded-md border-2 cursor-pointer transition-colors ${
+                      paymentMethod === 'BANK'
+                        ? 'border-[#1E2985] dark:border-emerald-400 bg-slate-50 dark:bg-slate-950'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <input
                       type="radio"
-                      name="invoiceOption"
-                      checked={invoiceOption === 'OFFICIAL_TAX'}
-                      onChange={() => setInvoiceOption('OFFICIAL_TAX')}
+                      name="paymentMethod"
+                      checked={paymentMethod === 'BANK'}
+                      onChange={() => setPaymentMethod('BANK')}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white">
+                        2. Online Bank Transfer / Raast / IBFT (United Bank Ltd - UBL)
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Direct online payment to our official UBL account prior to pick-up or dispatch
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Online Bank Account Details Panel (When Option 2 is selected) */}
+                  {paymentMethod === 'BANK' && (
+                    <div className="rounded-lg border-2 border-[#00529B]/40 dark:border-sky-500/40 bg-gradient-to-b from-[#00529B]/[0.05] to-white dark:from-sky-950/30 dark:to-slate-950 p-4 space-y-3.5 shadow-sm">
+                      {/* Prominent Payment Proof Note — WhatsApp No. written ONLY 1 time */}
+                      <div className="p-3 rounded-md bg-emerald-600 dark:bg-emerald-700 text-white shadow-xs flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <AlertTriangle className="w-5 h-5 text-amber-300 shrink-0" />
+                          <div>
+                            <div className="text-xs sm:text-sm font-extrabold tracking-wide">
+                              Send Payment Proof To Whatsapp to Proceed Order
+                            </div>
+                            <div className="text-[11px] text-emerald-100 font-medium">
+                              Official WhatsApp: <strong className="font-mono-tabular text-white">+92 321 4800265</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {ONLINE_PAYMENT_ACCOUNTS.length > 1 && (
+                        <div className="flex flex-wrap gap-1.5 pb-2 border-b border-slate-200 dark:border-slate-800">
+                          {ONLINE_PAYMENT_ACCOUNTS.map((acc) => (
+                            <button
+                              key={acc.id}
+                              type="button"
+                              onClick={() => setSelectedBankId(acc.id)}
+                              className={`px-3 py-1.5 rounded text-xs font-bold border transition-colors cursor-pointer ${
+                                activeBankAccount.id === acc.id
+                                  ? 'bg-[#00529B] text-white border-[#00386B]'
+                                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                              }`}
+                            >
+                              {acc.shortName}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Bank Header with UBL Logo */}
+                      <div className="flex items-center gap-3.5 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+                        <UBLLogo className="w-16 h-10 shrink-0 rounded-md shadow-xs" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-extrabold text-[#00529B] dark:text-sky-400 uppercase tracking-wider">
+                              Official Online Payment Account
+                            </span>
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          </div>
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                            {activeBankAccount.bankName}
+                          </h4>
+                          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                            Branch {activeBankAccount.branchCode} · {activeBankAccount.location}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Account Fields Grid */}
+                      <div className="grid grid-cols-1 gap-2 text-xs">
+                        {/* Account Title */}
+                        <div className="flex items-center justify-between px-3 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                              Account Title
+                            </span>
+                            <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+                              {activeBankAccount.accountTitle}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopyValue('title', activeBankAccount.accountTitle)
+                            }
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                          >
+                            {copiedField === 'title' ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                <span className="text-emerald-700 dark:text-emerald-400">
+                                  Copied
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Account Number */}
+                        <div className="flex items-center justify-between px-3 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                              Account Number
+                            </span>
+                            <span className="font-mono-tabular font-extrabold text-slate-900 dark:text-white text-sm tracking-wide">
+                              {activeBankAccount.accountNumber}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopyValue(
+                                'accountNumber',
+                                activeBankAccount.accountNumber
+                              )
+                            }
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                          >
+                            {copiedField === 'accountNumber' ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                <span className="text-emerald-700 dark:text-emerald-400">
+                                  Copied
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* IBAN */}
+                        <div className="flex items-center justify-between px-3 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                          <div className="min-w-0 pr-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                              IBAN (24-Digit Raast / IBFT)
+                            </span>
+                            <span className="font-mono-tabular font-extrabold text-[#00529B] dark:text-sky-400 text-xs sm:text-sm tracking-tight break-all">
+                              {activeBankAccount.iban}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyValue('iban', activeBankAccount.iban)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-[#00529B] hover:bg-[#00386B] text-white transition-colors shrink-0 cursor-pointer"
+                          >
+                            {copiedField === 'iban' ? (
+                              <>
+                                <Check className="w-3 h-3" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy IBAN</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* SWIFT, Branch Code & Location Row */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="px-2.5 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-1">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                                SWIFT Code
+                              </span>
+                              <span className="font-mono-tabular font-bold text-slate-900 dark:text-white text-xs">
+                                {activeBankAccount.swift}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleCopyValue('swift', activeBankAccount.swift)
+                              }
+                              title="Copy SWIFT Code"
+                              className="p-1 rounded text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                            >
+                              {copiedField === 'swift' ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="px-2.5 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                              Branch Code
+                            </span>
+                            <span className="font-mono-tabular font-bold text-slate-900 dark:text-white text-xs">
+                              {activeBankAccount.branchCode}
+                            </span>
+                          </div>
+
+                          <div className="px-2.5 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                              Location
+                            </span>
+                            <span className="font-bold text-slate-900 dark:text-white text-[11px] leading-tight block">
+                              {activeBankAccount.location}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Optional Transaction Reference Input */}
+                      <div className="pt-1">
+                        <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Transaction ID / Raast Reference (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={transactionRef}
+                          onChange={(e) => setTransactionRef(e.target.value)}
+                          placeholder="e.g., UBL / Raast TID #8492014 (if already transferred)"
+                          className="w-full px-3 py-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white font-mono-tabular focus:outline-none focus:border-[#00529B] dark:focus:border-sky-400"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* OPTION 3: SALES TAX INVOICE (+18% SALES TAX / GST — REDIRECT TO WHATSAPP ON CHECKOUT) */}
+                  <label
+                    className={`flex items-start gap-3 p-3.5 rounded-md border-2 cursor-pointer transition-colors ${
+                      paymentMethod === 'SALES_TAX_INVOICE'
+                        ? 'border-[#1E2985] dark:border-emerald-400 bg-[#1E2985]/[0.04] dark:bg-emerald-950/30'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      checked={paymentMethod === 'SALES_TAX_INVOICE'}
+                      onChange={() => setPaymentMethod('SALES_TAX_INVOICE')}
                       className="mt-1"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
                           <Receipt className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
-                          <span>Official Tax Invoice (+18% Sales Tax / GST)</span>
+                          <span>3. Sales Tax Invoice (+18% Sales Tax / GST)</span>
                         </span>
                         <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-800 dark:text-amber-300 text-[11px] font-mono-tabular font-extrabold">
                           +18% GST (PKR {Math.round(subtotalPKR * 0.18).toLocaleString()})
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
-                        Adds 18% FBR Sales Tax to the total amount. Official GST/NTN Tax Invoice issued by KH Enterprises (Pvt) Ltd.
+                        Adds 18% FBR Sales Tax to the total amount. Official GST/NTN Tax Invoice issued by KH Enterprises (Pvt) Ltd (Redirects to WhatsApp on checkout).
                       </p>
                     </div>
                   </label>
+
+                  {/* ASK NTN NO. ONLY WHEN CUSTOMER CHOOSES SALES TAX INVOICE OPTION */}
+                  {paymentMethod === 'SALES_TAX_INVOICE' && (
+                    <div className="p-3.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border-2 border-amber-400/60 dark:border-amber-500/40 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                          Mandatory Tax Details for Sales Tax Invoice
+                        </span>
+                        <span className="text-[11px] font-bold text-[#0D5C2B] dark:text-emerald-400">
+                          Redirects to WhatsApp on Checkout
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-extrabold text-slate-900 dark:text-white mb-1">
+                            Customer NTN No. (National Tax Number) *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={ntnNumber}
+                            onChange={(e) => setNtnNumber(e.target.value)}
+                            placeholder="e.g., 4192837-6"
+                            className="w-full px-3 py-2 rounded-md border border-amber-400 dark:border-amber-600 bg-white dark:bg-slate-950 text-xs sm:text-sm font-mono-tabular font-bold text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            STRN / CNIC No. (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={strnNumber}
+                            onChange={(e) => setStrnNumber(e.target.value)}
+                            placeholder="Sales Tax Reg. or CNIC #"
+                            className="w-full px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs sm:text-sm font-mono-tabular text-slate-900 dark:text-white focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </form>
@@ -1150,16 +1195,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <CheckCircle2 className="w-6 h-6 text-[#0D5C2B] dark:text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                    Order #{receipt.orderId} Submitted Automatically!
+                    Order #{receipt.orderId} Submitted!
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                    Your complete order details (including NTN No.{' '}
-                    <strong className="font-mono-tabular">{receipt.ntnNumber}</strong>) have been{' '}
-                    <strong>automatically sent to SZGH Pakistan (KH Enterprises Pvt Ltd)</strong>. Our team will contact{' '}
+                    Your order details{receipt.ntnNumber ? ` (NTN No. ${receipt.ntnNumber})` : ''} have been{' '}
+                    <strong>sent to SZGH Pakistan (KH Enterprises Pvt Ltd)</strong>. Our team will contact{' '}
                     <strong>{receipt.phone}</strong> and <strong>{receipt.email}</strong> shortly.
                   </p>
                 </div>
               </div>
+
+              {receipt.whatsappRedirectUrl && (
+                <a
+                  href={receipt.whatsappRedirectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#0D5C2B] hover:bg-[#094720] text-white text-xs sm:text-sm font-extrabold transition-colors shadow-xs"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Open WhatsApp with Sales Tax Invoice Details</span>
+                </a>
+              )}
 
               {/* Show UBL Bank Account Card on Receipt if Bank Transfer selected */}
               {receipt.selectedBankAccount && (
@@ -1230,7 +1286,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                   <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <FileText className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
-                    <span>{receipt.invoiceType.toUpperCase()}</span>
+                    <span>{receipt.paymentMethod.toUpperCase()}</span>
                   </span>
                   <span className="font-mono-tabular font-semibold text-slate-500">
                     {receipt.orderId}
@@ -1243,13 +1299,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       {receipt.companyName}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-slate-500 block">NTN No.:</span>
-                    <span className="font-mono-tabular font-extrabold text-[#1E2985] dark:text-emerald-400">
-                      {receipt.ntnNumber}
-                      {receipt.strnNumber ? ` | STRN: ${receipt.strnNumber}` : ''}
-                    </span>
-                  </div>
+                  {receipt.ntnNumber && (
+                    <div>
+                      <span className="text-slate-500 block">NTN No.:</span>
+                      <span className="font-mono-tabular font-extrabold text-[#1E2985] dark:text-emerald-400">
+                        {receipt.ntnNumber}
+                        {receipt.strnNumber ? ` | STRN: ${receipt.strnNumber}` : ''}
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <span className="text-slate-500 block">Customer Contact:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
@@ -1308,13 +1366,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <span>Subtotal (Excl. Tax)</span>
                       <span>PKR {receipt.subtotalPKR.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between text-slate-700 dark:text-slate-300 font-semibold">
-                      <span>
-                        Sales Tax ({receipt.salesTaxRate}% GST —{' '}
-                        {receipt.salesTaxRate === 18 ? 'Official Invoice' : 'Standard'})
-                      </span>
-                      <span>PKR {receipt.salesTaxPKR.toLocaleString()}</span>
-                    </div>
+                    {receipt.salesTaxRate === 18 && (
+                      <div className="flex justify-between text-slate-700 dark:text-slate-300 font-semibold">
+                        <span>Sales Tax (18% GST — Sales Tax Invoice)</span>
+                        <span>PKR {receipt.salesTaxPKR.toLocaleString()}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between pt-1.5 border-t border-slate-200 dark:border-slate-800 text-sm font-extrabold text-slate-900 dark:text-white">
                       <span>Total Payable</span>
                       <span>PKR {receipt.totalPKR.toLocaleString()}</span>
@@ -1337,31 +1394,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </span>
               </div>
 
-              <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>
-                  {isOfficialInvoice
-                    ? 'Sales Tax (18% GST — Official Invoice)'
-                    : 'Sales Tax (Standard Receipt — 0%)'}
-                </span>
-                <span
-                  className={`font-mono-tabular font-bold ${
-                    isOfficialInvoice
-                      ? 'text-amber-700 dark:text-amber-400'
-                      : 'text-slate-500'
-                  }`}
-                >
-                  {isOfficialInvoice
-                    ? `+ PKR ${salesTaxPKR.toLocaleString()}`
-                    : 'PKR 0'}
-                </span>
-              </div>
+              {isOfficialInvoice && (
+                <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                  <span>Sales Tax (18% GST — Sales Tax Invoice)</span>
+                  <span className="font-mono-tabular font-bold text-amber-700 dark:text-amber-400">
+                    + PKR {salesTaxPKR.toLocaleString()}
+                  </span>
+                </div>
+              )}
 
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                <span>Handover Mode</span>
+                <span>Payment Method</span>
                 <span className="font-semibold text-[#0D5C2B] dark:text-emerald-400">
                   {paymentMethod === 'PICKUP'
-                    ? 'Cash on Pick Up (No COD)'
-                    : 'Online Bank Transfer (UBL)'}
+                    ? '1. Cash on Pick Up (Default)'
+                    : paymentMethod === 'BANK'
+                      ? '2. Online Bank Transfer (UBL)'
+                      : '3. Sales Tax Invoice (+18% GST)'}
                 </span>
               </div>
 
@@ -1386,7 +1435,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 onClick={() => setStep('checkout')}
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-sm font-bold transition-colors cursor-pointer"
               >
-                <span>Proceed to Checkout &amp; Official Invoice</span>
+                <span>Proceed to Checkout</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
@@ -1406,8 +1455,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 >
                   <span>
                     {submittingOrder
-                      ? 'Sending Order Details...'
-                      : 'Complete Order & Send Automatically'}
+                      ? 'Processing Order...'
+                      : isOfficialInvoice
+                        ? 'Complete Checkout & Redirect to WhatsApp'
+                        : 'Complete Order & Send Automatically'}
                   </span>
                 </button>
               </div>

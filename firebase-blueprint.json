@@ -158,8 +158,8 @@
         },
         "ntnNumber": {
           "type": "string",
-          "description": "Customer National Tax Number (NTN No.).",
-          "minLength": 1,
+          "description": "Customer National Tax Number (NTN No., required when Sales Tax Invoice is selected).",
+          "minLength": 0,
           "maxLength": 60
         },
         "strnNumber": {
@@ -189,7 +189,11 @@
         },
         "paymentMethod": {
           "type": "string",
-          "enum": ["Cash on Pick Up (Lahore Facility)", "Online Bank Transfer (UBL)"]
+          "enum": [
+            "Cash on Pick Up (Lahore Facility)",
+            "Online Bank Transfer (UBL)",
+            "Sales Tax Invoice (18% GST)"
+          ]
         },
         "transactionRef": {
           "type": "string",

@@ -205,7 +205,7 @@ service cloud.firestore {
         data.phone.size() >= 5 &&
         data.phone.size() <= 40 &&
         data.ntnNumber is string &&
-        data.ntnNumber.size() >= 1 &&
+        data.ntnNumber.size() >= 0 &&
         data.ntnNumber.size() <= 60 &&
         data.strnNumber is string &&
         data.strnNumber.size() >= 0 &&
@@ -222,7 +222,7 @@ service cloud.firestore {
         data.invoiceType is string &&
         data.invoiceType in ['Official Tax Invoice (18% GST)', 'Standard Commercial Receipt'] &&
         data.paymentMethod is string &&
-        data.paymentMethod in ['Cash on Pick Up (Lahore Facility)', 'Online Bank Transfer (UBL)'] &&
+        data.paymentMethod in ['Cash on Pick Up (Lahore Facility)', 'Online Bank Transfer (UBL)', 'Sales Tax Invoice (18% GST)'] &&
         data.transactionRef is string &&
         data.transactionRef.size() >= 0 &&
         data.transactionRef.size() <= 120 &&
