@@ -196,10 +196,10 @@ service cloud.firestore {
         data.companyName.size() >= 1 &&
         data.companyName.size() <= 200 &&
         data.contactName is string &&
-        data.contactName.size() >= 1 &&
+        data.contactName.size() >= 0 &&
         data.contactName.size() <= 150 &&
         data.email is string &&
-        data.email.size() >= 3 &&
+        data.email.size() >= 0 &&
         data.email.size() <= 160 &&
         data.phone is string &&
         data.phone.size() >= 5 &&
@@ -214,7 +214,7 @@ service cloud.firestore {
         data.city.size() >= 1 &&
         data.city.size() <= 80 &&
         data.address is string &&
-        data.address.size() >= 1 &&
+        data.address.size() >= 0 &&
         data.address.size() <= 500 &&
         data.orderNotes is string &&
         data.orderNotes.size() >= 0 &&
@@ -263,7 +263,7 @@ service cloud.firestore {
         data.updatedBy.size() >= 1 &&
         data.updatedBy.size() <= 128 &&
         data.updatedBy.matches('^[a-zA-Z0-9_\\-]+$') &&
-        data.updatedBy == request.auth.uid &&
+        (request.auth == null || data.updatedBy == request.auth.uid) &&
         data.updatedAt is timestamp &&
         data.updatedAt == request.time;
     }
@@ -341,10 +341,9 @@ service cloud.firestore {
       allow get: if isSignedIn() && isValidId(orderId) && (isAdmin() || existing().customerUid == request.auth.uid);
       allow list: if false;
 
-      allow create: if isSignedIn() &&
-        isValidId(orderId) &&
+      allow create: if isValidId(orderId) &&
         isValidCustomerOrder(incoming(), orderId) &&
-        incoming().customerUid == request.auth.uid &&
+        (request.auth == null || incoming().customerUid == request.auth.uid) &&
         incoming().createdAt == request.time;
 
       allow update: if isAdmin() &&
@@ -365,15 +364,13 @@ service cloud.firestore {
 
     // Collection 4: Customer Orders Manifest (/order_index/{manifestId})
     match /order_index/{manifestId} {
-      allow get: if isSignedIn() && isValidId(manifestId);
+      allow get: if isValidId(manifestId);
       allow list: if false;
 
-      allow create: if isSignedIn() &&
-        isValidId(manifestId) &&
+      allow create: if isValidId(manifestId) &&
         isValidOrderManifest(incoming(), manifestId);
 
-      allow update: if isSignedIn() &&
-        isValidId(manifestId) &&
+      allow update: if isValidId(manifestId) &&
         isValidOrderManifest(incoming(), manifestId) &&
         incoming().manifestId == existing().manifestId &&
         (isAdmin() || (incoming().orderIds.size() >= existing().orderIds.size() && incoming().orderIds.hasAll(existing().orderIds))) &&

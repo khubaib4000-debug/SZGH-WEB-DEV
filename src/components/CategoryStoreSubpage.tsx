@@ -60,6 +60,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
     selectedSubcategory
   );
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [mobileTreeOpen, setMobileTreeOpen] = useState<boolean>(false);
 
   useEffect(() => {
     setLocalSubcategory(selectedSubcategory);
@@ -93,6 +94,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
       }
     }
     setCurrentPage(1);
+    setMobileTreeOpen(false);
   };
 
   const handleSelectSubcategoryGroup = (group: SubcategoryGroup) => {
@@ -110,6 +112,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
     }
     setSelectedGroupId(group.id);
     setCurrentPage(1);
+    setMobileTreeOpen(false);
   };
 
   // Reset to Page 1 whenever category, subcategory, group, search query, or sort changes
@@ -221,27 +224,27 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
     <div className="min-h-[calc(100vh-5rem)] bg-slate-50 dark:bg-slate-950 pb-20">
       {/* Sub-Page Top Bar & Direct Search Header */}
       <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+        <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-5">
           {/* Top Row: Back Button + Category Tabs */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <button
               type="button"
               onClick={onBackToMain}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+              className="self-start inline-flex items-center gap-2 px-3.5 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-4 h-4 shrink-0" />
               <span>Back to Home Page</span>
             </button>
 
-            {/* Quick Category Switcher */}
-            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            {/* Quick Category Switcher (Touch-Scrollable on Mobile) */}
+            <div className="w-full sm:w-auto flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => {
                   handleSelectSubcategory(null, 'All', null);
                   setSearchQuery('');
                 }}
-                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   category === 'All' && !activeSubcat && !selectedGroupId
                     ? 'bg-[#1E2985] dark:bg-emerald-600 text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
@@ -262,7 +265,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                       handleSelectSubcategory(null, cat.id, null);
                       setSearchQuery('');
                     }}
-                    className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer whitespace-nowrap ${
+                    className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
                         ? 'bg-[#1E2985] dark:bg-emerald-600 text-white'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
@@ -276,23 +279,23 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
           </div>
 
           {/* Category Banner Title & Warranty Guarantee */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <div className="flex items-start sm:items-center gap-3 sm:gap-4">
               <img
                 src={currentCategoryMeta.image}
                 alt={currentCategoryMeta.title}
                 referrerPolicy="no-referrer"
-                className="w-20 h-16 sm:w-24 sm:h-20 rounded-md object-contain bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-1.5 shrink-0"
+                className="w-16 h-14 sm:w-24 sm:h-20 rounded-md object-contain bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-1.5 shrink-0"
               />
-              <div>
-                <div className="text-xs font-mono-tabular font-bold text-[#0D5C2B] dark:text-emerald-400">
+              <div className="min-w-0">
+                <div className="text-[11px] sm:text-xs font-mono-tabular font-bold text-[#0D5C2B] dark:text-emerald-400">
                   SZGH PAKISTAN · {currentCategoryMeta.number}.{' '}
                   {currentCategoryMeta.title.toUpperCase()}
                   {activeGroupObj ? ` · ${activeGroupObj.groupTitle.toUpperCase()}` : ''}
                   {activeSubcat ? ` · ${activeSubcat.toUpperCase()}` : ''} · PAGE{' '}
                   {safeCurrentPage} OF {totalPages}
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                   {activeSubcat
                     ? activeSubcat
                     : activeGroupObj
@@ -308,24 +311,24 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
             </div>
 
             <div className="flex items-center gap-2 text-xs font-semibold text-[#0D5C2B] dark:text-emerald-400 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
               <span>All Products Include 1 Year Official Warranty</span>
             </div>
           </div>
 
           {/* Prominent Top Search Bar for Model No. or Subcategory */}
-          <div className="p-4 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="p-3 sm:p-4 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             <div className="relative flex-1">
-              <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={`Search ${
                   activeSubcat || currentCategoryMeta.title
-                } by Model No. (e.g., SZGH-880TC, SZGH-CNC1000MDb, SD2026) or subcategory...`}
+                } by Model No. (e.g., SZGH-880TC, SZGH-CNC1000MDb, SD2026)...`}
                 aria-label="Search desired products by model number or description"
-                className="w-full pl-11 pr-10 py-3 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400 shadow-2xs"
+                className="w-full pl-10 sm:pl-11 pr-10 py-2.5 sm:py-3 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#1E2985] dark:focus:border-emerald-400 shadow-2xs"
               />
               {searchQuery && (
                 <button
@@ -349,7 +352,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                   )
                 }
                 aria-label="Sort products by price"
-                className="px-3.5 py-3 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
+                className="w-full sm:w-auto px-3.5 py-2.5 sm:py-3 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
               >
                 <option value="default">Sort: Default Order</option>
                 <option value="price-asc">Price: Low to High (PKR)</option>
@@ -358,16 +361,16 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
             </div>
           </div>
 
-          {/* User-Friendly Subcategory Pills Bar for Active Category */}
-          <div className="pt-1 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 mr-1">
+          {/* User-Friendly Subcategory Pills Bar for Active Category (Touch-Scrollable on Mobile) */}
+          <div className="pt-1 flex items-center gap-2 overflow-x-auto no-scrollbar sm:flex-wrap pb-1 sm:pb-0">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1 mr-1 shrink-0">
               <FolderTree className="w-3.5 h-3.5 text-amber-500" />
               <span>Subcategories:</span>
             </span>
             <button
               type="button"
               onClick={() => handleSelectSubcategory(null, category, null)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 !activeSubcat && !selectedGroupId
                   ? 'bg-[#0D5C2B] border-[#0D5C2B] text-white shadow-2xs'
                   : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400'
@@ -392,7 +395,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                         group.id
                       )
                     }
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isSelected
                         ? 'bg-[#1E2985] dark:bg-emerald-600 border-[#1E2985] dark:border-emerald-500 text-white shadow-xs'
                         : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-[#1E2985] dark:hover:border-emerald-500 hover:text-[#1E2985] dark:hover:text-emerald-400'
@@ -417,10 +420,35 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
       </div>
 
       {/* Main Content Area: Left Official Subcategory Directory Tree + Right Product Grid */}
-      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* LEFT SIDEBAR: Official SZGH Category & Subcategory Tree (Matches User Screenshots) */}
-          <aside className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden lg:sticky lg:top-24">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-8">
+        {/* Mobile Collapsible Directory Toggle Button (< lg) */}
+        <div className="lg:hidden mb-4">
+          <button
+            type="button"
+            onClick={() => setMobileTreeOpen((prev) => !prev)}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-slate-900 text-white text-xs font-extrabold uppercase tracking-wider shadow-xs cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <FolderTree className="w-4 h-4 text-amber-400" />
+              <span>
+                {mobileTreeOpen
+                  ? 'Hide Category & Subcategory Directory'
+                  : 'Browse All Categories & Subcategories'}
+              </span>
+            </span>
+            <span className="px-2 py-0.5 rounded bg-white/15 text-[11px] font-mono-tabular">
+              {mobileTreeOpen ? 'Close ▲' : 'Open ▼'}
+            </span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* LEFT SIDEBAR: Official SZGH Category & Subcategory Tree */}
+          <aside
+            className={`${
+              mobileTreeOpen ? 'block' : 'hidden'
+            } lg:block lg:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden lg:sticky lg:top-24`}
+          >
             <div className="px-4 py-3.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <FolderTree className="w-4 h-4 text-amber-400" />

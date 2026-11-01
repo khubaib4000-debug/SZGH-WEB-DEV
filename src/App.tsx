@@ -811,7 +811,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-150">
+    <div className="min-h-screen flex flex-col pb-16 md:pb-0 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-150">
       {/* Sticky Navigation Bar */}
       <Navbar
         activeSection={activeSection}
@@ -865,75 +865,128 @@ export default function App() {
              MAIN WEBSITE SECTIONS
              ================================================================ */
           <>
-            {/* SECTION 1: HOME — SINGLE FULL-WINDOW LANDSCAPE COMPOSITE WITH 4 CLICKABLE PICTURES */}
+            {/* SECTION 1: HOME — RESPONSIVE MOBILE & DESKTOP COMPOSITE WITH 4 CLICKABLE PRODUCT FAMILIES */}
             <section
               id="home"
-              className="relative w-full min-h-[calc(100vh-5rem)] flex flex-col justify-between overflow-hidden bg-[#eef2f6] border-b border-slate-200 dark:border-slate-800 select-none"
+              className="relative w-full lg:min-h-[calc(100vh-5rem)] flex flex-col justify-between overflow-hidden bg-[#eef2f6] dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 select-none"
             >
-              {/* Unified Full-Window Landscape Picture Blending All 4 Clickable Product Photos */}
-              <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-[#e5ebf1] via-[#f5f7fa] to-[#e2e8f0]">
-                <div className="w-full h-full grid grid-cols-2 lg:grid-cols-4 items-center pt-36 pb-20 sm:pt-40 sm:pb-24 px-2 sm:px-6">
+              {/* MOBILE & TABLET HERO (< lg): Clean High-Contrast Banner + Tactile 2×2 Hardware Cards */}
+              <div className="lg:hidden flex flex-col w-full">
+                {/* Top Mobile Hero Header */}
+                <div className="bg-gradient-to-b from-slate-950 via-slate-900 to-[#1E2985] px-4 py-6 sm:px-6 sm:py-8 text-center border-b border-white/10">
+                  <p className="text-[11px] sm:text-xs font-semibold tracking-wider text-emerald-400 uppercase">
+                    SZGH Pakistan · KH Enterprises (Pvt) Ltd
+                  </p>
+                  <h1 className="mt-1.5 text-xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight text-balance">
+                    Total Solution for CNC Systems &amp; Industrial Robots
+                  </h1>
+                  <p className="mt-1.5 text-xs sm:text-sm text-slate-200 font-medium max-w-xl mx-auto">
+                    Tap any of the 4 product families below to open its dedicated store page
+                  </p>
+                </div>
+
+                {/* 2×2 Touch-Friendly Hardware Category Grid on Mobile */}
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-4 p-3 sm:p-5 bg-gradient-to-b from-[#e5ebf1] via-[#f5f7fa] to-[#e2e8f0] dark:from-slate-900 dark:to-slate-950">
                   {HERO_CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}
                       type="button"
                       onClick={() => handleOpenCategorySubpage(cat.id)}
-                      title={`Click to open ${cat.title} Store Page`}
+                      title={`Open ${cat.title} Store Page`}
                       aria-label={`Open ${cat.title} Store Page`}
-                      className="group relative h-full w-full flex flex-col items-center justify-center overflow-hidden cursor-pointer focus:outline-none"
+                      className="group flex flex-col justify-between rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden text-left transition-transform active:scale-[0.98] cursor-pointer"
                     >
-                      <img
-                        src={cat.image}
-                        alt={cat.title}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-contain scale-105 mix-blend-multiply transition-transform duration-300 group-hover:scale-112"
-                      />
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute bottom-4 px-3 py-1.5 rounded bg-[#1E2985]/95 text-white text-xs font-bold shadow-md">
-                        Shop {cat.title} →
-                      </span>
+                      <div className="w-full aspect-4/3 bg-gradient-to-b from-[#eef2f6] to-white dark:from-slate-800 dark:to-slate-900 p-2 sm:p-3 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={cat.image}
+                          alt={cat.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal transition-transform duration-300 group-hover:scale-105"
+                        />
+                      </div>
+                      <div className="w-full px-3 py-2.5 bg-slate-950 text-white flex items-center justify-between gap-1.5 border-t border-slate-800">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-mono-tabular text-emerald-400 font-bold truncate">
+                            {cat.number}. {cat.title.toUpperCase()}
+                          </div>
+                          <div className="text-[11px] sm:text-xs font-bold text-white truncate">
+                            {cat.shortSubtitle}
+                          </div>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      </div>
                     </button>
                   ))}
                 </div>
-
-                {/* Subtle top and bottom architectural light gradients */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-slate-950/75 via-slate-950/35 to-transparent" />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-slate-950/85 via-slate-950/45 to-transparent" />
               </div>
 
-              {/* Top Brief Writings Overlay */}
-              <div className="relative z-10 max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-7 sm:pt-10 text-center pointer-events-none">
-                <p className="text-xs sm:text-sm font-semibold tracking-wider text-emerald-300 uppercase">
-                  SZGH Pakistan · KH Enterprises (Pvt) Ltd
-                </p>
-                <h1 className="mt-1.5 text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm text-balance">
-                  Total Solution for CNC Systems &amp; Industrial Robots
-                </h1>
-                <p className="mt-2 text-xs sm:text-base text-slate-100 font-medium max-w-2xl mx-auto drop-shadow-xs">
-                  Click any of the 4 product families below to open its dedicated store page
-                </p>
-              </div>
+              {/* DESKTOP FULL-WINDOW LANDSCAPE COMPOSITE (lg and up) */}
+              <div className="hidden lg:flex lg:flex-col lg:justify-between lg:min-h-[calc(100vh-5rem)] relative w-full">
+                {/* Unified Full-Window Landscape Picture Blending All 4 Clickable Product Photos */}
+                <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-[#e5ebf1] via-[#f5f7fa] to-[#e2e8f0]">
+                  <div className="w-full h-full grid grid-cols-4 items-center pt-40 pb-24 px-6">
+                    {HERO_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => handleOpenCategorySubpage(cat.id)}
+                        title={`Click to open ${cat.title} Store Page`}
+                        aria-label={`Open ${cat.title} Store Page`}
+                        className="group relative h-full w-full flex flex-col items-center justify-center overflow-hidden cursor-pointer focus:outline-none"
+                      >
+                        <img
+                          src={cat.image}
+                          alt={cat.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain scale-105 mix-blend-multiply transition-transform duration-300 group-hover:scale-112"
+                        />
+                        <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute bottom-4 px-3 py-1.5 rounded bg-[#1E2985]/95 text-white text-xs font-bold shadow-md">
+                          Shop {cat.title} →
+                        </span>
+                      </button>
+                    ))}
+                  </div>
 
-              {/* Bottom Clickable Category Strip Aligned Over the 4 Hardware Zones */}
-              <div className="relative z-10 w-full border-t border-white/15 bg-slate-950/75 backdrop-blur-xs">
-                <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 grid grid-cols-2 lg:grid-cols-4 gap-4 text-left">
-                  {HERO_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => handleOpenCategorySubpage(cat.id)}
-                      className="group flex items-center justify-between pr-3 border-r border-white/10 last:border-none text-left cursor-pointer"
-                    >
-                      <div>
-                        <div className="text-[11px] font-mono-tabular text-emerald-400 font-semibold">
-                          {cat.number}. {cat.title.toUpperCase()}
+                  {/* Subtle top and bottom architectural light gradients */}
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-slate-950/75 via-slate-950/35 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-slate-950/85 via-slate-950/45 to-transparent" />
+                </div>
+
+                {/* Top Brief Writings Overlay */}
+                <div className="relative z-10 max-w-[1360px] w-full mx-auto px-8 pt-10 text-center pointer-events-none">
+                  <p className="text-sm font-semibold tracking-wider text-emerald-300 uppercase">
+                    SZGH Pakistan · KH Enterprises (Pvt) Ltd
+                  </p>
+                  <h1 className="mt-1.5 text-4xl lg:text-5xl font-extrabold tracking-tight text-white drop-shadow-sm text-balance">
+                    Total Solution for CNC Systems &amp; Industrial Robots
+                  </h1>
+                  <p className="mt-2 text-base text-slate-100 font-medium max-w-2xl mx-auto drop-shadow-xs">
+                    Click any of the 4 product families below to open its dedicated store page
+                  </p>
+                </div>
+
+                {/* Bottom Clickable Category Strip Aligned Over the 4 Hardware Zones */}
+                <div className="relative z-10 w-full border-t border-white/15 bg-slate-950/75 backdrop-blur-xs">
+                  <div className="max-w-[1360px] mx-auto px-8 py-3.5 grid grid-cols-4 gap-4 text-left">
+                    {HERO_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => handleOpenCategorySubpage(cat.id)}
+                        className="group flex items-center justify-between pr-3 border-r border-white/10 last:border-none text-left cursor-pointer"
+                      >
+                        <div>
+                          <div className="text-[11px] font-mono-tabular text-emerald-400 font-semibold">
+                            {cat.number}. {cat.title.toUpperCase()}
+                          </div>
+                          <div className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+                            {cat.shortSubtitle}
+                          </div>
                         </div>
-                        <div className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
-                          {cat.shortSubtitle}
-                        </div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors shrink-0" />
-                    </button>
-                  ))}
+                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors shrink-0" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </section>
@@ -943,22 +996,22 @@ export default function App() {
                 ================================================================ */}
             <section
               id="products"
-              className="py-16 lg:py-20 border-b border-slate-200 dark:border-slate-800"
+              className="py-10 sm:py-16 lg:py-20 border-b border-slate-200 dark:border-slate-800"
             >
               <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Section Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
                   <div>
                     <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0D5C2B] dark:text-emerald-400 mb-1">
-                      <TrendingUp className="w-4 h-4" />
+                      <TrendingUp className="w-4 h-4 shrink-0" />
                       <span>
                         Automatic Performance Ranking · Most Viewed &amp; Most Sold Hardware
                       </span>
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    <h2 className="text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                       Top 3 Performing Industrial Products
                     </h2>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
                       Automatically showcasing our top 3 best-performing, most viewed, and highest-selling systems. Multi-axis models are consolidated into single cards with Axes Selection Tabs.
                     </p>
                   </div>
@@ -966,12 +1019,12 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => handleOpenCategorySubpage('All')}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition-colors shadow-xs cursor-pointer shrink-0"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition-colors shadow-xs cursor-pointer shrink-0"
                   >
                     <span>
                       Browse Full Catalog ({mergedCatalogProducts.length} Models · 6 Per Page)
                     </span>
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 shrink-0" />
                   </button>
                 </div>
 

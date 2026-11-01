@@ -244,18 +244,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     if (
       !companyName.trim() ||
       !contactName.trim() ||
-      !email.trim() ||
-      !phone.trim() ||
-      !address.trim()
+      !phone.trim()
     ) {
       setFormError(
-        'Please complete all required customer details, including Company Name, Full Name, Email, Phone, and Complete Address.'
+        'Please complete all required customer details (Customer Name, Customer Address, and Mobile Number).'
       );
       return;
     }
 
-    if (!email.includes('@') || email.trim().length < 5) {
-      setFormError('Please enter a valid customer email address.');
+    if (email.trim() && (!email.includes('@') || email.trim().length < 5)) {
+      setFormError('Please enter a valid customer email address or leave it blank.');
       return;
     }
 
@@ -329,14 +327,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         : null,
       `-----------------------------------------`,
       `*CUSTOMER DETAILS:*`,
-      `Company: ${companyName.trim()}`,
-      `Contact Person: ${contactName.trim()}`,
-      `Phone: ${phone.trim()}`,
-      `Email: ${email.trim()}`,
+      `Customer Name: ${companyName.trim()}`,
+      `Customer Address: ${contactName.trim()}`,
+      `Mobile Number: ${phone.trim()}`,
+      email.trim() ? `Email Address: ${email.trim()}` : null,
       effectiveNtn ? `NTN No.: *${effectiveNtn}*` : null,
       effectiveStrn ? `STRN / CNIC: ${effectiveStrn}` : null,
       `City: ${city}`,
-      `Address: ${address.trim()}`,
+      address.trim() ? `Address: ${address.trim()}` : null,
       orderNotes.trim() ? `Notes: ${orderNotes.trim()}` : null,
       `-----------------------------------------`,
       `*ORDERED ITEMS:*`,
@@ -369,14 +367,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       ``,
       `CUSTOMER & BILLING DETAILS:`,
       `---------------------------`,
-      `Factory / Company Name: ${companyName.trim()}`,
-      `Customer Contact Name: ${contactName.trim()}`,
-      `Customer Phone: ${phone.trim()}`,
-      `Customer Email: ${email.trim()}`,
+      `Customer Name: ${companyName.trim()}`,
+      `Customer Address: ${contactName.trim()}`,
+      `Mobile Number: ${phone.trim()}`,
+      `Email Address: ${email.trim() || 'Not Provided'}`,
       effectiveNtn ? `Customer NTN No.: ${effectiveNtn}` : null,
       effectiveStrn ? `STRN / CNIC No.: ${effectiveStrn}` : null,
       `City: ${city}`,
-      `Complete Address: ${address.trim()}`,
+      address.trim() ? `Address: ${address.trim()}` : null,
       `Special Instructions: ${orderNotes.trim() || 'None'}`,
       ``,
       `ORDERED EQUIPMENT ITEMS:`,
@@ -394,8 +392,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       .filter((line) => line !== null)
       .join('\n');
 
+    const ccEmails = email.trim()
+      ? `grnoman786@gmail.com,${email.trim()}`
+      : 'grnoman786@gmail.com';
+
     const mailtoUrl = `mailto:khubaib4000@gmail.com?cc=${encodeURIComponent(
-      `grnoman786@gmail.com,${email.trim()}`
+      ccEmails
     )}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(
       emailPlainTextBody
     )}`;
@@ -403,7 +405,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
       'khubaib4000@gmail.com'
     )}&cc=${encodeURIComponent(
-      `grnoman786@gmail.com,${email.trim()}`
+      ccEmails
     )}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(
       emailPlainTextBody
     )}`;
@@ -445,8 +447,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
       const formPayload: Record<string, string> = {
         _subject: emailSubject,
-        _cc: `grnoman786@gmail.com,${email.trim()}`,
-        _replyto: email.trim(),
+        _cc: ccEmails,
+        _replyto: email.trim() || 'khubaib4000@gmail.com',
         _template: 'table',
         _captcha: 'false',
         Order_ID: orderId,
@@ -456,14 +458,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           paymentMethod === 'BANK' && transactionRef.trim()
             ? transactionRef.trim()
             : 'N/A',
-        Company_Name: companyName.trim(),
-        Customer_Name: contactName.trim(),
+        Customer_Name: companyName.trim(),
+        Customer_Address: contactName.trim(),
         NTN_Number: effectiveNtn || 'Not Applicable',
         STRN_Or_CNIC: effectiveStrn || 'Not Provided',
-        Customer_Email: email.trim(),
+        Customer_Email: email.trim() || 'Not Provided',
         Customer_Phone: phone.trim(),
         City: city,
-        Complete_Address: address.trim(),
+        Address: address.trim() || 'Not Provided',
         Order_Notes: orderNotes.trim() || 'None',
         Ordered_Items: formattedItemsList,
         Equipment_Subtotal_PKR: `PKR ${subtotalPKR.toLocaleString()}`,
@@ -505,61 +507,59 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
     const customerUid = effectiveUser?.uid || `guest_${Date.now()}`;
 
-    // 2. Save directly to Cloud Firestore (/orders/{orderId} & /order_index/active_orders) if signed in
-    if (effectiveUser) {
+    // 2. Save directly to Cloud Firestore (/orders/{orderId} & /order_index/active_orders) for both signed-in and public link visitors
+    try {
+      await setDoc(doc(db, 'orders', orderId), {
+        orderId,
+        customerUid,
+        companyName: companyName.trim().slice(0, 200),
+        contactName: contactName.trim().slice(0, 150),
+        email: email.trim().slice(0, 160),
+        phone: phone.trim().slice(0, 40),
+        ntnNumber: effectiveNtn.slice(0, 60),
+        strnNumber: effectiveStrn.slice(0, 60),
+        city: city.trim().slice(0, 80),
+        address: address.trim().slice(0, 500),
+        orderNotes: orderNotes.trim().slice(0, 600),
+        invoiceType: invoiceTypeLabel,
+        paymentMethod: paymentMethodLabel,
+        transactionRef:
+          paymentMethod === 'BANK' ? transactionRef.trim().slice(0, 120) : '',
+        itemsSummary: formattedItemsList.slice(0, 4000),
+        subtotalPKR: Math.round(subtotalPKR),
+        salesTaxRate,
+        salesTaxPKR: Math.round(salesTaxPKR),
+        totalPKR: Math.round(grandTotalPKR),
+        orderStatus: 'New Order',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      const manifestRef = doc(db, 'order_index', 'active_orders');
+      let existingOrderIds: string[] = [];
       try {
-        await setDoc(doc(db, 'orders', orderId), {
-          orderId,
-          customerUid: effectiveUser.uid,
-          companyName: companyName.trim().slice(0, 200),
-          contactName: contactName.trim().slice(0, 150),
-          email: email.trim().slice(0, 160),
-          phone: phone.trim().slice(0, 40),
-          ntnNumber: effectiveNtn.slice(0, 60),
-          strnNumber: effectiveStrn.slice(0, 60),
-          city: city.trim().slice(0, 80),
-          address: address.trim().slice(0, 500),
-          orderNotes: orderNotes.trim().slice(0, 600),
-          invoiceType: invoiceTypeLabel,
-          paymentMethod: paymentMethodLabel,
-          transactionRef:
-            paymentMethod === 'BANK' ? transactionRef.trim().slice(0, 120) : '',
-          itemsSummary: formattedItemsList.slice(0, 4000),
-          subtotalPKR: Math.round(subtotalPKR),
-          salesTaxRate,
-          salesTaxPKR: Math.round(salesTaxPKR),
-          totalPKR: Math.round(grandTotalPKR),
-          orderStatus: 'New Order',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        const manifestRef = doc(db, 'order_index', 'active_orders');
-        let existingOrderIds: string[] = [];
-        try {
-          const snap = await getDoc(manifestRef);
-          if (snap.exists() && Array.isArray(snap.data().orderIds)) {
-            existingOrderIds = snap
-              .data()
-              .orderIds.filter((id: unknown): id is string => typeof id === 'string');
-          }
-        } catch {
-          // Manifest may not exist yet
+        const snap = await getDoc(manifestRef);
+        if (snap.exists() && Array.isArray(snap.data().orderIds)) {
+          existingOrderIds = snap
+            .data()
+            .orderIds.filter((id: unknown): id is string => typeof id === 'string');
         }
-
-        const updatedOrderIds = Array.from(
-          new Set([...existingOrderIds, orderId])
-        ).slice(-500);
-
-        await setDoc(manifestRef, {
-          manifestId: 'active_orders',
-          orderIds: updatedOrderIds,
-          updatedBy: effectiveUser.uid,
-          updatedAt: serverTimestamp(),
-        });
       } catch {
-        // Non-blocking if user was not authenticated in Firestore
+        // Manifest may not exist yet
       }
+
+      const updatedOrderIds = Array.from(
+        new Set([...existingOrderIds, orderId])
+      ).slice(-500);
+
+      await setDoc(manifestRef, {
+        manifestId: 'active_orders',
+        orderIds: updatedOrderIds,
+        updatedBy: customerUid,
+        updatedAt: serverTimestamp(),
+      });
+    } catch {
+      // Non-blocking fallback
     }
 
     // 3. Automatically dispatch detailed order notification via FormSubmit AJAX to both admin emails
@@ -569,8 +569,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
     const ajaxPayload = {
       _subject: emailSubject,
-      _cc: `grnoman786@gmail.com,${email.trim()}`,
-      _replyto: email.trim(),
+      _cc: ccEmails,
+      _replyto: email.trim() || 'khubaib4000@gmail.com',
       _template: 'table',
       _captcha: 'false',
       Order_ID: orderId,
@@ -580,14 +580,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         paymentMethod === 'BANK' && transactionRef.trim()
           ? transactionRef.trim()
           : 'N/A',
-      Company_Name: companyName.trim(),
-      Customer_Name: contactName.trim(),
+      Customer_Name: companyName.trim(),
+      Customer_Address: contactName.trim(),
       NTN_Number: effectiveNtn || 'Not Applicable',
       STRN_Or_CNIC: effectiveStrn || 'Not Provided',
-      Customer_Email: email.trim(),
+      Customer_Email: email.trim() || 'Not Provided',
       Customer_Phone: phone.trim(),
       City: city,
-      Complete_Address: address.trim(),
+      Address: address.trim() || 'Not Provided',
       Order_Notes: orderNotes.trim() || 'None',
       Ordered_Items: formattedItemsList,
       Equipment_Subtotal_PKR: `PKR ${subtotalPKR.toLocaleString()}`,
@@ -615,7 +615,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           },
           body: JSON.stringify({
             ...ajaxPayload,
-            _cc: `khubaib4000@gmail.com,${email.trim()}`,
+            _cc: email.trim()
+              ? `khubaib4000@gmail.com,${email.trim()}`
+              : 'khubaib4000@gmail.com',
           }),
         }),
       ]);
@@ -709,12 +711,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center gap-2.5">
-            <ShoppingBag className="w-5 h-5 text-[#1E2985] dark:text-emerald-400" />
-            <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+        <div className="px-4 py-4 sm:px-6 sm:py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-2">
+            <ShoppingBag className="w-5 h-5 text-[#1E2985] dark:text-emerald-400 shrink-0" />
+            <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white truncate">
               {step === 'cart' && 'Industrial Order Cart'}
-              {step === 'checkout' && 'Checkout — Payment Method & Customer Details'}
+              {step === 'checkout' && 'Checkout — Payment & Customer Details'}
               {step === 'confirmed' && 'Order Confirmation'}
             </h2>
           </div>
@@ -722,14 +724,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             type="button"
             onClick={handleResetAndClose}
             aria-label="Close cart drawer"
-            className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Drawer Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {step === 'cart' && (
             <>
               {items.length === 0 ? (
@@ -894,13 +896,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </label>
                   <span className="text-[11px] font-bold text-[#1E2985] dark:text-emerald-400">
                     Default: 1- Cash
-                  </span>
-                </div>
-
-                <div className="p-2.5 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex items-center gap-2 text-[11px] font-semibold text-amber-900 dark:text-amber-300">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>
-                    Only 3 payment methods are available (select any <strong>single one</strong>). We do <strong>NOT</strong> offer Cash on Delivery.
                   </span>
                 </div>
 
@@ -1119,7 +1114,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         </div>
 
                         {/* SWIFT, Branch Code & Location Row */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div className="px-2.5 py-2 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-1">
                             <div>
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
@@ -1310,11 +1305,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Email Address *
+                      Email Address
                     </label>
                     <input
                       type="email"
-                      required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="procurement@company.com"
@@ -1346,11 +1340,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Address *
+                    Address
                   </label>
                   <input
                     type="text"
-                    required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="Plot #, Industrial Estate / Road, Sector, City"
@@ -1385,7 +1378,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
                     Your order details{receipt.ntnNumber ? ` (NTN No. ${receipt.ntnNumber})` : ''} have been{' '}
                     <strong>sent to SZGH Pakistan (KH Enterprises Pvt Ltd)</strong>. Our team will contact{' '}
-                    <strong>{receipt.phone}</strong> and <strong>{receipt.email}</strong> shortly.
+                    <strong>{receipt.phone}</strong>
+                    {receipt.email ? (
+                      <>
+                        {' '}
+                        and <strong>{receipt.email}</strong>
+                      </>
+                    ) : null}{' '}
+                    shortly.
                   </p>
                 </div>
               </div>
@@ -1598,7 +1598,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <span className="text-slate-500 block">Factory / Company:</span>
+                    <span className="text-slate-500 block">Customer Name:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
                       {receipt.companyName}
                     </span>
@@ -1613,17 +1613,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     </div>
                   )}
                   <div>
-                    <span className="text-slate-500 block">Customer Contact:</span>
+                    <span className="text-slate-500 block">Customer Address &amp; Phone:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
                       {receipt.contactName} ({receipt.phone})
                     </span>
                   </div>
-                  <div>
-                    <span className="text-slate-500 block">Email:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white break-all">
-                      {receipt.email}
-                    </span>
-                  </div>
+                  {receipt.email && (
+                    <div>
+                      <span className="text-slate-500 block">Email Address:</span>
+                      <span className="font-semibold text-slate-900 dark:text-white break-all">
+                        {receipt.email}
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <span className="text-slate-500 block">Payment Method:</span>
                     <span className="font-semibold text-slate-900 dark:text-white">
@@ -1636,12 +1638,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       {receipt.city}
                     </span>
                   </div>
-                  <div className="col-span-2">
-                    <span className="text-slate-500 block">Billing / Factory Address:</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">
-                      {receipt.address}
-                    </span>
-                  </div>
+                  {receipt.address && (
+                    <div className="col-span-2">
+                      <span className="text-slate-500 block">Address:</span>
+                      <span className="font-semibold text-slate-900 dark:text-white">
+                        {receipt.address}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5">
@@ -1689,7 +1693,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
         {/* Drawer Footer */}
         {step !== 'confirmed' && items.length > 0 && (
-          <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-4">
+          <div className="p-4 sm:p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 space-y-3.5 sm:space-y-4">
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Equipment Subtotal</span>
@@ -1740,11 +1744,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <ArrowRight className="w-4 h-4" />
               </button>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setStep('cart')}
-                  className="px-4 py-3 rounded-md border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="px-3.5 sm:px-4 py-3 rounded-md border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
                 >
                   Back to Cart
                 </button>
@@ -1752,7 +1756,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   type="submit"
                   form="b2b-checkout-form"
                   disabled={submittingOrder}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md bg-[#0D5C2B] hover:bg-[#094720] disabled:opacity-60 text-white text-sm font-bold transition-colors cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-3 sm:px-4 rounded-md bg-[#0D5C2B] hover:bg-[#094720] disabled:opacity-60 text-white text-xs sm:text-sm font-bold transition-colors cursor-pointer"
                 >
                   <span>
                     {submittingOrder
@@ -1768,7 +1772,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         )}
 
         {step === 'confirmed' && (
-          <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row gap-3">
+          <div className="p-4 sm:p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col sm:flex-row gap-3">
             <button
               type="button"
               onClick={() => window.print()}

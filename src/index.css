@@ -11,11 +11,14 @@
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 }
 
@@ -26,4 +29,19 @@
 
 .tabular-nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* Hide scrollbars on horizontal touch carousels while preserving scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

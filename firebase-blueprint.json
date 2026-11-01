@@ -143,12 +143,12 @@
         },
         "contactName": {
           "type": "string",
-          "minLength": 1,
+          "minLength": 0,
           "maxLength": 150
         },
         "email": {
           "type": "string",
-          "minLength": 3,
+          "minLength": 0,
           "maxLength": 160
         },
         "phone": {
@@ -175,7 +175,7 @@
         },
         "address": {
           "type": "string",
-          "minLength": 1,
+          "minLength": 0,
           "maxLength": 500
         },
         "orderNotes": {

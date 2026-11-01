@@ -172,26 +172,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-xs overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-950/80 backdrop-blur-xs overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-product-title"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-5xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-2xl overflow-hidden my-8"
+        className="relative w-full max-w-5xl bg-white dark:bg-slate-900 border-t sm:border border-slate-200 dark:border-slate-800 rounded-t-2xl sm:rounded-lg shadow-2xl overflow-hidden sm:my-8 max-h-[92dvh] sm:max-h-none flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-            <span className="font-semibold text-slate-900 dark:text-white">
+        <div className="flex items-center justify-between px-4 py-3.5 sm:px-6 sm:py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-slate-600 dark:text-slate-400 min-w-0 truncate pr-2">
+            <span className="font-semibold text-slate-900 dark:text-white shrink-0">
               {product.category}
             </span>
             <span aria-hidden="true">·</span>
-            <span>{product.subcategory}</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono-tabular text-[#1E2985] dark:text-emerald-400 font-semibold">
+            <span className="truncate hidden sm:inline">{product.subcategory}</span>
+            <span aria-hidden="true" className="hidden sm:inline">·</span>
+            <span className="font-mono-tabular text-[#1E2985] dark:text-emerald-400 font-semibold truncate">
               {effectiveModelNumber}
             </span>
           </div>
@@ -199,16 +199,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close product detail view"
-            className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Contiguous 2-Column Purchase & Detailed Features Module */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 p-6 sm:p-8 max-h-[82vh] overflow-y-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 p-4 sm:p-8 overflow-y-auto flex-1">
           {/* Left Column: Main Image + 4-Thumbnail Switcher + Features (6 cols) */}
-          <div className="lg:col-span-6 flex flex-col gap-5">
+          <div className="lg:col-span-6 flex flex-col gap-4 sm:gap-5">
             <div className="relative aspect-4/3 w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               {effectiveImages[activeImageIdx] ? (
                 <img
