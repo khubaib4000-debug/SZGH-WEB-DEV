@@ -1201,13 +1201,24 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/SZGH-Pakistan-Full-Code-Backup.txt"
+              download="SZGH-Pakistan-Full-Code-Backup.txt"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer"
+              title="Download the complete website source code and configuration in a single .txt contingency file"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download Full Code (.txt)</span>
+            </a>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
