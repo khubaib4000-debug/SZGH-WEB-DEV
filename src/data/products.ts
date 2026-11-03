@@ -10,6 +10,156 @@
  * 4. 'Robots'      — 6-Axis Industrial Welding, Handling, Grinding & Spraying Robots
  */
 
+import {
+  SZGH_880MC_IMAGES,
+  SZGH_880MC_IMAGE_LABELS,
+  SZGH_880MC_DEFAULT_IMAGE_INDEX,
+} from './szgh880mcImages';
+import {
+  SZGH_1080MC_IMAGES,
+  SZGH_1080MC_IMAGE_LABELS,
+  SZGH_1080MC_DEFAULT_IMAGE_INDEX,
+} from './szgh1080mcImages';
+import {
+  SZGH_880TC_IMAGES,
+  SZGH_880TC_IMAGE_LABELS,
+  SZGH_880TC_DEFAULT_IMAGE_INDEX,
+} from './szgh880tcImages';
+import {
+  SZGH_1080TC_IMAGES,
+  SZGH_1080TC_IMAGE_LABELS,
+  SZGH_1080TC_DEFAULT_IMAGE_INDEX,
+} from './szgh1080tcImages';
+import {
+  SZGH_1080MIC_IMAGES,
+  SZGH_1080MIC_IMAGE_LABELS,
+  SZGH_1080MIC_DEFAULT_IMAGE_INDEX,
+} from './szgh1080micImages';
+import {
+  SZGH_880TIC_IMAGES,
+  SZGH_880TIC_IMAGE_LABELS,
+  SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+} from './szgh880ticImages';
+import {
+  SZGH_1000MDB_IMAGES,
+  SZGH_1000MDB_IMAGE_LABELS,
+  SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
+} from './szgh1000mdbImages';
+import {
+  SZGH_990MDB_IMAGES,
+  SZGH_990MDB_IMAGE_LABELS,
+  SZGH_990MDB_DEFAULT_IMAGE_INDEX,
+} from './szgh990mdbImages';
+import {
+  SZGH_990MDC_IMAGES,
+  SZGH_990MDC_IMAGE_LABELS,
+  SZGH_990MDC_DEFAULT_IMAGE_INDEX,
+} from './szgh990mdcImages';
+import {
+  SZGH_990TDB_IMAGES,
+  SZGH_990TDB_IMAGE_LABELS,
+  SZGH_990TDB_DEFAULT_IMAGE_INDEX,
+} from './szgh990tdbImages';
+import {
+  SZGH_990TDC_IMAGES,
+  SZGH_990TDC_IMAGE_LABELS,
+  SZGH_990TDC_DEFAULT_IMAGE_INDEX,
+} from './szgh990tdcImages';
+import {
+  SZGH_1000MC_IMAGES,
+  SZGH_1000MC_IMAGE_LABELS,
+  SZGH_1000MC_DEFAULT_IMAGE_INDEX,
+} from './szgh1000mcImages';
+import {
+  SZGH_1000MDC_IMAGES,
+  SZGH_1000MDC_IMAGE_LABELS,
+  SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+} from './szgh1000mdcImages';
+import {
+  SZGH_1000MDCB_IMAGES,
+  SZGH_1000MDCB_IMAGE_LABELS,
+  SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+} from './szgh1000mdcbImages';
+import {
+  SZGH_1000TDB_IMAGES,
+  SZGH_1000TDB_IMAGE_LABELS,
+  SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
+} from './szgh1000tdbImages';
+import {
+  SZGH_CNC_IO12_IMAGES,
+  SZGH_CNC_IO12_IMAGE_LABELS,
+  SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
+} from './szghCncIo12Images';
+import {
+  SZGH_PANEL_A_IMAGE,
+  SZGH_PANEL_B_IMAGE,
+  SZGH_PANEL_C_IMAGE,
+  SZGH_PANEL_E_IMAGE,
+  SZGH_AB_PANEL_IMAGES,
+  SZGH_AB_PANEL_IMAGE_LABELS,
+  SZGH_CE_PANEL_IMAGES,
+  SZGH_CE_PANEL_IMAGE_LABELS,
+} from './szghPanelImages';
+
+export {
+  SZGH_880MC_IMAGES,
+  SZGH_880MC_IMAGE_LABELS,
+  SZGH_880MC_DEFAULT_IMAGE_INDEX,
+  SZGH_1080MC_IMAGES,
+  SZGH_1080MC_IMAGE_LABELS,
+  SZGH_1080MC_DEFAULT_IMAGE_INDEX,
+  SZGH_880TC_IMAGES,
+  SZGH_880TC_IMAGE_LABELS,
+  SZGH_880TC_DEFAULT_IMAGE_INDEX,
+  SZGH_1080TC_IMAGES,
+  SZGH_1080TC_IMAGE_LABELS,
+  SZGH_1080TC_DEFAULT_IMAGE_INDEX,
+  SZGH_1080MIC_IMAGES,
+  SZGH_1080MIC_IMAGE_LABELS,
+  SZGH_1080MIC_DEFAULT_IMAGE_INDEX,
+  SZGH_880TIC_IMAGES,
+  SZGH_880TIC_IMAGE_LABELS,
+  SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+  SZGH_1000MDB_IMAGES,
+  SZGH_1000MDB_IMAGE_LABELS,
+  SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
+  SZGH_990MDB_IMAGES,
+  SZGH_990MDB_IMAGE_LABELS,
+  SZGH_990MDB_DEFAULT_IMAGE_INDEX,
+  SZGH_990MDC_IMAGES,
+  SZGH_990MDC_IMAGE_LABELS,
+  SZGH_990MDC_DEFAULT_IMAGE_INDEX,
+  SZGH_990TDB_IMAGES,
+  SZGH_990TDB_IMAGE_LABELS,
+  SZGH_990TDB_DEFAULT_IMAGE_INDEX,
+  SZGH_990TDC_IMAGES,
+  SZGH_990TDC_IMAGE_LABELS,
+  SZGH_990TDC_DEFAULT_IMAGE_INDEX,
+  SZGH_1000MC_IMAGES,
+  SZGH_1000MC_IMAGE_LABELS,
+  SZGH_1000MC_DEFAULT_IMAGE_INDEX,
+  SZGH_1000MDC_IMAGES,
+  SZGH_1000MDC_IMAGE_LABELS,
+  SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+  SZGH_1000MDCB_IMAGES,
+  SZGH_1000MDCB_IMAGE_LABELS,
+  SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+  SZGH_1000TDB_IMAGES,
+  SZGH_1000TDB_IMAGE_LABELS,
+  SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
+  SZGH_CNC_IO12_IMAGES,
+  SZGH_CNC_IO12_IMAGE_LABELS,
+  SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
+  SZGH_PANEL_A_IMAGE,
+  SZGH_PANEL_B_IMAGE,
+  SZGH_PANEL_C_IMAGE,
+  SZGH_PANEL_E_IMAGE,
+  SZGH_AB_PANEL_IMAGES,
+  SZGH_AB_PANEL_IMAGE_LABELS,
+  SZGH_CE_PANEL_IMAGES,
+  SZGH_CE_PANEL_IMAGE_LABELS,
+};
+
 export type ProductCategory = 'Controllers' | 'Motors' | 'Machines' | 'Robots';
 
 export interface IOBoardOption {
@@ -49,7 +199,8 @@ export interface AxisVariantOption {
   price: number;
   stockCount: number;
   stockStatus?: 'In Stock' | 'Low Stock' | 'Pre-Order';
-  images?: [string, string, string, string];
+  images?: string[];
+  imageLabels?: string[];
   defaultImageIndex?: number;
 }
 
@@ -68,11 +219,11 @@ export interface ProductItem {
   inStock: boolean;
   stockCount: number;
   stockStatus?: 'In Stock' | 'Low Stock' | 'Pre-Order';
-  defaultImageIndex?: number; // 0..3 index of the highlighted default image
+  defaultImageIndex?: number; // 0..5 index of the highlighted default image
   warranty: string; // Standard 1 Year Warranty Note
   hasIOBoardOption?: boolean; // True ONLY for Controllers
-  images: [string, string, string, string];
-  imageLabels: [string, string, string, string];
+  images: string[];
+  imageLabels: string[];
   specs: ProductSpec[];
   compatibility: string[];
 }
@@ -452,12 +603,12 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
   // ==========================================================================
   {
     id: 'prod-cnc-1000mdb',
-    title: 'Universal CNC Milling & Drilling Machine Controller',
-    modelNumber: 'SZGH-CNC1000MDb-5',
+    title: 'Universal CNC Milling & Drilling Machine Controller (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000MDb-5 (A+B Panel)',
     category: 'Controllers',
     subcategory: 'Drilling and milling machine CNC controller',
     description:
-      'Industrial simultaneous interpolation CNC drilling and milling controller for VMCs, gantry mills, and precision mold making. Features 8.4" LCD, full ATC PLC support, and USB DNC.',
+      'Industrial simultaneous interpolation CNC drilling and milling controller (A+B Panel) for VMCs, gantry mills, and precision mold making. Features 8.4" LCD, full ATC PLC support, and USB DNC.',
     features: [
       'Simultaneous linear, circular, and helical interpolation with RTCP look-ahead smoothing',
       'Built-in open PLC ladder supporting Umbrella, Linear, and Arm-Type Automatic Tool Changers (up to 32 tools)',
@@ -469,24 +620,11 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 950,
     inStock: true,
     stockCount: 14,
+    defaultImageIndex: SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000MDb-5',
-        'Controllers',
-        '#16a34a',
-        '420 × 260 × 115 mm',
-        '24VDC Isolated / Simultaneous Control'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'VMC Retrofit Topology',
-    ],
+    images: [...SZGH_1000MDB_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDB_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
     specs: [
       { label: 'Controlled Axes', value: 'Multi-Axis Simultaneous + 2 Analog Spindles' },
       { label: 'Minimum Command Unit', value: '0.001 mm (1 Micron)' },
@@ -499,12 +637,12 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
   },
   {
     id: 'prod-cnc-1000mdb-3',
-    title: 'Universal CNC Drilling & Milling Machine Controller',
-    modelNumber: 'SZGH-CNC1000MDb-3',
+    title: 'Universal CNC Drilling & Milling Machine Controller (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000MDb-3 (A+B Panel)',
     category: 'Controllers',
     subcategory: 'Drilling and milling machine CNC controller',
     description:
-      'Industrial simultaneous CNC drilling and milling controller for Vertical Machining Centers (VMCs), bed mills, and precision drilling-milling machines.',
+      'Industrial simultaneous CNC drilling and milling controller (A+B Panel) for Vertical Machining Centers (VMCs), bed mills, and precision drilling-milling machines.',
     features: [
       'High-speed interpolation with look-ahead smoothing',
       'Built-in open PLC ladder for Umbrella and Arm-Type Automatic Tool Changers',
@@ -513,35 +651,22 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 775,
     inStock: true,
     stockCount: 18,
+    defaultImageIndex: SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000MDb-3',
-        'Controllers',
-        '#16a34a',
-        '420 × 260 × 115 mm',
-        '24VDC Isolated / VMC Control'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'VMC Retrofit Topology',
-    ],
+    images: [...SZGH_1000MDB_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDB_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
     specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
     compatibility: ['Vertical Machining Centers (VMC)', 'CNC Drilling & Milling Machines'],
   },
   {
     id: 'prod-cnc-1000mdb-4',
-    title: 'Universal CNC Drilling, Milling & Rotary Indexing Controller',
-    modelNumber: 'SZGH-CNC1000MDb-4',
+    title: 'Universal CNC Drilling, Milling & Rotary Indexing Controller (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000MDb-4 (A+B Panel)',
     category: 'Controllers',
     subcategory: 'Drilling and milling machine CNC controller',
     description:
-      'Industrial simultaneous CNC drilling and milling controller for VMCs with rotary indexing tables and cylindrical milling.',
+      'Industrial simultaneous CNC drilling and milling controller (A+B Panel) for VMCs with rotary indexing tables and cylindrical milling.',
     features: [
       'Simultaneous interpolation for rotary table machining',
       'Built-in open PLC ladder for Umbrella and Arm-Type Automatic Tool Changers',
@@ -550,35 +675,116 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 865,
     inStock: true,
     stockCount: 11,
+    defaultImageIndex: SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000MDb-4',
-        'Controllers',
-        '#16a34a',
-        '420 × 260 × 115 mm',
-        '24VDC Isolated / VMC Control'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'VMC Retrofit Topology',
-    ],
+    images: [...SZGH_1000MDB_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDB_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
     specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
     compatibility: ['VMCs', 'Rotary Table Drilling & Milling Machines'],
   },
   {
+    id: 'prod-cnc-1000mc-3',
+    title: 'Industrial Dual-Panel CNC Milling & Machining Center Controller (1000MC Series)',
+    modelNumber: 'SZGH-1000MC-3',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Industrial SZGH-1000MC (GH-1000MC) dual-panel CNC milling and drilling machine controller featuring 8.4" color TFT LCD, full alphanumeric MDI programming console, dedicated lower machine operator panel with feed/spindle override dials, ATC PLC ladder support, and USB DNC interface.',
+    features: [
+      'Dual-panel industrial milling console with upper LCD/MDI programmer unit and lower operator control station',
+      'Simultaneous linear, circular, and helical interpolation with high-speed look-ahead contour smoothing',
+      'Built-in open PLC ladder supporting Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Dedicated rear DB connectors for X/Y/Z/4th/5th axes, Encoder, MPG handwheel, Spindle, and Input/Output (CN1–CN62)',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 230000,
+    usdEstimate: 827,
+    inStock: true,
+    stockCount: 15,
+    defaultImageIndex: SZGH_1000MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1000MC_IMAGES,
+    imageLabels: SZGH_1000MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MC (GH-1000MC)' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Milling Operator Console' },
+      { label: 'Rear Interfaces', value: 'X/Y/Z/4th/5th Axis, Encoder, MPG, Spindle, COM, Input & Output (CN1–CN62)' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Milling & Drilling Machines', 'Gantry Mills'],
+  },
+  {
+    id: 'prod-cnc-1000mc-4',
+    title: 'Industrial Dual-Panel CNC Milling & Rotary Indexing Controller (1000MC Series)',
+    modelNumber: 'SZGH-1000MC-4',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Industrial SZGH-1000MC (GH-1000MC) dual-panel CNC milling, drilling, and rotary axis controller featuring 8.4" color TFT LCD, dedicated lower machine operator panel, ATC PLC ladder support, and optically isolated I/O expansion.',
+    features: [
+      'Simultaneous interpolation for VMC and rotary indexing table machining operations',
+      'Dual-panel industrial milling console with upper LCD/MDI programmer unit and lower operator control station',
+      'Dedicated rear DB connectors for X/Y/Z/4th/5th axes, Encoder, MPG handwheel, Spindle, and Input/Output (CN1–CN62)',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 255000,
+    usdEstimate: 917,
+    inStock: true,
+    stockCount: 11,
+    defaultImageIndex: SZGH_1000MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1000MC_IMAGES,
+    imageLabels: SZGH_1000MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MC (GH-1000MC)' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Milling Operator Console' },
+      { label: 'Rear Interfaces', value: 'X/Y/Z/4th/5th Axis, Encoder, MPG, Spindle, COM, Input & Output (CN1–CN62)' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'Rotary Table Milling & Drilling Machines'],
+  },
+  {
+    id: 'prod-cnc-1000mc-5',
+    title: 'Industrial Dual-Panel Multi-Axis CNC Milling & Machining Center Controller (1000MC Series)',
+    modelNumber: 'SZGH-1000MC-5',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Flagship SZGH-1000MC (GH-1000MC-5) dual-panel multi-axis CNC milling and machining center controller featuring 8.4" color TFT LCD, dedicated lower machine operator panel, full X/Y/Z/4th/5th axis rear interface ports, ATC PLC support, and USB DNC.',
+    features: [
+      'Simultaneous multi-axis interpolation with high-speed look-ahead contour smoothing',
+      'Dual-panel industrial milling console with upper LCD/MDI programmer unit and lower operator control station',
+      'Dedicated rear DB connectors for X/Y/Z/4th/5th axes, Encoder, MPG handwheel, Spindle, and Input/Output (CN1–CN62)',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 280000,
+    usdEstimate: 1007,
+    inStock: true,
+    stockCount: 8,
+    defaultImageIndex: SZGH_1000MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1000MC_IMAGES,
+    imageLabels: SZGH_1000MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MC (GH-1000MC)' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Milling Operator Console' },
+      { label: 'Rear Interfaces', value: 'X/Y/Z/4th/5th Axis, Encoder, MPG, Spindle, COM, Input & Output (CN1–CN62)' },
+    ],
+    compatibility: ['Multi-Axis Machining Centers', 'CNC Milling & Mold Centers'],
+  },
+  {
     id: 'prod-cnc-1000tdb',
-    title: 'High-Precision CNC Lathe & Turning Center Controller',
-    modelNumber: 'SZGH-CNC1000TDb-3',
+    title: 'High-Precision CNC Lathe & Turning Center Controller (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000TDb-3 (A+B Panel)',
     category: 'Controllers',
     subcategory: 'Lathe controller',
     description:
-      'Flagship CNC lathe controller designed for slant-bed CNC lathes and live-tooling turning centers. Supports 4-to-12 station turrets, constant surface speed (G96), and rigid tapping.',
+      'Flagship CNC lathe controller (A+B Panel) designed for slant-bed CNC lathes and live-tooling turning centers. Supports 4-to-12 station turrets, constant surface speed (G96), and rigid tapping.',
     features: [
       'Dedicated live-tooling control for complex turning and milling operations',
       'Supports multi-start metric/inch/taper threading, rigid tapping, and constant surface speed (G96)',
@@ -590,24 +796,11 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 820,
     inStock: true,
     stockCount: 19,
+    defaultImageIndex: SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000TDb-3',
-        'Controllers',
-        '#2563eb',
-        '400 × 245 × 110 mm',
-        '24VDC / Live-Tooling Turning'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Turning Console',
-      'Mounting Blueprint',
-      'Turret & Spindle I/O',
-      'Slant-Bed Lathe Wiring',
-    ],
+    images: [...SZGH_1000TDB_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000TDB_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
     specs: [
       { label: 'Controlled Axes', value: 'Turning & Live-Tooling + Dual Spindle Control' },
       { label: 'Thread Cutting Capability', value: 'Metric, Inch, Modular, Taper & Multi-Start' },
@@ -620,12 +813,12 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
   },
   {
     id: 'prod-cnc-1000tdb-2',
-    title: 'High-Precision CNC Lathe & Turning Center Controller',
-    modelNumber: 'SZGH-CNC1000TDb-2',
+    title: 'High-Precision CNC Lathe & Turning Center Controller (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000TDb-2 (A+B Panel)',
     category: 'Controllers',
     subcategory: 'Lathe controller',
     description:
-      'SZGH-CNC1000TDb lathe controller for slant-bed CNC lathes with 8.4" LCD, constant surface speed (G96), and 4–12 station turret control.',
+      'SZGH-CNC1000TDb lathe controller (A+B Panel) for slant-bed CNC lathes with 8.4" LCD, constant surface speed (G96), and 4–12 station turret control.',
     features: [
       'Precision turning with 0.001mm resolution and G96 constant surface speed',
       'Pre-programmed PLC logic for electric and hydraulic turrets',
@@ -634,35 +827,22 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 737,
     inStock: true,
     stockCount: 22,
+    defaultImageIndex: SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000TDb-2',
-        'Controllers',
-        '#2563eb',
-        '400 × 245 × 110 mm',
-        '24VDC / Slant-Bed Turning'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Turning Console',
-      'Mounting Blueprint',
-      'Turret & Spindle I/O',
-      'Slant-Bed Lathe Wiring',
-    ],
+    images: [...SZGH_1000TDB_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000TDB_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
     specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
     compatibility: ['Slant-Bed CNC Lathes', 'Production Turning Centers'],
   },
   {
     id: 'prod-cnc-1000tdb-4',
-    title: 'High-Precision CNC Turn-Mill Lathe Controller',
-    modelNumber: 'SZGH-CNC1000TDb-4',
+    title: 'High-Precision CNC Turn-Mill Lathe Controller (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000TDb-4 (A+B Panel)',
     category: 'Controllers',
     subcategory: 'Lathe controller',
     description:
-      'SZGH-CNC1000TDb lathe controller for multi-tasking turn-mill centers with off-center milling and live tooling.',
+      'SZGH-CNC1000TDb lathe controller (A+B Panel) for multi-tasking turn-mill centers with off-center milling and live tooling.',
     features: [
       'Simultaneous control for complex turn-mill centers',
       'Dual analog spindle outputs + full turret & live-tool PLC integration',
@@ -671,24 +851,11 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 906,
     inStock: true,
     stockCount: 8,
+    defaultImageIndex: SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC1000TDb-4',
-        'Controllers',
-        '#2563eb',
-        '400 × 245 × 110 mm',
-        '24VDC / Turn-Mill Control'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Turning Console',
-      'Mounting Blueprint',
-      'Turret & Spindle I/O',
-      'Slant-Bed Lathe Wiring',
-    ],
+    images: [...SZGH_1000TDB_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000TDB_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
     specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
     compatibility: ['Turn-Mill Centers', 'Multi-Tasking CNC Lathes'],
   },
@@ -710,25 +877,13 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 590,
     inStock: true,
     stockCount: 24,
+    defaultImageIndex: SZGH_990TDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC990TDb-2',
-        'Controllers',
-        '#0284c7',
-        '380 × 240 × 110 mm',
-        '24VDC / Standard Turning'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
-    ],
+    images: SZGH_990TDB_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990TDB_IMAGE_LABELS as [string, string, string, string],
     specs: [
+      { label: 'Model Series', value: 'SZGH-990TDb' },
       { label: 'Minimum Command Unit', value: '0.001 mm' },
       { label: 'Rapid Traverse Limit', value: '60,000 mm/min' },
       { label: 'Display Screen', value: '8.0" Color LCD (800×600)' },
@@ -752,25 +907,15 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 665,
     inStock: true,
     stockCount: 15,
+    defaultImageIndex: SZGH_990TDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC990TDb-3',
-        'Controllers',
-        '#0284c7',
-        '380 × 240 × 110 mm',
-        '24VDC / Live-Milling Lathe'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
+    images: SZGH_990TDB_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990TDB_IMAGE_LABELS as [string, string, string, string],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990TDb' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
     ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
     compatibility: ['CNC Lathes', 'Conventional Lathe Conversions'],
   },
   {
@@ -789,26 +934,106 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 737,
     inStock: true,
     stockCount: 10,
+    defaultImageIndex: SZGH_990TDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC990TDb-4',
-        'Controllers',
-        '#0284c7',
-        '380 × 240 × 110 mm',
-        '24VDC / Turn-Mill Retrofit'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
+    images: SZGH_990TDB_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990TDB_IMAGE_LABELS as [string, string, string, string],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990TDb' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
     ],
-    specs: [{ label: 'Minimum Command Unit', value: '0.001 mm' }],
     compatibility: ['CNC Lathes', 'Multi-Tool Turning Machines'],
+  },
+  {
+    id: 'prod-cnc-990tdc-2',
+    title: 'Industrial CNC Lathe & Turning Center Controller (990TDc Series)',
+    modelNumber: 'SZGH-CNC990TDc-2',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'High-performance SZGH-990TDc CNC lathe and turning center controller featuring 8.0" color LCD, real-time toolpath tracking display, user-centered tactile function control buttons, macro programming, and USB DNC interface.',
+    features: [
+      'High-speed interpolation with 0.001mm command resolution and real-time toolpath tracking display',
+      'User-centered operator console with dedicated function control buttons for spindle, chuck, coolant, and rapid override',
+      'Complete system compatibility with servo kit, spindle kit, rotary encoder, optically isolated I/O board, and MPG handwheel',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 170000,
+    usdEstimate: 612,
+    inStock: true,
+    stockCount: 18,
+    defaultImageIndex: SZGH_990TDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990TDC_IMAGES,
+    imageLabels: SZGH_990TDC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990TDc' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Rapid Traverse Limit', value: '60,000 mm/min' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD (800×600)' },
+      { label: 'I/O Interface', value: 'Opto-Isolated PLC I/O + External I/O Board Support' },
+    ],
+    compatibility: ['Flat-Bed & Slant-Bed CNC Lathes', 'Conventional Lathe Retrofits', 'Production Turning Machines'],
+  },
+  {
+    id: 'prod-cnc-990tdc-3',
+    title: 'Industrial CNC Lathe & Live-Tooling Turning Controller (990TDc Series)',
+    modelNumber: 'SZGH-CNC990TDc-3',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'Industrial SZGH-990TDc CNC lathe controller for turning machines with spindle indexing, live-tool milling, real-time toolpath tracking display, and USB DNC.',
+    features: [
+      'Simultaneous turning and live-tool interpolation with 0.001mm resolution',
+      'Direct support for 4-to-12 station electric/hydraulic tool posts, chuck, and tailstock control',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 190000,
+    usdEstimate: 683,
+    inStock: true,
+    stockCount: 14,
+    defaultImageIndex: SZGH_990TDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990TDC_IMAGES,
+    imageLabels: SZGH_990TDC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990TDc' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Turn-Mill CNC Lathes', 'Slant-Bed Turning Centers'],
+  },
+  {
+    id: 'prod-cnc-990tdc-4',
+    title: 'Industrial Multi-Axis CNC Lathe & Milling-Turn Controller (990TDc Series)',
+    modelNumber: 'SZGH-CNC990TDc-4',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'Multi-axis SZGH-990TDc CNC lathe and turn-mill controller with simultaneous X/Z/C/A interpolation, real-time toolpath tracking display, and complete servo/spindle/encoder/I/O/MPG integration.',
+    features: [
+      'Full simultaneous X/Z/C/A control in an ergonomic 8.0" LCD operator console',
+      'Supports electric/hydraulic turrets, gang tooling, dual spindles, and external I/O relay boards',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 210000,
+    usdEstimate: 755,
+    inStock: true,
+    stockCount: 10,
+    defaultImageIndex: SZGH_990TDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990TDC_IMAGES,
+    imageLabels: SZGH_990TDC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990TDc' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Multi-Tasking CNC Lathes', 'Multi-Tool Turning & Milling Machines'],
   },
   {
     id: 'prod-cnc-880tc-2',
@@ -827,24 +1052,11 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 630,
     inStock: true,
     stockCount: 16,
+    defaultImageIndex: SZGH_880TC_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-880TC',
-        'Controllers',
-        '#0284c7',
-        '400 × 245 × 110 mm',
-        '24VDC / Industrial Turning'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
-    ],
+    images: SZGH_880TC_IMAGES,
+    imageLabels: SZGH_880TC_IMAGE_LABELS,
     specs: [
       { label: 'Model Series', value: 'SZGH-880TC' },
       { label: 'Minimum Command Unit', value: '0.001 mm' },
@@ -869,24 +1081,11 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 712,
     inStock: true,
     stockCount: 12,
+    defaultImageIndex: SZGH_880TC_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-880TC-3',
-        'Controllers',
-        '#0284c7',
-        '400 × 245 × 110 mm',
-        '24VDC / Turn-Mill Control'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
-    ],
+    images: SZGH_880TC_IMAGES,
+    imageLabels: SZGH_880TC_IMAGE_LABELS,
     specs: [
       { label: 'Minimum Command Unit', value: '0.001 mm' },
     ],
@@ -909,40 +1108,495 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 810,
     inStock: true,
     stockCount: 9,
+    defaultImageIndex: SZGH_880TC_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-880TC-4',
-        'Controllers',
-        '#0284c7',
-        '400 × 245 × 110 mm',
-        '24VDC / Turn-Mill Control'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Front Operator Panel',
-      'CAD Panel Cutout',
-      'Rear DB25 & PLC I/O',
-      'Lathe Retrofit Topology',
-    ],
+    images: SZGH_880TC_IMAGES,
+    imageLabels: SZGH_880TC_IMAGE_LABELS,
     specs: [
       { label: 'Minimum Command Unit', value: '0.001 mm' },
     ],
     compatibility: ['Turn-Mill Centers', 'Production Lathes'],
   },
   {
+    id: 'prod-cnc-880tic-2',
+    title: 'Industrial Bus-Type Dual-Panel CNC Lathe & Turning Center Controller (880TIC Series)',
+    modelNumber: 'SZGH-880TIC-2',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'High-stability SZGH-880TIC bus-type dual-panel CNC lathe and turning center controller featuring high-resolution color LCD, full alphanumeric MDI console, dedicated lower machine operator station, turret & spindle PLC logic, MODBUS/Ethernet/Subpanel bus interfaces, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Dual-panel industrial turning console with upper LCD/MDI programmer unit and lower tactile machine operator panel',
+      'High-speed CNC bus architecture with MODBUS, Ethernet, Subpanel, Servo Spindle, Encoder, and Output/Input interfaces',
+      'Built-in PLC logic for 4–12 station electric/hydraulic turrets, hydraulic chucks, and tailstocks',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 190000,
+    usdEstimate: 683,
+    inStock: true,
+    stockCount: 14,
+    defaultImageIndex: SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_880TIC_IMAGES,
+    imageLabels: SZGH_880TIC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-880TIC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Lathe Operator Console' },
+      { label: 'Rear Interfaces', value: 'Output 1/2, Enter 1/2, Servo Spindle, Encoder, Subpanel, MODBUS, Ethernet & Analog' },
+    ],
+    compatibility: ['Slant-Bed CNC Lathes', 'CNC Turning Centers', 'Flat-Bed Production Lathes'],
+  },
+  {
+    id: 'prod-cnc-880tic-3',
+    title: 'Industrial Bus-Type Dual-Panel CNC Lathe & Milling-Turn Controller (880TIC Series)',
+    modelNumber: 'SZGH-880TIC-3',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'High-stability SZGH-880TIC bus-type dual-panel CNC turning & live-tooling lathe controller supporting C-axis spindle indexing, rigid tapping, multi-station ATC turrets, MODBUS/Ethernet/Subpanel bus interfaces, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous interpolation for turning and live-tool milling operations',
+      'Dual-panel industrial turning console with upper LCD/MDI programmer unit and lower tactile machine operator panel',
+      'High-speed CNC bus architecture with MODBUS, Ethernet, Subpanel, Servo Spindle, Encoder, and Output/Input interfaces',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 215000,
+    usdEstimate: 773,
+    inStock: true,
+    stockCount: 11,
+    defaultImageIndex: SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_880TIC_IMAGES,
+    imageLabels: SZGH_880TIC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-880TIC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Lathe Operator Console' },
+      { label: 'Rear Interfaces', value: 'Output 1/2, Enter 1/2, Servo Spindle, Encoder, Subpanel, MODBUS, Ethernet & Analog' },
+    ],
+    compatibility: ['Turn-Mill Lathes', 'Slant-Bed CNC Turning Centers'],
+  },
+  {
+    id: 'prod-cnc-880tic-4',
+    title: 'Industrial Bus-Type Dual-Panel CNC Turn-Mill & Y-Axis Lathe Controller (880TIC Series)',
+    modelNumber: 'SZGH-880TIC-4',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'High-stability SZGH-880TIC bus-type dual-panel CNC turning controller for complex turn-mill centers, off-center Y-axis drilling/milling, dual-spindle synchronization, MODBUS/Ethernet/Subpanel bus interfaces, and optically isolated I/O expansion support.',
+    features: [
+      'Full simultaneous turn-mill control with dual analog spindle outputs and C/Y-axis interpolation',
+      'Dual-panel industrial turning console with upper LCD/MDI programmer unit and lower tactile machine operator panel',
+      'High-speed CNC bus architecture with MODBUS, Ethernet, Subpanel, Servo Spindle, Encoder, and Output/Input interfaces',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 240000,
+    usdEstimate: 863,
+    inStock: true,
+    stockCount: 8,
+    defaultImageIndex: SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_880TIC_IMAGES,
+    imageLabels: SZGH_880TIC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-880TIC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Lathe Operator Console' },
+      { label: 'Rear Interfaces', value: 'Output 1/2, Enter 1/2, Servo Spindle, Encoder, Subpanel, MODBUS, Ethernet & Analog' },
+    ],
+    compatibility: ['Multi-Tasking Turn-Mill Centers', 'Production CNC Lathes'],
+  },
+  {
+    id: 'prod-cnc-1080tc-2',
+    title: 'Industrial Dual-Panel CNC Lathe & Turning Center Controller (1080TC Series)',
+    modelNumber: 'SZGH-1080TC-2',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'Flagship SZGH-1080TC Plus dual-panel CNC lathe and turning center controller featuring high-resolution color LCD, full alphanumeric MDI console, dedicated lower machine operator station, turret & spindle PLC logic, RS485 interface, and optically isolated I/O expansion support.',
+    features: [
+      'Dual-panel industrial turning console with upper LCD/MDI programmer unit and lower tactile machine operator panel',
+      'Built-in PLC logic for 4–12 station electric/hydraulic turrets, hydraulic chucks, and tailstocks',
+      'Dedicated rear stainless steel DB25 connectors for X/Z/Y/A axes, Spindle, Tool Post, Handheld MPG, RS485, and I/O',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 235000,
+    usdEstimate: 845,
+    inStock: true,
+    stockCount: 14,
+    defaultImageIndex: SZGH_1080TC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080TC_IMAGES,
+    imageLabels: SZGH_1080TC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080TC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Lathe Operator Console' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Slant-Bed CNC Lathes', 'CNC Turning Centers', 'Heavy-Duty Flat-Bed Lathes'],
+  },
+  {
+    id: 'prod-cnc-1080tc-3',
+    title: 'Industrial Dual-Panel CNC Lathe & Milling-Turn Controller (1080TC Series)',
+    modelNumber: 'SZGH-1080TC-3',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'Flagship SZGH-1080TC Plus dual-panel CNC turning & live-tooling lathe controller supporting C-axis spindle indexing, rigid tapping, multi-station ATC turrets, RS485 interface, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous interpolation for turning and live-tool milling operations',
+      'Dual-panel industrial turning console with upper LCD/MDI programmer unit and lower tactile machine operator panel',
+      'Built-in PLC logic for 4–12 station turrets, live spindles, hydraulic chucks, and tailstocks',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 260000,
+    usdEstimate: 935,
+    inStock: true,
+    stockCount: 11,
+    defaultImageIndex: SZGH_1080TC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080TC_IMAGES,
+    imageLabels: SZGH_1080TC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080TC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Lathe Operator Console' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Turn-Mill Lathes', 'Slant-Bed CNC Turning Centers'],
+  },
+  {
+    id: 'prod-cnc-1080tc-4',
+    title: 'Industrial Dual-Panel CNC Turn-Mill & Y-Axis Lathe Controller (1080TC Series)',
+    modelNumber: 'SZGH-1080TC-4',
+    category: 'Controllers',
+    subcategory: 'Lathe controller',
+    description:
+      'Flagship SZGH-1080TC Plus dual-panel CNC turning controller for complex turn-mill centers, off-center Y-axis drilling/milling, dual-spindle synchronization, and optically isolated I/O expansion support.',
+    features: [
+      'Full simultaneous turn-mill control with dual analog spindle outputs and C/Y-axis interpolation',
+      'Dual-panel industrial turning console with upper LCD/MDI programmer unit and lower tactile machine operator panel',
+      'Built-in PLC logic for live-tooling turrets and sub-spindle synchronization',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 285000,
+    usdEstimate: 1025,
+    inStock: true,
+    stockCount: 8,
+    defaultImageIndex: SZGH_1080TC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080TC_IMAGES,
+    imageLabels: SZGH_1080TC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080TC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Lathe Operator Console' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Multi-Tasking Turn-Mill Centers', 'Production CNC Lathes'],
+  },
+  {
+    id: 'prod-cnc-880mc-3',
+    title: 'Industrial CNC Milling & Drilling Machine Controller (880MC Series)',
+    modelNumber: 'SZGH-880MC-3',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'High-reliability SZGH-880MC CNC milling and drilling controller featuring 8.4" color LCD, ATC PLC support, RS485 interface, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous linear, circular, and helical interpolation with high-speed look-ahead control',
+      'Built-in open PLC ladder for Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Dedicated rear DB25 connectors for X/Y/Z/A axes, Spindle, Tool Magazine, Handheld MPG, and Input/Output',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 185000,
+    usdEstimate: 665,
+    inStock: true,
+    stockCount: 15,
+    defaultImageIndex: SZGH_880MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_880MC_IMAGES,
+    imageLabels: SZGH_880MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-880MC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Milling & Drilling Machines'],
+  },
+  {
+    id: 'prod-cnc-880mc-4',
+    title: 'Industrial CNC Milling, Drilling & Rotary Axis Controller (880MC Series)',
+    modelNumber: 'SZGH-880MC-4',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'High-reliability SZGH-880MC CNC milling and drilling controller with rotary indexing table control, 8.4" color LCD, ATC PLC support, RS485 interface, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous interpolation for VMC and rotary table milling operations',
+      'Built-in open PLC ladder for Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Dedicated rear DB25 connectors for X/Y/Z/A axes, Spindle, Tool Magazine, Handheld MPG, and Input/Output',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 210000,
+    usdEstimate: 755,
+    inStock: true,
+    stockCount: 12,
+    defaultImageIndex: SZGH_880MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_880MC_IMAGES,
+    imageLabels: SZGH_880MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-880MC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'Rotary Table Milling & Drilling Machines'],
+  },
+  {
+    id: 'prod-cnc-880mc-5',
+    title: 'Industrial Multi-Axis CNC Milling & Drilling Controller (880MC Series)',
+    modelNumber: 'SZGH-880MC-5',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'High-reliability SZGH-880MC multi-axis CNC milling and drilling controller featuring 8.4" color LCD, ATC PLC support, RS485 interface, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous multi-axis interpolation with look-ahead contour smoothing',
+      'Built-in open PLC ladder for Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Dedicated rear DB25 connectors for axes, Spindle, Tool Magazine, Handheld MPG, and Input/Output',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 235000,
+    usdEstimate: 845,
+    inStock: true,
+    stockCount: 8,
+    defaultImageIndex: SZGH_880MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_880MC_IMAGES,
+    imageLabels: SZGH_880MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-880MC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Multi-Axis Machining Centers', 'CNC Milling & Drilling Machines'],
+  },
+  {
+    id: 'prod-cnc-1080mc-3',
+    title: 'Industrial Dual-Panel CNC Milling & Machining Center Controller (1080MC Series)',
+    modelNumber: 'SZGH-1080MC-3',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Flagship SZGH-1080MC Plus dual-panel CNC milling and machining center controller featuring high-resolution color LCD, full alphanumeric MDI console, dedicated machine control panel, ATC PLC ladder support, RS485 interface, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Dual-panel industrial console with upper display/MDI programmer unit and lower tactile machine operator station',
+      'Simultaneous linear, circular, and helical interpolation with high-speed look-ahead smoothing',
+      'Built-in open PLC ladder for Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Dedicated rear stainless steel DB25 connectors for X/Y/Z/A/B axes, Spindle, Tool Magazine, Handheld MPG, RS485, and I/O',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 245000,
+    usdEstimate: 880,
+    inStock: true,
+    stockCount: 12,
+    defaultImageIndex: SZGH_1080MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080MC_IMAGES,
+    imageLabels: SZGH_1080MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080MC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Machine Control Console' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Milling & Drilling Machines', 'Gantry Mills'],
+  },
+  {
+    id: 'prod-cnc-1080mc-4',
+    title: 'Industrial Dual-Panel CNC Milling & Rotary Axis Controller (1080MC Series)',
+    modelNumber: 'SZGH-1080MC-4',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Flagship SZGH-1080MC Plus dual-panel CNC milling and rotary indexing controller featuring high-resolution color LCD, dedicated machine control panel, ATC PLC ladder support, RS485 interface, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous interpolation for VMC and rotary indexing table machining operations',
+      'Dual-panel industrial console with upper display/MDI programmer unit and lower tactile machine operator station',
+      'Built-in open PLC ladder for Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Dedicated rear stainless steel DB25 connectors for axes, Spindle, Tool Magazine, Handheld MPG, RS485, and I/O',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 270000,
+    usdEstimate: 970,
+    inStock: true,
+    stockCount: 10,
+    defaultImageIndex: SZGH_1080MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080MC_IMAGES,
+    imageLabels: SZGH_1080MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080MC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Machine Control Console' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'Rotary Table Milling & Drilling Machines'],
+  },
+  {
+    id: 'prod-cnc-1080mc-5',
+    title: 'Industrial Dual-Panel Multi-Axis CNC Milling & Machining Center Controller (1080MC Series)',
+    modelNumber: 'SZGH-1080MC-5',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Flagship SZGH-1080MC Plus dual-panel multi-axis CNC milling and machining center controller featuring high-resolution color LCD, dedicated machine control panel, ATC PLC ladder support, RS485 interface, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous multi-axis interpolation with high-speed RTCP look-ahead contour smoothing',
+      'Dual-panel industrial console with upper display/MDI programmer unit and lower tactile machine operator station',
+      'Built-in open PLC ladder for Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Dedicated rear stainless steel DB25 connectors for axes, Spindle, Tool Magazine, Handheld MPG, RS485, and I/O',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 295000,
+    usdEstimate: 1060,
+    inStock: true,
+    stockCount: 7,
+    defaultImageIndex: SZGH_1080MC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080MC_IMAGES,
+    imageLabels: SZGH_1080MC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080MC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Machine Control Console' },
+      { label: 'Rear Interfaces', value: 'CN1–CN4 Axes, CN9 Encoder, CN10 Spindle, CN11/12 I/O, CN13 Tool, CN15 RS485, CN16 MPG' },
+    ],
+    compatibility: ['Multi-Axis Machining Centers', 'CNC Milling & Mold Centers'],
+  },
+  {
+    id: 'prod-cnc-1080mic-3',
+    title: 'Industrial Bus-Type Dual-Panel CNC Milling & Machining Center Controller (1080MIC Series)',
+    modelNumber: 'SZGH-1080MIC-3',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Flagship SZGH-1080MiC Plus bus-type dual-panel CNC milling and machining center controller featuring high-resolution color LCD, full alphanumeric MDI console, dedicated lower machine operator station, ATC PLC ladder support, MODBUS/Ethernet/Subpanel bus interfaces, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Dual-panel industrial console with upper display/MDI programmer unit and lower tactile machine operator station',
+      'High-speed CNC bus architecture with MODBUS, Ethernet, Subpanel, Analog Spindle, Encoder, and I/O interfaces',
+      'Built-in open PLC ladder for Umbrella, Linear, and Arm-Type Automatic Tool Changers (ATC)',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 255000,
+    usdEstimate: 917,
+    inStock: true,
+    stockCount: 12,
+    defaultImageIndex: SZGH_1080MIC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080MIC_IMAGES,
+    imageLabels: SZGH_1080MIC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080MIC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Machine Control Console' },
+      { label: 'Rear Interfaces', value: 'MPG, Encoder, Subpanel, MODBUS, Ethernet, Analog, Axis, Output & Input' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Milling & Drilling Machines', 'Gantry Mills'],
+  },
+  {
+    id: 'prod-cnc-1080mic-4',
+    title: 'Industrial Bus-Type Dual-Panel CNC Milling & Rotary Axis Controller (1080MIC Series)',
+    modelNumber: 'SZGH-1080MIC-4',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Flagship SZGH-1080MiC Plus bus-type dual-panel CNC milling and rotary indexing controller featuring high-resolution color LCD, dedicated lower machine operator station, ATC PLC ladder support, MODBUS/Ethernet/Subpanel bus interfaces, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous interpolation for VMC and rotary indexing table machining operations',
+      'Dual-panel industrial console with upper display/MDI programmer unit and lower tactile machine operator station',
+      'High-speed CNC bus architecture with MODBUS, Ethernet, Subpanel, Analog Spindle, Encoder, and I/O interfaces',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 280000,
+    usdEstimate: 1007,
+    inStock: true,
+    stockCount: 9,
+    defaultImageIndex: SZGH_1080MIC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080MIC_IMAGES,
+    imageLabels: SZGH_1080MIC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080MIC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Machine Control Console' },
+      { label: 'Rear Interfaces', value: 'MPG, Encoder, Subpanel, MODBUS, Ethernet, Analog, Axis, Output & Input' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'Rotary Table Milling & Drilling Machines'],
+  },
+  {
+    id: 'prod-cnc-1080mic-5',
+    title: 'Industrial Bus-Type Dual-Panel Multi-Axis CNC Milling Controller (1080MIC Series)',
+    modelNumber: 'SZGH-1080MIC-5',
+    category: 'Controllers',
+    subcategory: 'Drilling and milling machine CNC controller',
+    description:
+      'Flagship SZGH-1080MiC Plus bus-type dual-panel multi-axis CNC milling and machining center controller featuring high-resolution color LCD, dedicated lower machine operator station, ATC PLC ladder support, MODBUS/Ethernet/Subpanel bus interfaces, MPG handwheel port, and optically isolated I/O expansion support.',
+    features: [
+      'Simultaneous multi-axis interpolation with high-speed RTCP look-ahead contour smoothing',
+      'Dual-panel industrial console with upper display/MDI programmer unit and lower tactile machine operator station',
+      'High-speed CNC bus architecture with MODBUS, Ethernet, Subpanel, Analog Spindle, Encoder, and I/O interfaces',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 305000,
+    usdEstimate: 1097,
+    inStock: true,
+    stockCount: 6,
+    defaultImageIndex: SZGH_1080MIC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_1080MIC_IMAGES,
+    imageLabels: SZGH_1080MIC_IMAGE_LABELS,
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1080MIC' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Operator Architecture', value: 'Dual-Panel Display & Tactile Machine Control Console' },
+      { label: 'Rear Interfaces', value: 'MPG, Encoder, Subpanel, MODBUS, Ethernet, Analog, Axis, Output & Input' },
+    ],
+    compatibility: ['Multi-Axis Machining Centers', 'CNC Milling & Mold Centers'],
+  },
+  {
     id: 'prod-cnc-990mdb-3',
-    title: 'High-Speed CNC Engraving & Mold Milling Controller',
+    title: 'High-Speed CNC Milling, Drilling & Engraving Controller (990MDb Series)',
     modelNumber: 'SZGH-CNC990MDb-3',
     category: 'Controllers',
     subcategory: 'Engraving CNC controller',
     description:
-      'Dedicated high-speed engraving CNC controller for die/mold engraving, precision routing, and high-RPM spindle engraving centers with USB DNC drip-feeding.',
+      'Dedicated high-speed CNC milling, drilling, and engraving controller for die/mold engraving, precision routing, and high-RPM spindle machining centers with USB DNC drip-feeding.',
     features: [
       'High-speed small-segment look-ahead interpolation for smooth 3D engraving and mold cavities',
-      'Supports high-frequency engraving spindles (up to 24,000–60,000 RPM) via 0-10V analog and RS485 Modbus',
+      'Supports high-frequency engraving & milling spindles via 0-10V analog and RS485 Modbus',
       'Automatic Z-axis tool length setter macro and power-failure resume engraving function',
       'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
     ],
@@ -950,30 +1604,345 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 618,
     inStock: true,
     stockCount: 14,
+    defaultImageIndex: SZGH_990MDB_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: true,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'SZGH-CNC990MDb-3',
-        'Controllers',
-        '#16a34a',
-        '380 × 240 × 110 mm',
-        '24VDC / High-Speed Engraving'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Engraving Operator Console',
-      'CAD Panel Cutout',
-      'High-Speed Pulse & Spindle I/O',
-      'Engraving Machine Wiring',
-    ],
+    images: SZGH_990MDB_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990MDB_IMAGE_LABELS as [string, string, string, string],
     specs: [
-      { label: 'Application Focus', value: 'High-Speed 3D Engraving, Mold & Router Control' },
+      { label: 'Model Series', value: 'SZGH-990MDb' },
+      { label: 'Application Focus', value: 'High-Speed 3D Engraving, Mold & Milling Control' },
       { label: 'Minimum Command Unit', value: '0.001 mm' },
       { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
     ],
     compatibility: ['CNC Engraving Machines', 'Die & Brass Mold Engravers', 'Gantry CNC Routers'],
+  },
+  {
+    id: 'prod-cnc-990mdb-4',
+    title: 'High-Speed CNC Milling, Drilling & Rotary Engraving Controller (990MDb Series)',
+    modelNumber: 'SZGH-CNC990MDb-4',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Industrial SZGH-990MDb CNC milling, drilling, and rotary engraving controller with simultaneous interpolation, real-time toolpath tracking display, and USB DNC.',
+    features: [
+      'Simultaneous rotary indexing and 3D contour milling interpolation',
+      'User-centered operator panel with tactile function buttons and MPG handwheel support',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 192000,
+    usdEstimate: 690,
+    inStock: true,
+    stockCount: 10,
+    defaultImageIndex: SZGH_990MDB_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990MDB_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990MDB_IMAGE_LABELS as [string, string, string, string],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990MDb' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
+    ],
+    compatibility: ['Rotary CNC Engravers', 'Drilling & Milling Machines', 'Mold Routers'],
+  },
+  {
+    id: 'prod-cnc-990mdb-5',
+    title: 'High-Speed Multi-Axis CNC Milling & Engraving Controller (990MDb Series)',
+    modelNumber: 'SZGH-CNC990MDb-5',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Multi-axis SZGH-990MDb CNC milling, drilling, and mold engraving controller with simultaneous interpolation, PLC ATC support, and optically isolated I/O expansion.',
+    features: [
+      'Simultaneous multi-axis interpolation for complex mold and rotary machining',
+      'Complete package compatibility with MPG handwheel, I/O board, spindle, and servo drives',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 212000,
+    usdEstimate: 762,
+    inStock: true,
+    stockCount: 8,
+    defaultImageIndex: SZGH_990MDB_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990MDB_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990MDB_IMAGE_LABELS as [string, string, string, string],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990MDb' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
+    ],
+    compatibility: ['Multi-Axis CNC Routers', 'Drilling & Milling Centers', 'Mold Engraving Machines'],
+  },
+  {
+    id: 'prod-cnc-990mdc-3',
+    title: 'Industrial CNC Milling, Drilling & Engraving Controller (990MDc Series)',
+    modelNumber: 'SZGH-CNC990MDc-3',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'High-performance SZGH-990MDc CNC milling, drilling, and engraving controller featuring 8.0" color LCD, real-time toolpath tracking display, macro programming, and USB DNC drip-feeding.',
+    features: [
+      'High-speed small-segment look-ahead interpolation for smooth 3D mold, router, and milling operations',
+      'User-centered operator panel with dedicated function control buttons and emergency stop',
+      'Complete system compatibility with MPG handwheel, optically isolated I/O board, spindle, and servo drives',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 178000,
+    usdEstimate: 640,
+    inStock: true,
+    stockCount: 15,
+    defaultImageIndex: SZGH_990MDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990MDC_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990MDC_IMAGE_LABELS as [string, string, string, string],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990MDc' },
+      { label: 'Application Focus', value: 'High-Speed Milling, Drilling & 3D Engraving Control' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
+    ],
+    compatibility: ['CNC Milling & Drilling Machines', 'CNC Engraving Machines', 'Gantry CNC Routers'],
+  },
+  {
+    id: 'prod-cnc-990mdc-4',
+    title: 'Industrial CNC Milling, Drilling & Rotary Engraving Controller (990MDc Series)',
+    modelNumber: 'SZGH-CNC990MDc-4',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Industrial SZGH-990MDc CNC milling, drilling, and rotary engraving controller with simultaneous interpolation, real-time toolpath tracking display, and USB DNC.',
+    features: [
+      'Simultaneous rotary indexing and 3D contour milling interpolation',
+      'User-centered operator panel with tactile function buttons and MPG handwheel support',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 198000,
+    usdEstimate: 712,
+    inStock: true,
+    stockCount: 11,
+    defaultImageIndex: SZGH_990MDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990MDC_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990MDC_IMAGE_LABELS as [string, string, string, string],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990MDc' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
+    ],
+    compatibility: ['Rotary CNC Engravers', 'Drilling & Milling Machines', 'Mold Routers'],
+  },
+  {
+    id: 'prod-cnc-990mdc-5',
+    title: 'Industrial Multi-Axis CNC Milling & Engraving Controller (990MDc Series)',
+    modelNumber: 'SZGH-CNC990MDc-5',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Multi-axis SZGH-990MDc CNC milling, drilling, and mold engraving controller with simultaneous interpolation, PLC ATC support, and optically isolated I/O expansion.',
+    features: [
+      'Simultaneous multi-axis interpolation for complex mold and rotary machining',
+      'Complete package compatibility with MPG handwheel, I/O board, spindle, and servo drives',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 218000,
+    usdEstimate: 784,
+    inStock: true,
+    stockCount: 9,
+    defaultImageIndex: SZGH_990MDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: SZGH_990MDC_IMAGES as [string, string, string, string],
+    imageLabels: SZGH_990MDC_IMAGE_LABELS as [string, string, string, string],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-990MDc' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
+    ],
+    compatibility: ['Multi-Axis CNC Routers', 'Drilling & Milling Centers', 'Mold Engraving Machines'],
+  },
+  {
+    id: 'prod-cnc-1000mdc-3',
+    title: 'Industrial CNC Milling, Drilling & Engraving Controller (1000MDc Series) (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000MDc-3 (A+B Panel)',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'High-performance SZGH-1000MDc (CNC Series 1000MDc) CNC milling, drilling, and engraving controller (A+B Panel) featuring 8.4" color TFT LCD, real-time 3D toolpath tracking display, user-centered function control buttons, ATC PLC ladder support, and USB DNC drip-feeding.',
+    features: [
+      'High-speed small-segment look-ahead interpolation with real-time 3D toolpath tracking display',
+      'User-centered operator console with dedicated tactile function control buttons and optional lower machine operator panel',
+      'Complete system compatibility with MPG handwheel, optically isolated I/O board, spindle motor/driver, and servo motor/driver kits',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 222000,
+    usdEstimate: 799,
+    inStock: true,
+    stockCount: 16,
+    defaultImageIndex: SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [...SZGH_1000MDC_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDC_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MDc (CNC 1000MDc)' },
+      { label: 'Application Focus', value: 'High-Speed Milling, Drilling, VMC & 3D Engraving Control' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Milling & Drilling Machines', 'Mold & Engraving Centers'],
+  },
+  {
+    id: 'prod-cnc-1000mdc-4',
+    title: 'Industrial CNC Milling, Drilling & Rotary Engraving Controller (1000MDc Series) (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000MDc-4 (A+B Panel)',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Industrial SZGH-1000MDc (CNC Series 1000MDc) CNC milling, drilling, and rotary indexing controller (A+B Panel) featuring real-time toolpath tracking display, tactile function control buttons, ATC PLC support, and USB DNC.',
+    features: [
+      'Simultaneous rotary indexing and 3D contour milling interpolation',
+      'User-centered operator console with dedicated tactile function control buttons and MPG handwheel support',
+      'Complete system compatibility with MPG handwheel, optically isolated I/O board, spindle motor/driver, and servo motor/driver kits',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 246000,
+    usdEstimate: 885,
+    inStock: true,
+    stockCount: 12,
+    defaultImageIndex: SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [...SZGH_1000MDC_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDC_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MDc (CNC 1000MDc)' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Rotary Table VMCs', 'Drilling & Milling Machines', 'Multi-Axis Mold Routers'],
+  },
+  {
+    id: 'prod-cnc-1000mdc-5',
+    title: 'Industrial Multi-Axis CNC Milling, Drilling & Mold Controller (1000MDc Series) (A+B Panel)',
+    modelNumber: 'SZGH-CNC1000MDc-5 (A+B Panel)',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Flagship multi-axis SZGH-1000MDc (CNC Series 1000MDc) CNC milling, drilling, and mold engraving controller (A+B Panel) with simultaneous interpolation, real-time toolpath tracking display, PLC ATC support, and optically isolated I/O expansion.',
+    features: [
+      'Simultaneous multi-axis interpolation for complex mold, VMC, and rotary machining',
+      'Complete system compatibility with MPG handwheel, optically isolated I/O board, spindle motor/driver, and servo motor/driver kits',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 272000,
+    usdEstimate: 978,
+    inStock: true,
+    stockCount: 9,
+    defaultImageIndex: SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [...SZGH_1000MDC_IMAGES, ...SZGH_AB_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDC_IMAGE_LABELS, ...SZGH_AB_PANEL_IMAGE_LABELS],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MDc (CNC 1000MDc)' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Multi-Axis Machining Centers', 'Drilling & Milling Centers', 'High-Speed Mold Engraving Machines'],
+  },
+  {
+    id: 'prod-cnc-1000mdcb-3',
+    title: 'Industrial CNC Milling, Drilling & Engraving Controller (1000MDcb Series) (C+E Panel)',
+    modelNumber: 'SZGH-CNC1000MDcb-3 (C+E Panel)',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'High-performance SZGH-1000MDcb (CNC Series 1000MDcb) CNC milling, drilling, and engraving controller (C+E Panel) featuring 8.4" color TFT LCD, real-time 3D toolpath tracking display, user-centered function control buttons, lower operator panel with feed/spindle rate dials, ATC PLC ladder support, and USB DNC.',
+    features: [
+      'High-speed small-segment look-ahead interpolation with real-time 3D toolpath tracking display',
+      'User-centered operator console with dedicated tactile function control buttons and lower operator station with Feed Rate & SP-Rate dials',
+      'Complete system compatibility with MPG handwheel, optically isolated I/O board, spindle motor/driver, and servo motor/driver kits',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 226000,
+    usdEstimate: 813,
+    inStock: true,
+    stockCount: 14,
+    defaultImageIndex: SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [...SZGH_1000MDCB_IMAGES, ...SZGH_CE_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDCB_IMAGE_LABELS, ...SZGH_CE_PANEL_IMAGE_LABELS],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MDcb (CNC 1000MDcb)' },
+      { label: 'Application Focus', value: 'High-Speed Milling, Drilling, VMC & 3D Engraving Control' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Vertical Machining Centers (VMC)', 'CNC Milling & Drilling Machines', 'Mold & Engraving Centers'],
+  },
+  {
+    id: 'prod-cnc-1000mdcb-4',
+    title: 'Industrial CNC Milling, Drilling & Rotary Engraving Controller (1000MDcb Series) (C+E Panel)',
+    modelNumber: 'SZGH-CNC1000MDcb-4 (C+E Panel)',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Industrial SZGH-1000MDcb (CNC Series 1000MDcb) CNC milling, drilling, and rotary indexing controller (C+E Panel) featuring real-time toolpath tracking display, tactile function control buttons, lower operator panel with rotary feed/spindle override dials, ATC PLC support, and USB DNC.',
+    features: [
+      'Simultaneous rotary indexing and 3D contour milling interpolation',
+      'User-centered operator console with dedicated tactile function control buttons and lower operator station with Feed Rate & SP-Rate dials',
+      'Complete system compatibility with MPG handwheel, optically isolated I/O board, spindle motor/driver, and servo motor/driver kits',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 250000,
+    usdEstimate: 899,
+    inStock: true,
+    stockCount: 10,
+    defaultImageIndex: SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [...SZGH_1000MDCB_IMAGES, ...SZGH_CE_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDCB_IMAGE_LABELS, ...SZGH_CE_PANEL_IMAGE_LABELS],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MDcb (CNC 1000MDcb)' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Rotary Table VMCs', 'Drilling & Milling Machines', 'Multi-Axis Mold Routers'],
+  },
+  {
+    id: 'prod-cnc-1000mdcb-5',
+    title: 'Industrial Multi-Axis CNC Milling, Drilling & Mold Controller (1000MDcb Series) (C+E Panel)',
+    modelNumber: 'SZGH-CNC1000MDcb-5 (C+E Panel)',
+    category: 'Controllers',
+    subcategory: 'Engraving CNC controller',
+    description:
+      'Flagship multi-axis SZGH-1000MDcb (CNC Series 1000MDcb) CNC milling, drilling, and mold engraving controller (C+E Panel) with simultaneous interpolation, real-time toolpath tracking display, lower operator panel with rotary feed/spindle override dials, PLC ATC support, and optically isolated I/O expansion.',
+    features: [
+      'Simultaneous multi-axis interpolation for complex mold, VMC, and rotary machining',
+      'Complete system compatibility with MPG handwheel, optically isolated I/O board, spindle motor/driver, and servo motor/driver kits',
+      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
+    ],
+    price: 276000,
+    usdEstimate: 993,
+    inStock: true,
+    stockCount: 8,
+    defaultImageIndex: SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+    warranty: '1 Year Official Warranty',
+    hasIOBoardOption: true,
+    images: [...SZGH_1000MDCB_IMAGES, ...SZGH_CE_PANEL_IMAGES],
+    imageLabels: [...SZGH_1000MDCB_IMAGE_LABELS, ...SZGH_CE_PANEL_IMAGE_LABELS],
+    specs: [
+      { label: 'Model Series', value: 'SZGH-1000MDcb (CNC 1000MDcb)' },
+      { label: 'Minimum Command Unit', value: '0.001 mm' },
+      { label: 'Display Screen', value: '8.4" Industrial Color TFT LCD (800×600)' },
+    ],
+    compatibility: ['Multi-Axis Machining Centers', 'Drilling & Milling Centers', 'High-Speed Mold Engraving Machines'],
   },
   {
     id: 'prod-cnc-1000g-2',
@@ -1035,24 +2004,11 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     usdEstimate: 72,
     inStock: true,
     stockCount: 45,
+    defaultImageIndex: SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
     warranty: '1 Year Official Warranty',
     hasIOBoardOption: false,
-    images: [
-      HERO_SHOWCASE_PHOTOS.controllers,
-      ...createIndustrialProductGallery(
-        'CNC-IO12',
-        'Controllers',
-        '#16a34a',
-        'DIN Rail Terminal Module',
-        '24VDC Opto-Isolated I/O Board'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'CNC-IO12 I/O Board',
-      'DIN-Rail Footprint',
-      'Relay & Opto Pinout',
-      'Cabinet Wiring Topology',
-    ],
+    images: SZGH_CNC_IO12_IMAGES,
+    imageLabels: SZGH_CNC_IO12_IMAGE_LABELS,
     specs: [
       { label: 'Model Number', value: 'CNC-IO12' },
       { label: 'Protection', value: '24VDC Opto-Isolated Inputs & Relay Outputs' },
@@ -1890,7 +2846,7 @@ export function isStandaloneIOBoardProduct(item: {
     .trim()
     .toLowerCase();
 
-  if (/CNC(?:880)?[-\s]*I[O0]12/i.test(model)) {
+  if (/(?:SZGH[-\s]*)?(?:CNC(?:880)?[-\s]*)?I[O0][-\s]*12/i.test(model)) {
     return true;
   }
   if (
@@ -1921,6 +2877,174 @@ export function normalizeIOBoardModelNumber(
 }
 
 /**
+ * Detects if a product's description, title, or modelNumber includes (A+B Panel)
+ * (including variations such as "(A+B Panel)", "A+B Panel", "（A/B panel）", "(A/B panel)", "A/B panel").
+ */
+export function hasABPanelInProduct(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+  title?: string;
+  description?: string;
+}): boolean {
+  const combined = `${item.description || ''} ${item.title || ''} ${item.modelNumber || ''} ${
+    item.baseModelNumber || ''
+  }`;
+  return /(?:[\(\（]\s*)?\bA\s*[\+\/]\s*B\s*[-–]?\s*panel\b(?:\s*[\)\）])?/i.test(
+    combined
+  );
+}
+
+/**
+ * Detects if a product's description, title, or modelNumber includes (C+E Panel)
+ * (including variations such as "(C+E Panel)", "C+E Panel", "（C/E panel）", "(C/E panel)", "C/E panel").
+ */
+export function hasCEPanelInProduct(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+  title?: string;
+  description?: string;
+}): boolean {
+  const combined = `${item.description || ''} ${item.title || ''} ${item.modelNumber || ''} ${
+    item.baseModelNumber || ''
+  }`;
+  return /(?:[\(\（]\s*)?\bC\s*[\+\/]\s*E\s*[-–]?\s*panel\b(?:\s*[\)\）])?/i.test(
+    combined
+  );
+}
+
+/**
+ * Normalizes panel notation in description, title, and modelNumber so that:
+ * - Any A/B or A+B panel product explicitly displays "(A+B Panel)" in its description & modelNumber.
+ * - Any C/E or C+E panel product explicitly displays "(C+E Panel)" in its description & modelNumber.
+ */
+export function normalizePanelStrings(item: {
+  modelNumber?: string;
+  title?: string;
+  description?: string;
+}): {
+  modelNumber: string;
+  title: string;
+  description: string;
+} {
+  const isAB = hasABPanelInProduct(item);
+  const isCE = hasCEPanelInProduct(item);
+
+  let model = (item.modelNumber || '').trim();
+  let title = (item.title || '').trim();
+  let desc = (item.description || '').trim();
+
+  if (isAB) {
+    model = model
+      .replace(/\s*[\(\（]\s*A\s*[\+\/]\s*B\s*[-–]?\s*panel\s*[\)\）]/gi, ' (A+B Panel)')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    title = title
+      .replace(/[\(\（]\s*A\s*[\+\/]\s*B\s*[-–]?\s*panel\s*[\)\）]/gi, '(A+B Panel)')
+      .replace(/\bwith\s+panel\b/gi, 'with (A+B Panel)');
+    desc = desc
+      .replace(/[\(\（]\s*A\s*[\+\/]\s*B\s*[-–]?\s*panel\s*[\)\）]/gi, '(A+B Panel)')
+      .replace(/\bwith\s+panel\b/gi, 'with (A+B Panel)');
+    if (desc && !/\(\s*A\s*\+\s*B\s*Panel\s*\)/i.test(desc)) {
+      desc = `${desc} (A+B Panel)`;
+    }
+  } else if (isCE) {
+    model = model
+      .replace(/\s*[\(\（]\s*C\s*[\+\/]\s*E\s*[-–]?\s*panel\s*[\)\）]/gi, ' (C+E Panel)')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    title = title
+      .replace(/[\(\（]\s*C\s*[\+\/]\s*E\s*[-–]?\s*panel\s*[\)\）]/gi, '(C+E Panel)')
+      .replace(/\bwith\s+panel\b/gi, 'with (C+E Panel)');
+    desc = desc
+      .replace(/[\(\（]\s*C\s*[\+\/]\s*E\s*[-–]?\s*panel\s*[\)\）]/gi, '(C+E Panel)')
+      .replace(/\bwith\s+panel\b/gi, 'with (C+E Panel)');
+    if (desc && !/\(\s*C\s*\+\s*E\s*Panel\s*\)/i.test(desc)) {
+      desc = `${desc} (C+E Panel)`;
+    }
+  }
+
+  return { modelNumber: model, title, description: desc };
+}
+
+/**
+ * Given a product's 4 base images & labels and its metadata, appends 2 new picture slots (slots 5 & 6)
+ * with A-Panel & B-Panel (when description/model includes (A+B Panel)) or C-Panel & E-Panel
+ * (when description/model includes (C+E Panel)).
+ */
+export function applyPanelPicturesToGallery(
+  baseImages: string[],
+  baseLabels: string[] | undefined,
+  item: {
+    modelNumber?: string;
+    baseModelNumber?: string;
+    title?: string;
+    description?: string;
+  }
+): {
+  images: string[];
+  imageLabels: string[];
+} {
+  const fourImages = [
+    baseImages[0] ?? '',
+    baseImages[1] ?? '',
+    baseImages[2] ?? '',
+    baseImages[3] ?? '',
+  ];
+  const fourLabels = [
+    baseLabels?.[0] || 'Picture #1 View',
+    baseLabels?.[1] || 'Picture #2 View',
+    baseLabels?.[2] || 'Picture #3 View',
+    baseLabels?.[3] || 'Picture #4 View',
+  ];
+
+  if (hasABPanelInProduct(item)) {
+    return {
+      images: [
+        ...fourImages,
+        SZGH_AB_PANEL_IMAGES[0],
+        SZGH_AB_PANEL_IMAGES[1],
+      ],
+      imageLabels: [
+        ...fourLabels,
+        SZGH_AB_PANEL_IMAGE_LABELS[0],
+        SZGH_AB_PANEL_IMAGE_LABELS[1],
+      ],
+    };
+  }
+
+  if (hasCEPanelInProduct(item)) {
+    return {
+      images: [
+        ...fourImages,
+        SZGH_CE_PANEL_IMAGES[0],
+        SZGH_CE_PANEL_IMAGES[1],
+      ],
+      imageLabels: [
+        ...fourLabels,
+        SZGH_CE_PANEL_IMAGE_LABELS[0],
+        SZGH_CE_PANEL_IMAGE_LABELS[1],
+      ],
+    };
+  }
+
+  if (baseImages.length > 4) {
+    return {
+      images: baseImages.slice(0, 6),
+      imageLabels: [
+        ...fourLabels,
+        baseLabels?.[4] || 'Picture #5 View',
+        baseLabels?.[5] || 'Picture #6 View',
+      ].slice(0, baseImages.slice(0, 6).length),
+    };
+  }
+
+  return {
+    images: fourImages,
+    imageLabels: fourLabels,
+  };
+}
+
+/**
  * Extracts the canonical base model name (e.g. "SZGH-880TC", "SZGH-CNC1000MDb")
  * and the axis count (e.g. 2, 3, 4, 5, 6) from a product's modelNumber, title,
  * subcategory, and description so same-model items with different numbers of axes
@@ -1932,10 +3056,11 @@ export function extractBaseModelAndAxis(product: ProductItem): {
   axisCount: number | null;
   axisLabel: string | null;
 } {
+  const normalizedPanel = normalizePanelStrings(product);
   const rawModel = normalizeIOBoardModelNumber(
-    product.modelNumber,
-    product.description,
-    product.title
+    normalizedPanel.modelNumber,
+    normalizedPanel.description,
+    normalizedPanel.title
   );
 
   // Standalone I/O board ("CNC-IO12") should never have axis variants extracted
@@ -1948,45 +3073,63 @@ export function extractBaseModelAndAxis(product: ProductItem): {
     };
   }
 
-  const combinedText = `${rawModel} ${product.title || ''} ${product.subcategory || ''} ${
-    product.description || ''
-  }`;
+  // Detect and temporarily strip trailing panel suffix like "(A+B Panel)", "(C+E Panel)", "（C panel）"
+  let panelSuffix = '';
+  if (hasABPanelInProduct({ ...product, modelNumber: rawModel })) {
+    panelSuffix = '(A+B Panel)';
+  } else if (hasCEPanelInProduct({ ...product, modelNumber: rawModel })) {
+    panelSuffix = '(C+E Panel)';
+  } else if (/[\(\（]\s*C\s*[-–]?\s*panel\s*[\)\）]/i.test(rawModel)) {
+    panelSuffix = '(C Panel)';
+  }
+
+  const modelWithoutPanel = rawModel
+    .replace(
+      /\s*[\(\（]\s*(?:A\s*[\+\/]\s*B|C\s*[\+\/]\s*E|C)\s*[-–]?\s*panel\s*[\)\）]\s*$/i,
+      ''
+    )
+    .trim();
+
+  const combinedText = `${modelWithoutPanel} ${product.title || ''} ${
+    product.subcategory || ''
+  } ${product.description || ''}`;
 
   let axisCount: number | null = null;
-  let baseModelDisplay = rawModel;
+  let baseModelCore = modelWithoutPanel;
 
-  // 1. Check if rawModel ends with an explicit "(2-Axis)" / "3 Axis" suffix
-  const modelAxisWordMatch = rawModel.match(
+  // 1. Check if modelWithoutPanel ends with an explicit "(2-Axis)" / "3 Axis" suffix
+  const modelAxisWordMatch = modelWithoutPanel.match(
     /^(.+?)\s*[\(\[\-–/]?\s*\b([1-9]|1[0-2])\s*[-–]?\s*(?:ax(?:is|es)|dof)\b[\)\]]?$/i
   );
   if (modelAxisWordMatch) {
-    baseModelDisplay = modelAxisWordMatch[1].trim().replace(/[-–/\s]+$/, '');
+    baseModelCore = modelAxisWordMatch[1].trim().replace(/[-–/\s]+$/, '');
     axisCount = parseInt(modelAxisWordMatch[2], 10);
   }
 
-  // 2. Check if rawModel ends with a trailing axis digit suffix after letters (e.g., SZGH-880TC-2, 880TC-2, SZGH-CNC1000MDb-5, GH-1000MC-3)
+  // 2. Check if modelWithoutPanel ends with a trailing axis digit suffix after letters (e.g., SZGH-880TC-2, SZGH-CNC1000TDb-2, SZGH-CNC1000MDcb-3(H))
   if (axisCount === null) {
-    const trailingDigitMatch = rawModel.match(
-      /^([A-Za-z0-9_\-]+?[A-Za-z])\s*[-/_]\s*([1-8])([A-Za-z])?$/
+    const trailingDigitMatch = modelWithoutPanel.match(
+      /^([A-Za-z0-9_\-]+?[A-Za-z])\s*[-/_]\s*([1-8])(\([A-Za-z]+\)|[A-Za-z])?$/
     );
     if (
       trailingDigitMatch &&
       (product.category === 'Controllers' ||
-        /tc|mc|tdb|mdb|tdc|mdc|tdi|mdi|cnc/i.test(trailingDigitMatch[1]) ||
+        /tc|mc|mic|tic|tdb|mdb|tdc|mdc|tdi|mdi|cnc/i.test(trailingDigitMatch[1]) ||
         /\bax(?:is|es)\b/i.test(combinedText))
     ) {
-      baseModelDisplay = trailingDigitMatch[1].trim();
+      const suffixTag = trailingDigitMatch[3] ? trailingDigitMatch[3].trim() : '';
+      baseModelCore = `${trailingDigitMatch[1].trim()}${suffixTag}`;
       axisCount = parseInt(trailingDigitMatch[2], 10);
     }
   }
 
-  // 3. Check if axis number is embedded right before TC/MC/TD/MD (e.g., SZGH-880-2TC, SZGH-880-3TC)
+  // 3. Check if axis number is embedded right before TC/MC/MIC/TIC/TD/MD (e.g., SZGH-880-2TC, SZGH-1080-3MIC)
   if (axisCount === null) {
-    const midDigitMatch = rawModel.match(
-      /^([A-Za-z0-9_\-]+?)[-_]?([1-8])(TC|MC|TDb|MDb|TDc|MDc|TDi|MDi)$/i
+    const midDigitMatch = modelWithoutPanel.match(
+      /^([A-Za-z0-9_\-]+?)[-_]?([1-8])(TC|MC|MIC|TIC|TDb|MDb|TDc|MDc|MDcb|TDcb|TDi|MDi)$/i
     );
     if (midDigitMatch) {
-      baseModelDisplay = `${midDigitMatch[1]}-${midDigitMatch[3]}`;
+      baseModelCore = `${midDigitMatch[1]}-${midDigitMatch[3]}`;
       axisCount = parseInt(midDigitMatch[2], 10);
     }
   }
@@ -2001,11 +3144,18 @@ export function extractBaseModelAndAxis(product: ProductItem): {
     }
   }
 
-  // Create a canonical grouping key (unifying "880TC", "SZGH-880TC", and "SZGH-CNC880TC")
+  const baseModelDisplay = panelSuffix
+    ? `${baseModelCore} ${panelSuffix}`.trim()
+    : baseModelCore || rawModel;
+
+  // Create a canonical grouping key (unifying "880TC", "SZGH-880TC", and "SZGH-CNC880TC", while keeping (A+B Panel) vs (C+E Panel) distinct)
   const normalizedBaseKey = baseModelDisplay
     .toUpperCase()
     .replace(/^SZGH[-\s]*CNC[-\s]*/i, '')
+    .replace(/^SGZH[-\s]*CNC[-\s]*/i, '')
     .replace(/^SZGH[-\s]*/i, '')
+    .replace(/^SGZH[-\s]*/i, '')
+    .replace(/^GH[-\s]*/i, '')
     .replace(/^CNC[-\s]*/i, '')
     .replace(/[\s_]+/g, '-');
 
@@ -2015,6 +3165,263 @@ export function extractBaseModelAndAxis(product: ProductItem): {
     axisCount,
     axisLabel: axisCount !== null ? `${axisCount}-Axis` : null,
   };
+}
+
+/**
+ * Strictly identifies ONLY SZGH-880MC models (e.g. SZGH-880MC, 880MC, SZGH-880MC-3,
+ * 880MC-4, SZGH-880MC-5, SZGH-880-3MC, CNC880MC) so the 4 official SZGH-880MC pictures
+ * (with 1.jpg at index 0 as the default picture) are applied exclusively to SZGH-880MC models.
+ */
+export function isSZGH880MCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?880[-\s]*(?:[1-8][-\s]*)?MC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1080MC models (e.g. SZGH-1080MC, 1080MC, SZGH-1080MC-3,
+ * 1080MC-4, SZGH-1080MC-5, SZGH-1080-3MC, CNC1080MC) so the 4 official
+ * SZGH-1080MC pictures (with 01.jpg at index 0 as the default picture) are applied
+ * exclusively to SZGH-1080MC models.
+ */
+export function isSZGH1080MCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?1080[-\s]*(?:[1-8][-\s]*)?MC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1080MIC models (e.g. SZGH-1080MIC, 1080MIC, SZGH-1080MIC-3,
+ * 1080MIC-4, SZGH-1080MIC-5, SZGH-1080-3MIC, CNC1080MIC) so the 4 official
+ * SZGH-1080MIC logo-watermarked pictures (with 01.jpg at index 0 as the default picture)
+ * are applied exclusively to SZGH-1080MIC models.
+ */
+export function isSZGH1080MICModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?1080[-\s]*(?:[1-8][-\s]*)?MIC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-880TC models (e.g. SZGH-880TC, 880TC, SZGH-880TC-2,
+ * 880TC-3, SZGH-880TC-4, SZGH-880-2TC, CNC880TC) so the 4 official
+ * SZGH-880TC logo-watermarked pictures (with 1.jpg at index 0 as the default picture)
+ * are applied exclusively to SZGH-880TC models.
+ */
+export function isSZGH880TCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?880[-\s]*(?:[1-8][-\s]*)?TC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-880TIC models (e.g. SZGH-880TIC, 880TIC, SZGH-880TIC-2,
+ * 880TIC-3, SZGH-880TIC-4, SZGH-880-2TIC, CNC880TIC) so the 4 official
+ * SZGH-880TIC logo-watermarked pictures (with 01.jpg at index 0 as the default picture)
+ * are applied exclusively to SZGH-880TIC models.
+ */
+export function isSZGH880TICModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?880[-\s]*(?:[1-8][-\s]*)?TIC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1080TC models (e.g. SZGH-1080TC, 1080TC, SZGH-1080TC-2,
+ * 1080TC-3, SZGH-1080TC-4, SZGH-1080-2TC, SZGH-1080TIC, CNC1080TC) so the 4 official
+ * SZGH-1080TC logo-watermarked pictures (with 1.jpg at index 0 as the default picture)
+ * are applied exclusively to SZGH-1080TC models.
+ */
+export function isSZGH1080TCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?1080[-\s]*(?:[1-8][-\s]*)?T[I]?C[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1000MDB models (e.g. SZGH-1000MDB, SZGH-CNC1000MDb, 1000MDb,
+ * SZGH-CNC1000MDb-3, SZGH-CNC1000MDb-4, SZGH-CNC1000MDb-5, SZGH-1000-3MDb, CNC1000MDb)
+ * so the 4 official SZGH-1000MDB logo-watermarked pictures (with 1000MDb(1).jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1000MDB models.
+ */
+export function isSZGH1000MDBModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?1000[-\s]*(?:[1-8][-\s]*)?MDB[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-990MDb models (e.g. SZGH-990MDb, SZGH-CNC990MDb, 990MDb,
+ * SZGH-990MDb-3, SZGH-990MDb-4, SZGH-990MDb-5, SZGH-CNC990MDb-3, SZGH-990-3MDb, CNC990MDb)
+ * so the 4 official SZGH-990MDb logo-watermarked pictures (with 990MDb（1）.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-990MDb models.
+ */
+export function isSZGH990MDBModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?990[-\s]*(?:[1-8][-\s]*)?MDB[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-990MDc models (e.g. SZGH-990MDc, SZGH-CNC990MDc, 990MDc,
+ * SZGH-990MDc-3, SZGH-990MDc-4, SZGH-990MDc-5, SZGH-CNC990MDc-3, SZGH-990-3MDc, CNC990MDc)
+ * so the 4 official SZGH-990MDc logo-watermarked pictures (with 990MDc（1） .jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-990MDc models.
+ */
+export function isSZGH990MDCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?990[-\s]*(?:[1-8][-\s]*)?MDC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-990TDb models (e.g. SZGH-990TDb, SZGH-CNC990TDb, 990TDb,
+ * SZGH-990TDb-2, SZGH-990TDb-3, SZGH-990TDb-4, SZGH-CNC990TDb-2, SZGH-990-2TDb, CNC990TDb)
+ * so the 4 official SZGH-990TDb logo-watermarked pictures (with 1.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-990TDb models.
+ */
+export function isSZGH990TDBModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?990[-\s]*(?:[1-8][-\s]*)?TDB[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-990TDc models (e.g. SZGH-990TDc, SZGH-CNC990TDc, 990TDc,
+ * SZGH-990TDc-2, SZGH-990TDc-3, SZGH-990TDc-4, SZGH-CNC990TDc-2, SZGH-990-2TDc, CNC990TDc)
+ * so the 4 official SZGH-990TDc logo-watermarked pictures (with 990TDc（1） .jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-990TDc models.
+ */
+export function isSZGH990TDCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?990[-\s]*(?:[1-8][-\s]*)?TDC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1000MC models (e.g. SZGH-1000MC, GH-1000MC, SZGH-CNC1000MC,
+ * 1000MC, SZGH-1000MC-3, SZGH-1000MC-4, SZGH-1000MC-5, GH-1000MC-5, SZGH-1000-3MC, CNC1000MC)
+ * so the 4 official SZGH-1000MC logo-watermarked pictures (with 1000MC-1.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1000MC models.
+ */
+export function isSZGH1000MCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ)?GH[-\s]*)?(?:CNC[-\s]*)?1000[-\s]*(?:[1-8][-\s]*)?MC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1000MDc models (e.g. SZGH-1000MDc, SZGH-CNC1000MDc, CNC 1000MDc,
+ * 1000MDc, SZGH-1000MDc-3, SZGH-1000MDc-4, SZGH-1000MDc-5, SZGH-CNC1000MDc-3, SZGH-1000-3MDc, CNC1000MDc)
+ * so the 4 official SZGH-1000MDc logo-watermarked pictures (with 1000MDc（1）.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1000MDc models (and NOT 1000MDcb).
+ */
+export function isSZGH1000MDCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ)?GH[-\s]*)?(?:CNC[-\s]*)?1000[-\s]*(?:[1-8][-\s]*)?MDC(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1000MDcb models (e.g. SZGH-1000MDcb, SZGH-CNC1000MDcb, CNC 1000MDcb,
+ * 1000MDcb, SZGH-1000MDcb-3, SZGH-1000MDcb-4, SZGH-1000MDcb-5, SZGH-CNC1000MDcb-3, SZGH-1000-3MDcb, CNC1000MDcb)
+ * so the 4 official SZGH-1000MDcb logo-watermarked pictures (with 1000MDcb（1）.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1000MDcb models.
+ */
+export function isSZGH1000MDCBModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ)?GH[-\s]*)?(?:CNC[-\s]*)?1000[-\s]*(?:[1-8][-\s]*)?MDCB[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1000TDb models (e.g. SZGH-1000TDb, SZGH-CNC1000TDb, CNC 1000TDb,
+ * 1000TDb, SZGH-1000TDb-2, SZGH-1000TDb-3, SZGH-1000TDb-4, SZGH-CNC1000TDb-3, SZGH-1000-3TDb, CNC1000TDb)
+ * so the 4 official SZGH-1000TDb logo-watermarked pictures (with 1000TDb(1).jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1000TDb models.
+ */
+export function isSZGH1000TDBModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ)?GH[-\s]*)?(?:CNC[-\s]*)?1000[-\s]*(?:[1-8][-\s]*)?TDB(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-CNC-IO12 / CNC-IO12 models (e.g. SZGH-CNC-IO12, SZGH-CNC-IO-12,
+ * CNC-IO12, CNC-IO-12, CNC880-I012, CNC880-IO12) so the 2 official SZGH-CNC-IO12 logo-watermarked
+ * pictures (with picture 1 at index 0 as the default picture) are applied exclusively to SZGH-CNC-IO12 models.
+ */
+export function isSZGHCNCIO12Model(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+  title?: string;
+  description?: string;
+}): boolean {
+  if (isStandaloneIOBoardProduct(item)) return true;
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ)?GH[-\s]*)?(?:CNC(?:880)?[-\s]*)?I[O0][-\s]*12(?:$|[^A-Z0-9])/i.test(
+    checkStr
+  );
 }
 
 /**
@@ -2038,17 +3445,166 @@ export function mergeProductsByModelAndAxes(
   >();
 
   for (const rawProduct of items) {
-    const isIOBoardItem = isStandaloneIOBoardProduct(rawProduct);
+    const normalizedPanel = normalizePanelStrings(rawProduct);
+    const isIOBoardItem = isStandaloneIOBoardProduct({
+      ...rawProduct,
+      ...normalizedPanel,
+    });
     const normalizedModel = normalizeIOBoardModelNumber(
-      rawProduct.modelNumber,
-      rawProduct.description,
-      rawProduct.title
+      normalizedPanel.modelNumber,
+      normalizedPanel.description,
+      normalizedPanel.title
     );
 
     const { baseModelDisplay, baseModelKey, axisCount, axisLabel } =
       extractBaseModelAndAxis({
         ...rawProduct,
         modelNumber: normalizedModel,
+        title: normalizedPanel.title,
+        description: normalizedPanel.description,
+      });
+
+    const is880MC = isSZGH880MCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1080MC = isSZGH1080MCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1080MIC = isSZGH1080MICModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is880TC = isSZGH880TCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is880TIC = isSZGH880TICModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1080TC = isSZGH1080TCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1000MDB = isSZGH1000MDBModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is990MDB = isSZGH990MDBModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is990MDC = isSZGH990MDCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is990TDB = isSZGH990TDBModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is990TDC = isSZGH990TDCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1000MC = isSZGH1000MCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1000MDC = isSZGH1000MDCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1000MDCB = isSZGH1000MDCBModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1000TDB = isSZGH1000TDBModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const isCNCIO12 = isSZGHCNCIO12Model({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+      title: normalizedPanel.title,
+      description: normalizedPanel.description,
+    });
+
+    const baseFourImages: string[] = is880MC
+      ? SZGH_880MC_IMAGES
+      : is1080MC
+      ? SZGH_1080MC_IMAGES
+      : is1080MIC
+      ? SZGH_1080MIC_IMAGES
+      : is880TC
+      ? SZGH_880TC_IMAGES
+      : is880TIC
+      ? SZGH_880TIC_IMAGES
+      : is1080TC
+      ? SZGH_1080TC_IMAGES
+      : is1000MDB
+      ? SZGH_1000MDB_IMAGES
+      : is990MDB
+      ? SZGH_990MDB_IMAGES
+      : is990MDC
+      ? SZGH_990MDC_IMAGES
+      : is990TDB
+      ? SZGH_990TDB_IMAGES
+      : is990TDC
+      ? SZGH_990TDC_IMAGES
+      : is1000MC
+      ? SZGH_1000MC_IMAGES
+      : is1000MDC
+      ? SZGH_1000MDC_IMAGES
+      : is1000MDCB
+      ? SZGH_1000MDCB_IMAGES
+      : is1000TDB
+      ? SZGH_1000TDB_IMAGES
+      : isCNCIO12
+      ? SZGH_CNC_IO12_IMAGES
+      : rawProduct.images;
+
+    const baseFourLabels: string[] = is880MC
+      ? SZGH_880MC_IMAGE_LABELS
+      : is1080MC
+      ? SZGH_1080MC_IMAGE_LABELS
+      : is1080MIC
+      ? SZGH_1080MIC_IMAGE_LABELS
+      : is880TC
+      ? SZGH_880TC_IMAGE_LABELS
+      : is880TIC
+      ? SZGH_880TIC_IMAGE_LABELS
+      : is1080TC
+      ? SZGH_1080TC_IMAGE_LABELS
+      : is1000MDB
+      ? SZGH_1000MDB_IMAGE_LABELS
+      : is990MDB
+      ? SZGH_990MDB_IMAGE_LABELS
+      : is990MDC
+      ? SZGH_990MDC_IMAGE_LABELS
+      : is990TDB
+      ? SZGH_990TDB_IMAGE_LABELS
+      : is990TDC
+      ? SZGH_990TDC_IMAGE_LABELS
+      : is1000MC
+      ? SZGH_1000MC_IMAGE_LABELS
+      : is1000MDC
+      ? SZGH_1000MDC_IMAGE_LABELS
+      : is1000MDCB
+      ? SZGH_1000MDCB_IMAGE_LABELS
+      : is1000TDB
+      ? SZGH_1000TDB_IMAGE_LABELS
+      : isCNCIO12
+      ? SZGH_CNC_IO12_IMAGE_LABELS
+      : rawProduct.imageLabels;
+
+    const { images: resolvedImages, imageLabels: resolvedLabels } =
+      applyPanelPicturesToGallery(baseFourImages, baseFourLabels, {
+        modelNumber: normalizedModel,
+        baseModelNumber: baseModelDisplay,
+        title: normalizedPanel.title,
+        description: normalizedPanel.description,
       });
 
     // Strip number of axes from description & title for display and normalize subcategory
@@ -2060,8 +3616,43 @@ export function mergeProductsByModelAndAxes(
         modelNumber: normalizedModel,
       }),
       hasIOBoardOption: isIOBoardItem ? false : rawProduct.hasIOBoardOption,
-      title: stripAxisCountFromText(rawProduct.title),
-      description: stripAxisCountFromText(rawProduct.description),
+      title: stripAxisCountFromText(normalizedPanel.title),
+      description: stripAxisCountFromText(normalizedPanel.description),
+      images: resolvedImages,
+      imageLabels: resolvedLabels,
+      defaultImageIndex: is880MC
+        ? SZGH_880MC_DEFAULT_IMAGE_INDEX
+        : is1080MC
+        ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
+        : is1080MIC
+        ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
+        : is880TC
+        ? SZGH_880TC_DEFAULT_IMAGE_INDEX
+        : is880TIC
+        ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+        : is1080TC
+        ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
+        : is1000MDB
+        ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+        : is990MDB
+        ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
+        : is990MDC
+        ? SZGH_990MDC_DEFAULT_IMAGE_INDEX
+        : is990TDB
+        ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
+        : is990TDC
+        ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
+        : is1000MC
+        ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
+        : is1000MDC
+        ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+        : is1000MDCB
+        ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+        : is1000TDB
+        ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
+        : isCNCIO12
+        ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
+        : rawProduct.defaultImageIndex,
     };
 
     const existingGroup = groups.get(baseModelKey);
@@ -2121,6 +3712,7 @@ export function mergeProductsByModelAndAxes(
               stockCount: single.product.stockCount,
               stockStatus: single.product.stockStatus,
               images: single.product.images,
+              imageLabels: single.product.imageLabels,
               defaultImageIndex: single.product.defaultImageIndex,
             },
           ],
@@ -2132,7 +3724,6 @@ export function mergeProductsByModelAndAxes(
     }
 
     // Multiple items share the same base model -> merge into 1 listing with clean Axis Selection Tabs ("2-Axis", "3-Axis", etc.)
-    // Deduplicate by axisLabel so e.g. "880TC-2" and "SZGH-880TC-2" merge into a single "2-Axis" tab without "(880TC-2)"
     const variantsByLabel = new Map<string, AxisVariantOption>();
 
     sortedEntries.forEach((entry, idx) => {
@@ -2158,10 +3749,10 @@ export function mergeProductsByModelAndAxes(
           stockCount: entry.product.stockCount,
           stockStatus: entry.product.stockStatus,
           images: entry.product.images,
+          imageLabels: entry.product.imageLabels,
           defaultImageIndex: entry.product.defaultImageIndex,
         });
       } else {
-        // Merge any missing fields (e.g., if custom item had empty description or 0 price, fallback to built-in)
         const entryHasCustomImg = entry.product.images?.some(
           (img) =>
             img &&
@@ -2187,6 +3778,10 @@ export function mergeProductsByModelAndAxes(
             !existingHasCustomImg && entryHasCustomImg
               ? entry.product.images
               : existingVariant.images,
+          imageLabels:
+            !existingHasCustomImg && entryHasCustomImg
+              ? entry.product.imageLabels
+              : existingVariant.imageLabels,
           defaultImageIndex:
             !existingHasCustomImg && entryHasCustomImg
               ? entry.product.defaultImageIndex
@@ -2199,7 +3794,6 @@ export function mergeProductsByModelAndAxes(
       (a, b) => a.axisCount - b.axisCount
     );
 
-    // Pick primary representative item (prefer one that has custom uploaded images, else first sorted axis)
     const itemWithCustomPhoto =
       sortedEntries.find((e) =>
         e.product.images.some(
@@ -2230,6 +3824,7 @@ export function mergeProductsByModelAndAxes(
       title: primary.title || itemWithRichText.title,
       description: primary.description || itemWithRichText.description,
       images: itemWithCustomPhoto.images,
+      imageLabels: itemWithCustomPhoto.imageLabels,
       defaultImageIndex:
         itemWithCustomPhoto.defaultImageIndex ?? primary.defaultImageIndex ?? 0,
       stockCount: axisVariants[0]?.stockCount ?? primary.stockCount,

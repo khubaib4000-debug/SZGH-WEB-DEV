@@ -48,6 +48,58 @@ import {
   OFFICIAL_SUBCATEGORY_GROUPS,
   resolveOfficialSubcategory,
   stripAxisCountFromText,
+  isSZGH880MCModel,
+  SZGH_880MC_IMAGES,
+  SZGH_880MC_DEFAULT_IMAGE_INDEX,
+  isSZGH1080MCModel,
+  SZGH_1080MC_IMAGES,
+  SZGH_1080MC_DEFAULT_IMAGE_INDEX,
+  isSZGH880TCModel,
+  SZGH_880TC_IMAGES,
+  SZGH_880TC_DEFAULT_IMAGE_INDEX,
+  isSZGH1080TCModel,
+  SZGH_1080TC_IMAGES,
+  SZGH_1080TC_DEFAULT_IMAGE_INDEX,
+  isSZGH1080MICModel,
+  SZGH_1080MIC_IMAGES,
+  SZGH_1080MIC_DEFAULT_IMAGE_INDEX,
+  isSZGH880TICModel,
+  SZGH_880TIC_IMAGES,
+  SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MDBModel,
+  SZGH_1000MDB_IMAGES,
+  SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
+  isSZGH990MDBModel,
+  SZGH_990MDB_IMAGES,
+  SZGH_990MDB_DEFAULT_IMAGE_INDEX,
+  isSZGH990MDCModel,
+  SZGH_990MDC_IMAGES,
+  SZGH_990MDC_DEFAULT_IMAGE_INDEX,
+  isSZGH990TDBModel,
+  SZGH_990TDB_IMAGES,
+  SZGH_990TDB_DEFAULT_IMAGE_INDEX,
+  isSZGH990TDCModel,
+  SZGH_990TDC_IMAGES,
+  SZGH_990TDC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MCModel,
+  SZGH_1000MC_IMAGES,
+  SZGH_1000MC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MDCModel,
+  SZGH_1000MDC_IMAGES,
+  SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MDCBModel,
+  SZGH_1000MDCB_IMAGES,
+  SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+  isSZGH1000TDBModel,
+  SZGH_1000TDB_IMAGES,
+  SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
+  isSZGHCNCIO12Model,
+  SZGH_CNC_IO12_IMAGES,
+  SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
+  hasABPanelInProduct,
+  hasCEPanelInProduct,
+  normalizePanelStrings,
+  applyPanelPicturesToGallery,
 } from '../data/products';
 import { SubmittedCustomerOrder } from './CartDrawer';
 
@@ -75,7 +127,7 @@ export interface TrackedExcelStockItem {
   description: string; // Left '' if not available in Excel
   price: string; // String so empty '' is preserved when not in Excel
   stockCount: string; // String so empty '' is preserved if not in Excel
-  images: [string, string, string, string]; // Left ['', '', '', ''] if not available in Excel
+  images: string[]; // Left ['', '', '', ''] if not available in Excel (or 6 slots for A+B / C+E Panel items)
   defaultImageIndex: number;
   extraColumns: Record<string, string>;
 }
@@ -217,7 +269,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     Record<
       string,
       {
-        images: [string, string, string, string];
+        images: string[];
         defaultImageIndex: number;
       }
     >
@@ -232,7 +284,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   const [newPrice, setNewPrice] = useState<string>('');
   const [newStockCount, setNewStockCount] = useState<string>('');
   const [newDescription, setNewDescription] = useState<string>('');
-  const [newImages, setNewImages] = useState<[string, string, string, string]>([
+  const [newImages, setNewImages] = useState<string[]>([
     '',
     '',
     '',
@@ -292,16 +344,37 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
   /**
    * Preserves empty image tabs ('') if no image was provided for that slot.
+   * Supports 4 slots by default, and 6 slots for (A+B Panel) / (C+E Panel) items.
    */
   const buildPreservedImages = (
-    rawImages: string[]
-  ): [string, string, string, string] => {
-    return [
+    rawImages: string[],
+    itemContext?: { modelNumber?: string; title?: string; description?: string }
+  ): string[] => {
+    const baseFour = [
       (rawImages[0]?.trim() || '').slice(0, 215000),
       (rawImages[1]?.trim() || '').slice(0, 215000),
       (rawImages[2]?.trim() || '').slice(0, 215000),
       (rawImages[3]?.trim() || '').slice(0, 215000),
     ];
+    if (itemContext && (hasABPanelInProduct(itemContext) || hasCEPanelInProduct(itemContext))) {
+      const { images: withPanels } = applyPanelPicturesToGallery(baseFour, [], itemContext);
+      return [
+        withPanels[0],
+        withPanels[1],
+        withPanels[2],
+        withPanels[3],
+        (rawImages[4]?.trim() || withPanels[4] || '').slice(0, 215000),
+        (rawImages[5]?.trim() || withPanels[5] || '').slice(0, 215000),
+      ];
+    }
+    if (rawImages.length > 4) {
+      return [
+        ...baseFour,
+        (rawImages[4]?.trim() || '').slice(0, 215000),
+        (rawImages[5]?.trim() || '').slice(0, 215000),
+      ];
+    }
+    return baseFour;
   };
 
   const saveProductInventoryToCloud = async (
@@ -309,7 +382,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     newStockCountVal: number,
     newPriceVal: number,
     explicitStatus?: 'In Stock' | 'Low Stock' | 'Pre-Order',
-    customImages?: [string, string, string, string],
+    customImages?: string[],
     customDefaultIdx?: number,
     customTitle?: string,
     customSubcategory?: string,
@@ -320,11 +393,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     const clampedStock = Math.max(0, Math.min(100000, Math.round(newStockCountVal)));
     const clampedPrice = Math.max(0, Math.min(1000000000, Math.round(newPriceVal)));
     const computedStatus = explicitStatus || deriveStatusFromCount(clampedStock);
-    const imagesToSave = buildPreservedImages(customImages || product.images);
+    const imagesToSave = buildPreservedImages(customImages || product.images, product);
+    const maxSlotIdx = imagesToSave.length - 1;
     const defaultIdxToSave = Math.max(
       0,
       Math.min(
-        3,
+        maxSlotIdx,
         typeof customDefaultIdx === 'number'
           ? Math.round(customDefaultIdx)
           : typeof product.defaultImageIndex === 'number'
@@ -399,10 +473,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         const path = `inventory/${product.id}`;
         const computedStatus =
           product.stockStatus || deriveStatusFromCount(product.stockCount);
-        const imagesToSave = buildPreservedImages(product.images);
+        const imagesToSave = buildPreservedImages(product.images, product);
         const defaultIdx = Math.max(
           0,
-          Math.min(3, Math.round(product.defaultImageIndex ?? 0))
+          Math.min(imagesToSave.length - 1, Math.round(product.defaultImageIndex ?? 0))
         );
         const descText = (product.description || '').trim();
         const derivedTitle = forceTitleFromDesc
@@ -461,7 +535,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       setPhotoDrafts((prev) => ({
         ...prev,
         [product.id]: {
-          images: [...product.images] as [string, string, string, string],
+          images: [...product.images],
           defaultImageIndex: product.defaultImageIndex ?? 0,
         },
       }));
@@ -478,10 +552,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       const compressedDataUrl = await compressImageFile(file);
       setPhotoDrafts((prev) => {
         const current = prev[product.id] || {
-          images: [...product.images] as [string, string, string, string],
+          images: [...product.images],
           defaultImageIndex: product.defaultImageIndex ?? 0,
         };
-        const updatedImages = [...current.images] as [string, string, string, string];
+        const updatedImages = [...current.images];
         updatedImages[slotIndex] = compressedDataUrl;
         return {
           ...prev,
@@ -507,7 +581,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     try {
       const compressedDataUrl = await compressImageFile(file);
       setNewImages((prev) => {
-        const next = [...prev] as [string, string, string, string];
+        const next = [...prev];
         next[slotIndex] = compressedDataUrl;
         return next;
       });
@@ -553,13 +627,103 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       editingCustomProductId ||
       `szgh-item-${sanitizedModelSlug || 'item'}-${Date.now().toString(36).slice(-5)}`;
 
-    const normalizedImages = buildPreservedImages(newImages);
+    const is880MC = isSZGH880MCModel({ modelNumber: trimmedModel });
+    const is1080MC = isSZGH1080MCModel({ modelNumber: trimmedModel });
+    const is1080MIC = isSZGH1080MICModel({ modelNumber: trimmedModel });
+    const is880TC = isSZGH880TCModel({ modelNumber: trimmedModel });
+    const is880TIC = isSZGH880TICModel({ modelNumber: trimmedModel });
+    const is1080TC = isSZGH1080TCModel({ modelNumber: trimmedModel });
+    const is1000MDB = isSZGH1000MDBModel({ modelNumber: trimmedModel });
+    const is990MDB = isSZGH990MDBModel({ modelNumber: trimmedModel });
+    const is990MDC = isSZGH990MDCModel({ modelNumber: trimmedModel });
+    const is990TDB = isSZGH990TDBModel({ modelNumber: trimmedModel });
+    const is990TDC = isSZGH990TDCModel({ modelNumber: trimmedModel });
+    const is1000MC = isSZGH1000MCModel({ modelNumber: trimmedModel });
+    const is1000MDC = isSZGH1000MDCModel({ modelNumber: trimmedModel });
+    const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: trimmedModel });
+    const is1000TDB = isSZGH1000TDBModel({ modelNumber: trimmedModel });
+    const isCNCIO12 = isSZGHCNCIO12Model({
+      modelNumber: trimmedModel,
+      title: trimmedTitle,
+      description: trimmedDesc,
+    });
+    const normPanel = normalizePanelStrings({
+      modelNumber: trimmedModel,
+      title: trimmedTitle,
+      description: trimmedDesc,
+    });
+    const baseFourImages: string[] = is880MC
+      ? SZGH_880MC_IMAGES
+      : is1080MC
+      ? SZGH_1080MC_IMAGES
+      : is1080MIC
+      ? SZGH_1080MIC_IMAGES
+      : is880TC
+      ? SZGH_880TC_IMAGES
+      : is880TIC
+      ? SZGH_880TIC_IMAGES
+      : is1080TC
+      ? SZGH_1080TC_IMAGES
+      : is1000MDB
+      ? SZGH_1000MDB_IMAGES
+      : is990MDB
+      ? SZGH_990MDB_IMAGES
+      : is990MDC
+      ? SZGH_990MDC_IMAGES
+      : is990TDB
+      ? SZGH_990TDB_IMAGES
+      : is990TDC
+      ? SZGH_990TDC_IMAGES
+      : is1000MC
+      ? SZGH_1000MC_IMAGES
+      : is1000MDC
+      ? SZGH_1000MDC_IMAGES
+      : is1000MDCB
+      ? SZGH_1000MDCB_IMAGES
+      : is1000TDB
+      ? SZGH_1000TDB_IMAGES
+      : isCNCIO12
+      ? SZGH_CNC_IO12_IMAGES
+      : buildPreservedImages(newImages, normPanel);
+    const normalizedImages = buildPreservedImages(baseFourImages, normPanel);
     const parsedStock =
       newStockCount.trim() === '' ? 0 : Math.max(0, Math.min(100000, Math.round(Number(newStockCount) || 0)));
     const parsedPrice =
       newPrice.trim() === '' ? 0 : Math.max(0, Math.min(1000000000, Math.round(Number(newPrice) || 0)));
     const computedStatus = deriveStatusFromCount(parsedStock);
-    const defaultIdx = Math.max(0, Math.min(3, Math.round(newDefaultImageIndex)));
+    const defaultIdx = is880MC
+      ? SZGH_880MC_DEFAULT_IMAGE_INDEX
+      : is1080MC
+      ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
+      : is1080MIC
+      ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
+      : is880TC
+      ? SZGH_880TC_DEFAULT_IMAGE_INDEX
+      : is880TIC
+      ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+      : is1080TC
+      ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
+      : is1000MDB
+      ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+      : is990MDB
+      ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
+      : is990MDC
+      ? SZGH_990MDC_DEFAULT_IMAGE_INDEX
+      : is990TDB
+      ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
+      : is990TDC
+      ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
+      : is1000MC
+      ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
+      : is1000MDC
+      ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+      : is1000MDCB
+      ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+      : is1000TDB
+      ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
+      : isCNCIO12
+      ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
+      : Math.max(0, Math.min(normalizedImages.length - 1, Math.round(newDefaultImageIndex)));
 
     setCreatingProduct(true);
     setStatusBanner(null);
@@ -877,18 +1041,115 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             p.title.trim().toLowerCase() === derivedTitle.trim().toLowerCase())
       );
 
+      const is880MC = isSZGH880MCModel({ modelNumber: effectiveModel });
+      const is1080MC = isSZGH1080MCModel({ modelNumber: effectiveModel });
+      const is1080MIC = isSZGH1080MICModel({ modelNumber: effectiveModel });
+      const is880TC = isSZGH880TCModel({ modelNumber: effectiveModel });
+      const is880TIC = isSZGH880TICModel({ modelNumber: effectiveModel });
+      const is1080TC = isSZGH1080TCModel({ modelNumber: effectiveModel });
+      const is1000MDB = isSZGH1000MDBModel({ modelNumber: effectiveModel });
+      const is990MDB = isSZGH990MDBModel({ modelNumber: effectiveModel });
+      const is990MDC = isSZGH990MDCModel({ modelNumber: effectiveModel });
+      const is990TDB = isSZGH990TDBModel({ modelNumber: effectiveModel });
+      const is990TDC = isSZGH990TDCModel({ modelNumber: effectiveModel });
+      const is1000MC = isSZGH1000MCModel({ modelNumber: effectiveModel });
+      const is1000MDC = isSZGH1000MDCModel({ modelNumber: effectiveModel });
+      const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: effectiveModel });
+      const is1000TDB = isSZGH1000TDBModel({ modelNumber: effectiveModel });
+      const isCNCIO12 = isSZGHCNCIO12Model({
+        modelNumber: effectiveModel,
+        title: derivedTitle,
+        description: rawDesc,
+      });
+
+      const normRowPanel = normalizePanelStrings({
+        modelNumber: effectiveModel,
+        title: derivedTitle,
+        description: rawDesc,
+      });
+      const rowBaseImages: string[] = is880MC
+        ? SZGH_880MC_IMAGES
+        : is1080MC
+        ? SZGH_1080MC_IMAGES
+        : is1080MIC
+        ? SZGH_1080MIC_IMAGES
+        : is880TC
+        ? SZGH_880TC_IMAGES
+        : is880TIC
+        ? SZGH_880TIC_IMAGES
+        : is1080TC
+        ? SZGH_1080TC_IMAGES
+        : is1000MDB
+        ? SZGH_1000MDB_IMAGES
+        : is990MDB
+        ? SZGH_990MDB_IMAGES
+        : is990MDC
+        ? SZGH_990MDC_IMAGES
+        : is990TDB
+        ? SZGH_990TDB_IMAGES
+        : is990TDC
+        ? SZGH_990TDC_IMAGES
+        : is1000MC
+        ? SZGH_1000MC_IMAGES
+        : is1000MDC
+        ? SZGH_1000MDC_IMAGES
+        : is1000MDCB
+        ? SZGH_1000MDCB_IMAGES
+        : is1000TDB
+        ? SZGH_1000TDB_IMAGES
+        : isCNCIO12
+        ? SZGH_CNC_IO12_IMAGES
+        : [img1, img2, img3, img4];
+      const { images: rowResolvedImages } = applyPanelPicturesToGallery(
+        rowBaseImages,
+        [],
+        normRowPanel
+      );
+
       extracted.push({
         rowNumber: r + 1,
         matchedProductId: matchedExisting ? matchedExisting.id : null,
-        modelNumber: effectiveModel,
-        title: derivedTitle, // Auto-fetched from Description when Title column is empty
+        modelNumber: normRowPanel.modelNumber,
+        title: extractTitleFromDescription(normRowPanel.description, normRowPanel.title), // Auto-fetched from Description when Title column is empty
         category: mappedCategory, // Strictly '' if not present in Excel
         subcategory: rawSubcat, // Strictly '' if not present in Excel
-        description: rawDesc, // Strictly '' if not present in Excel
+        description: normRowPanel.description, // Strictly '' if not present in Excel
         price: parsedPriceStr, // Strictly '' if not present in Excel
         stockCount: parsedStockStr, // Strictly '' if not present in Excel
-        images: [img1, img2, img3, img4], // Strictly '' for any missing image tab
-        defaultImageIndex: 0,
+        images: rowResolvedImages,
+        defaultImageIndex: is880MC
+          ? SZGH_880MC_DEFAULT_IMAGE_INDEX
+          : is1080MC
+          ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
+          : is1080MIC
+          ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
+          : is880TC
+          ? SZGH_880TC_DEFAULT_IMAGE_INDEX
+          : is880TIC
+          ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+          : is1080TC
+          ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
+          : is1000MDB
+          ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+          : is990MDB
+          ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
+          : is990MDC
+          ? SZGH_990MDC_DEFAULT_IMAGE_INDEX
+          : is990TDB
+          ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
+          : is990TDC
+          ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
+          : is1000MC
+          ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
+          : is1000MDC
+          ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+          : is1000MDCB
+          ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+          : is1000TDB
+          ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
+          : isCNCIO12
+          ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
+          : 0,
         extraColumns: extraCols,
       });
     }
@@ -1019,7 +1280,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     setNewPrice(item.price); // '' if not in Excel
     setNewStockCount(item.stockCount); // '' if not in Excel
     setNewDescription(item.description); // '' if not in Excel
-    setNewImages([...item.images] as [string, string, string, string]); // ['', '', '', ''] if not in Excel
+    setNewImages([...item.images]); // ['', '', '', ''] if not in Excel
     setNewDefaultImageIndex(item.defaultImageIndex || 0);
     setActiveTab('create');
     setStatusBanner({
@@ -1041,12 +1302,23 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     setNewPrice(product.price > 0 ? String(product.price) : '');
     setNewStockCount(String(product.stockCount ?? ''));
     setNewDescription(product.description || '');
-    setNewImages([
-      product.images[0] || '',
-      product.images[1] || '',
-      product.images[2] || '',
-      product.images[3] || '',
-    ]);
+    setNewImages(
+      product.images.length > 4
+        ? [
+            product.images[0] || '',
+            product.images[1] || '',
+            product.images[2] || '',
+            product.images[3] || '',
+            product.images[4] || '',
+            product.images[5] || '',
+          ]
+        : [
+            product.images[0] || '',
+            product.images[1] || '',
+            product.images[2] || '',
+            product.images[3] || '',
+          ]
+    );
     setNewDefaultImageIndex(product.defaultImageIndex ?? 0);
     setActiveTab('create');
   };
@@ -1110,7 +1382,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             : 0;
 
         const statusToSave = deriveStatusFromCount(stockNum);
-        const imagesToSave = buildPreservedImages(item.images);
+        const imagesToSave = buildPreservedImages(item.images, item);
 
         const path = `inventory/${productId}`;
         await setDoc(doc(db, 'inventory', productId), {
@@ -2079,8 +2351,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {[0, 1, 2, 3].map((slotIdx) => {
+                <div
+                  className={`grid grid-cols-1 sm:grid-cols-2 ${
+                    newImages.length > 4 ? 'lg:grid-cols-6' : 'lg:grid-cols-4'
+                  } gap-3`}
+                >
+                  {Array.from({ length: Math.max(4, newImages.length) }, (_, i) => i).map((slotIdx) => {
                     const isDefault = newDefaultImageIndex === slotIdx;
                     const hasCustomImage = Boolean(newImages[slotIdx]?.trim());
 
@@ -2155,17 +2431,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                             value={
                               newImages[slotIdx]?.startsWith('data:')
                                 ? ''
-                                : newImages[slotIdx]
+                                : newImages[slotIdx] || ''
                             }
                             onChange={(e) => {
                               const val = e.target.value;
                               setNewImages((prev) => {
-                                const next = [...prev] as [
-                                  string,
-                                  string,
-                                  string,
-                                  string,
-                                ];
+                                const next = [...prev];
                                 next[slotIdx] = val;
                                 return next;
                               });
@@ -2264,7 +2535,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                   const currentDefaultIdx =
                     typeof product.defaultImageIndex === 'number' &&
                     product.defaultImageIndex >= 0 &&
-                    product.defaultImageIndex < 4
+                    product.defaultImageIndex < product.images.length
                       ? product.defaultImageIndex
                       : 0;
                   const currentDefaultThumb =
@@ -2273,7 +2544,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                     '';
 
                   const photoDraft = photoDrafts[product.id] || {
-                    images: [...product.images] as [string, string, string, string],
+                    images: [...product.images],
                     defaultImageIndex: currentDefaultIdx,
                   };
 
@@ -2343,6 +2614,11 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                                 </span>
                               )}
                             </div>
+                            {product.description?.trim() && (
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                {product.description}
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -2489,12 +2765,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Expandable 4-Picture Upload & Default Highlighter Drawer */}
+                      {/* Expandable Picture Upload & Default Highlighter Drawer (4 or 6 slots) */}
                       {isPhotoExpanded && (
                         <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                              Manage 4 Product Picture Tabs for{' '}
+                              Manage {photoDraft.images.length} Product Picture Tabs for{' '}
                               <span className="text-[#1E2985] dark:text-emerald-400">
                                 {product.modelNumber}
                               </span>{' '}
@@ -2524,11 +2800,21 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                             </button>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                            {[0, 1, 2, 3].map((slotIdx) => {
+                          <div
+                            className={`grid grid-cols-1 sm:grid-cols-2 ${
+                              photoDraft.images.length > 4
+                                ? 'lg:grid-cols-6'
+                                : 'lg:grid-cols-4'
+                            } gap-3`}
+                          >
+                            {Array.from(
+                              { length: Math.max(4, photoDraft.images.length) },
+                              (_, i) => i
+                            ).map((slotIdx) => {
                               const isDefault =
                                 photoDraft.defaultImageIndex === slotIdx;
                               const imgSrc = photoDraft.images[slotIdx]?.trim() || '';
+                              const slotLabel = product.imageLabels?.[slotIdx] || '';
 
                               return (
                                 <div
@@ -2541,8 +2827,9 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                                 >
                                   <div className="space-y-2">
                                     <div className="flex items-center justify-between gap-1">
-                                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                        Picture Tab #{slotIdx + 1}
+                                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                                        #{slotIdx + 1}{' '}
+                                        {slotLabel ? `(${slotLabel})` : `Picture Tab`}
                                       </span>
                                       <button
                                         type="button"
@@ -2555,7 +2842,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                                             },
                                           }))
                                         }
-                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer shrink-0 ${
                                           isDefault
                                             ? 'bg-amber-500 text-white'
                                             : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-amber-500/20 hover:text-amber-500'
@@ -2629,7 +2916,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                                         setPhotoDrafts((prev) => {
                                           const nextImages = [
                                             ...photoDraft.images,
-                                          ] as [string, string, string, string];
+                                          ];
                                           nextImages[slotIdx] = val;
                                           return {
                                             ...prev,

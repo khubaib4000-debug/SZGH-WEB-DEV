@@ -54,21 +54,34 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       img.trim().length > 0 &&
       !img.startsWith('data:image/svg+xml')
   );
-  const displayImages: [string, string, string, string] =
+  const displayImages: string[] =
     activeAxisHasCustomImg && activeAxis?.images
       ? activeAxis.images
       : product.images;
+
+  const displayImageLabels: string[] =
+    activeAxisHasCustomImg && activeAxis?.imageLabels?.length
+      ? activeAxis.imageLabels
+      : product.imageLabels;
 
   const rawDefaultIdx =
     activeAxisHasCustomImg && typeof activeAxis?.defaultImageIndex === 'number'
       ? activeAxis.defaultImageIndex
       : product.defaultImageIndex;
 
-  const defaultIdx =
+  const candidateDefaultIdx =
     typeof rawDefaultIdx === 'number' &&
     rawDefaultIdx >= 0 &&
     rawDefaultIdx < displayImages.length
       ? rawDefaultIdx
+      : 0;
+
+  const firstNonEmptyIdx = displayImages.findIndex((u) => Boolean(u?.trim()));
+  const defaultIdx =
+    displayImages[candidateDefaultIdx]?.trim()
+      ? candidateDefaultIdx
+      : firstNonEmptyIdx !== -1
+      ? firstNonEmptyIdx
       : 0;
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(defaultIdx);
@@ -149,7 +162,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               displayImages.find((u) => Boolean(u?.trim()))
             }
             alt={`${displayTitle || displayModelHeader} - ${
-              product.imageLabels[selectedImageIndex] || 'Product View'
+              displayImageLabels[selectedImageIndex] || 'Product View'
             }`}
             referrerPolicy="no-referrer"
             className="w-full h-full object-contain p-2 transition-transform duration-200 group-hover:scale-[1.03]"
@@ -175,15 +188,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </span>
       </div>
 
-      {/* Interactive 4-Thumbnail Gallery Strip */}
+      {/* Interactive Thumbnail Gallery Strip (4 slots standard, 6 slots for A+B / C+E Panel items) */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className="grid grid-cols-4 gap-1.5 p-2 bg-slate-50 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800"
+        className={`grid ${
+          displayImages.length > 4 ? 'grid-cols-6' : 'grid-cols-4'
+        } gap-1.5 p-2 bg-slate-50 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800`}
       >
         {displayImages.map((imgUrl, idx) => {
           const hasImage = Boolean(imgUrl && imgUrl.trim().length > 0);
           const isSelected = idx === selectedImageIndex;
           const isDefault = idx === defaultIdx && hasImage;
+          const slotLabel = displayImageLabels[idx] || `View ${idx + 1}`;
+          const isPanelTag = /^(A|B|C|E)-Panel$/i.test(slotLabel);
           return (
             <button
               key={idx}
@@ -194,10 +211,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 !hasImage
                   ? 'Empty image slot'
                   : isDefault
-                  ? `${product.imageLabels[idx] || `View ${idx + 1}`} (Default Display)`
-                  : product.imageLabels[idx] || `View ${idx + 1}`
+                  ? `${slotLabel} (Default Display)`
+                  : slotLabel
               }
-              aria-label={`View ${product.imageLabels[idx] || `image ${idx + 1}`}`}
+              aria-label={`View ${slotLabel}`}
               className={`relative aspect-4/3 rounded overflow-hidden border transition-all bg-white dark:bg-slate-900 ${
                 !hasImage
                   ? 'border-dashed border-slate-200 dark:border-slate-800 opacity-40 cursor-default'
@@ -209,10 +226,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {hasImage && (
                 <img
                   src={imgUrl}
-                  alt={`${displayModelHeader} view ${idx + 1}`}
+                  alt={`${displayModelHeader} ${slotLabel}`}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
+              )}
+              {hasImage && isPanelTag && (
+                <span className="absolute bottom-0 inset-x-0 bg-[#1E2985]/90 text-white text-[8px] font-extrabold leading-tight py-0.5 text-center truncate">
+                  {slotLabel}
+                </span>
               )}
               {isDefault && (
                 <span

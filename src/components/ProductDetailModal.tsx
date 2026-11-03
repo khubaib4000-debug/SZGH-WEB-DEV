@@ -55,7 +55,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       ? activeAxisVariant.images
       : product?.images || ['', '', '', ''];
 
-  const defaultIdx =
+  const effectiveImageLabels =
+    activeAxisVariant &&
+    activeAxisVariant.imageLabels &&
+    activeAxisVariant.imageLabels.length > 0
+      ? activeAxisVariant.imageLabels
+      : product?.imageLabels || [];
+
+  const candidateDefaultIdx =
     typeof activeAxisVariant?.defaultImageIndex === 'number' &&
     activeAxisVariant.defaultImageIndex >= 0 &&
     activeAxisVariant.defaultImageIndex < effectiveImages.length
@@ -65,6 +72,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         product.defaultImageIndex >= 0 &&
         product.defaultImageIndex < effectiveImages.length
       ? product.defaultImageIndex
+      : 0;
+
+  const firstNonEmptyIdx = effectiveImages.findIndex((u) => Boolean(u?.trim()));
+  const defaultIdx =
+    effectiveImages[candidateDefaultIdx]?.trim()
+      ? candidateDefaultIdx
+      : firstNonEmptyIdx !== -1
+      ? firstNonEmptyIdx
       : 0;
 
   const [activeImageIdx, setActiveImageIdx] = useState<number>(defaultIdx);
@@ -81,18 +96,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         : undefined;
     setSelectedAxisId(initialAxis ? initialAxis.id : product?.id || '');
 
-    const nextDefault =
+    const imgs =
+      initialAxis?.images &&
+      initialAxis.images.some((u) => u && u.trim().length > 0)
+        ? initialAxis.images
+        : product?.images || [];
+    const rawNext =
       initialAxis &&
       typeof initialAxis.defaultImageIndex === 'number' &&
       initialAxis.defaultImageIndex >= 0 &&
-      initialAxis.defaultImageIndex < 4
+      initialAxis.defaultImageIndex < imgs.length
         ? initialAxis.defaultImageIndex
         : product &&
           typeof product.defaultImageIndex === 'number' &&
           product.defaultImageIndex >= 0 &&
-          product.defaultImageIndex < product.images.length
+          product.defaultImageIndex < imgs.length
         ? product.defaultImageIndex
         : 0;
+    const nonEmptyIdx = imgs.findIndex((u) => Boolean(u?.trim()));
+    const nextDefault = imgs[rawNext]?.trim()
+      ? rawNext
+      : nonEmptyIdx !== -1
+      ? nonEmptyIdx
+      : 0;
     setActiveImageIdx(nextDefault);
     setQuantity(1);
     setSelectedIOBoardId(CONTROLLER_IO_BOARD_OPTIONS[0].id);
@@ -158,16 +184,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setTimeout(() => setAddedFeedback(false), 1500);
   };
 
+  const validIndices = effectiveImages
+    .map((u, idx) => (u && u.trim().length > 0 ? idx : -1))
+    .filter((idx) => idx !== -1);
+
   const handlePrevImage = () => {
-    setActiveImageIdx((prev) =>
-      prev === 0 ? effectiveImages.length - 1 : prev - 1
-    );
+    if (validIndices.length <= 1) return;
+    const pos = validIndices.indexOf(activeImageIdx);
+    const prevPos = pos <= 0 ? validIndices.length - 1 : pos - 1;
+    setActiveImageIdx(validIndices[prevPos]);
   };
 
   const handleNextImage = () => {
-    setActiveImageIdx((prev) =>
-      prev === effectiveImages.length - 1 ? 0 : prev + 1
-    );
+    if (validIndices.length <= 1) return;
+    const pos = validIndices.indexOf(activeImageIdx);
+    const nextPos = pos === -1 || pos === validIndices.length - 1 ? 0 : pos + 1;
+    setActiveImageIdx(validIndices[nextPos]);
   };
 
   return (
@@ -213,7 +245,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {effectiveImages[activeImageIdx] ? (
                 <img
                   src={effectiveImages[activeImageIdx]}
-                  alt={`${effectiveTitle} - ${product.imageLabels[activeImageIdx]}`}
+                  alt={`${effectiveTitle} - ${
+                    effectiveImageLabels[activeImageIdx] || `View ${activeImageIdx + 1}`
+                  }`}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-contain p-3"
                 />
@@ -243,39 +277,51 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Current View Caption */}
               <div className="absolute bottom-3 left-3 px-3 py-1 rounded bg-slate-950/90 border border-slate-700 text-xs font-mono-tabular text-slate-200">
-                View {activeImageIdx + 1}/4: {product.imageLabels[activeImageIdx]}
+                View {activeImageIdx + 1}/{effectiveImages.length || 4}:{' '}
+                {effectiveImageLabels[activeImageIdx] || `View ${activeImageIdx + 1}`}
               </div>
             </div>
 
-            {/* 4-Thumbnail Gallery Selector */}
-            <div className="grid grid-cols-4 gap-2.5">
+            {/* Thumbnail Gallery Selector (4 slots standard, 6 slots for A+B / C+E Panel items) */}
+            <div
+              className={`grid ${
+                effectiveImages.length > 4
+                  ? 'grid-cols-3 sm:grid-cols-6'
+                  : 'grid-cols-4'
+              } gap-2`}
+            >
               {effectiveImages.map((imgUrl, index) => {
-                const isActive = index === activeImageIdx;
+                const hasImg = Boolean(imgUrl && imgUrl.trim().length > 0);
+                const isActive = index === activeImageIdx && hasImg;
+                const slotLabel = effectiveImageLabels[index] || `View ${index + 1}`;
                 return (
                   <button
                     key={index}
                     type="button"
-                    onClick={() => setActiveImageIdx(index)}
-                    className={`flex flex-col rounded-md overflow-hidden border text-left transition-all cursor-pointer ${
-                      isActive
-                        ? 'border-[#1E2985] dark:border-emerald-400 ring-2 ring-[#1E2985]/30 dark:ring-emerald-400/30 bg-slate-50 dark:bg-slate-800'
-                        : 'border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100 bg-white dark:bg-slate-950'
+                    disabled={!hasImg}
+                    onClick={() => hasImg && setActiveImageIdx(index)}
+                    className={`flex flex-col rounded-md overflow-hidden border text-left transition-all ${
+                      !hasImg
+                        ? 'border-dashed border-slate-200 dark:border-slate-800 opacity-40 cursor-default bg-white dark:bg-slate-950'
+                        : isActive
+                        ? 'border-[#1E2985] dark:border-emerald-400 ring-2 ring-[#1E2985]/30 dark:ring-emerald-400/30 bg-slate-50 dark:bg-slate-800 cursor-pointer'
+                        : 'border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100 bg-white dark:bg-slate-950 cursor-pointer'
                     }`}
                   >
                     <div className="aspect-4/3 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden flex items-center justify-center">
-                      {imgUrl ? (
+                      {hasImg ? (
                         <img
                           src={imgUrl}
-                          alt={product.imageLabels[index]}
+                          alt={slotLabel}
                           referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       ) : (
                         <span className="text-[10px] text-slate-400">#{index + 1}</span>
                       )}
                     </div>
-                    <span className="px-2 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate w-full">
-                      {index + 1}. {product.imageLabels[index]}
+                    <span className="px-1.5 py-1 text-[10px] font-semibold text-slate-700 dark:text-slate-300 truncate w-full">
+                      {hasImg ? `${index + 1}. ${slotLabel}` : `${index + 1}. Empty`}
                     </span>
                   </button>
                 );

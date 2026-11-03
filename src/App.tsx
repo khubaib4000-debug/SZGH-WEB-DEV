@@ -26,6 +26,74 @@ import {
   isStandaloneIOBoardProduct,
   normalizeIOBoardModelNumber,
   resolveOfficialSubcategory,
+  isSZGH880MCModel,
+  SZGH_880MC_IMAGES,
+  SZGH_880MC_IMAGE_LABELS,
+  SZGH_880MC_DEFAULT_IMAGE_INDEX,
+  isSZGH1080MCModel,
+  SZGH_1080MC_IMAGES,
+  SZGH_1080MC_IMAGE_LABELS,
+  SZGH_1080MC_DEFAULT_IMAGE_INDEX,
+  isSZGH880TCModel,
+  SZGH_880TC_IMAGES,
+  SZGH_880TC_IMAGE_LABELS,
+  SZGH_880TC_DEFAULT_IMAGE_INDEX,
+  isSZGH1080TCModel,
+  SZGH_1080TC_IMAGES,
+  SZGH_1080TC_IMAGE_LABELS,
+  SZGH_1080TC_DEFAULT_IMAGE_INDEX,
+  isSZGH1080MICModel,
+  SZGH_1080MIC_IMAGES,
+  SZGH_1080MIC_IMAGE_LABELS,
+  SZGH_1080MIC_DEFAULT_IMAGE_INDEX,
+  isSZGH880TICModel,
+  SZGH_880TIC_IMAGES,
+  SZGH_880TIC_IMAGE_LABELS,
+  SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MDBModel,
+  SZGH_1000MDB_IMAGES,
+  SZGH_1000MDB_IMAGE_LABELS,
+  SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
+  isSZGH990MDBModel,
+  SZGH_990MDB_IMAGES,
+  SZGH_990MDB_IMAGE_LABELS,
+  SZGH_990MDB_DEFAULT_IMAGE_INDEX,
+  isSZGH990MDCModel,
+  SZGH_990MDC_IMAGES,
+  SZGH_990MDC_IMAGE_LABELS,
+  SZGH_990MDC_DEFAULT_IMAGE_INDEX,
+  isSZGH990TDBModel,
+  SZGH_990TDB_IMAGES,
+  SZGH_990TDB_IMAGE_LABELS,
+  SZGH_990TDB_DEFAULT_IMAGE_INDEX,
+  isSZGH990TDCModel,
+  SZGH_990TDC_IMAGES,
+  SZGH_990TDC_IMAGE_LABELS,
+  SZGH_990TDC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MCModel,
+  SZGH_1000MC_IMAGES,
+  SZGH_1000MC_IMAGE_LABELS,
+  SZGH_1000MC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MDCModel,
+  SZGH_1000MDC_IMAGES,
+  SZGH_1000MDC_IMAGE_LABELS,
+  SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+  isSZGH1000MDCBModel,
+  SZGH_1000MDCB_IMAGES,
+  SZGH_1000MDCB_IMAGE_LABELS,
+  SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+  isSZGH1000TDBModel,
+  SZGH_1000TDB_IMAGES,
+  SZGH_1000TDB_IMAGE_LABELS,
+  SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
+  isSZGHCNCIO12Model,
+  SZGH_CNC_IO12_IMAGES,
+  SZGH_CNC_IO12_IMAGE_LABELS,
+  SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
+  hasABPanelInProduct,
+  hasCEPanelInProduct,
+  normalizePanelStrings,
+  applyPanelPicturesToGallery,
 } from './data/products';
 import {
   onAuthStateChanged,
@@ -192,7 +260,7 @@ export default function App() {
         stockStatus: 'In Stock' | 'Low Stock' | 'Pre-Order';
         price: number;
         defaultImageIndex?: number;
-        images?: [string, string, string, string];
+        images?: string[];
         modelNumber?: string;
         title?: string;
         category?: ProductCategory;
@@ -473,8 +541,17 @@ export default function App() {
                     typeof img === 'string' ? img : ''
                   )
                 : [];
-              const normalizedTuple: [string, string, string, string] | undefined =
-                rawImages.length > 0
+              const normalizedTuple: string[] | undefined =
+                rawImages.length > 4
+                  ? [
+                      rawImages[0] ?? '',
+                      rawImages[1] ?? '',
+                      rawImages[2] ?? '',
+                      rawImages[3] ?? '',
+                      rawImages[4] ?? '',
+                      rawImages[5] ?? '',
+                    ]
+                  : rawImages.length > 0
                   ? [
                       rawImages[0] ?? '',
                       rawImages[1] ?? '',
@@ -491,7 +568,7 @@ export default function App() {
                   price: data.price,
                   defaultImageIndex:
                     typeof data.defaultImageIndex === 'number'
-                      ? Math.max(0, Math.min(3, Math.round(data.defaultImageIndex)))
+                      ? Math.max(0, Math.min(5, Math.round(data.defaultImageIndex)))
                       : undefined,
                   images: normalizedTuple,
                   modelNumber:
@@ -550,23 +627,39 @@ export default function App() {
     const mergedBuiltIn = PRODUCTS_DATABASE.map((item) => {
       const override = cloudInventoryOverrides[item.id];
       if (!override) {
+        const normPanel = normalizePanelStrings(item);
+        const { images: panelImgs, imageLabels: panelLabels } =
+          applyPanelPicturesToGallery(item.images, item.imageLabels, normPanel);
         return {
           ...item,
-          title: deriveTitleFromDescription(item.description, item.title),
+          modelNumber: normPanel.modelNumber,
+          description: normPanel.description,
+          title: deriveTitleFromDescription(normPanel.description, normPanel.title),
+          images: panelImgs,
+          imageLabels: panelLabels,
         };
       }
       const hasAnyCustomImage = override.images?.some((u) => u.trim().length > 0);
-      const effectiveDesc =
+      const rawEffectiveDesc =
         override.description !== undefined && override.description.trim().length > 0
           ? override.description
           : item.description;
-      const effectiveTitle =
+      const rawEffectiveTitle =
         override.title && override.title.trim().length > 0
           ? override.title.trim()
-          : deriveTitleFromDescription(effectiveDesc, item.title);
+          : deriveTitleFromDescription(rawEffectiveDesc, item.title);
+
+      const normPanel = normalizePanelStrings({
+        modelNumber: override.modelNumber || item.modelNumber,
+        title: rawEffectiveTitle,
+        description: rawEffectiveDesc,
+      });
+      const effectiveDesc = normPanel.description;
+      const effectiveTitle =
+        deriveTitleFromDescription(effectiveDesc, normPanel.title) || normPanel.title;
 
       const resolvedModel = normalizeIOBoardModelNumber(
-        override.modelNumber || item.modelNumber,
+        normPanel.modelNumber,
         effectiveDesc,
         effectiveTitle
       );
@@ -575,6 +668,104 @@ export default function App() {
         description: effectiveDesc,
         title: effectiveTitle,
       });
+
+      const is880MC = isSZGH880MCModel({ modelNumber: resolvedModel });
+      const is1080MC = isSZGH1080MCModel({ modelNumber: resolvedModel });
+      const is1080MIC = isSZGH1080MICModel({ modelNumber: resolvedModel });
+      const is880TC = isSZGH880TCModel({ modelNumber: resolvedModel });
+      const is880TIC = isSZGH880TICModel({ modelNumber: resolvedModel });
+      const is1080TC = isSZGH1080TCModel({ modelNumber: resolvedModel });
+      const is1000MDB = isSZGH1000MDBModel({ modelNumber: resolvedModel });
+      const is990MDB = isSZGH990MDBModel({ modelNumber: resolvedModel });
+      const is990MDC = isSZGH990MDCModel({ modelNumber: resolvedModel });
+      const is990TDB = isSZGH990TDBModel({ modelNumber: resolvedModel });
+      const is990TDC = isSZGH990TDCModel({ modelNumber: resolvedModel });
+      const is1000MC = isSZGH1000MCModel({ modelNumber: resolvedModel });
+      const is1000MDC = isSZGH1000MDCModel({ modelNumber: resolvedModel });
+      const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: resolvedModel });
+      const is1000TDB = isSZGH1000TDBModel({ modelNumber: resolvedModel });
+      const isCNCIO12 = isSZGHCNCIO12Model({
+        modelNumber: resolvedModel,
+        title: effectiveTitle,
+        description: effectiveDesc,
+      });
+
+      const baseFourImages: string[] = is880MC
+        ? SZGH_880MC_IMAGES
+        : is1080MC
+        ? SZGH_1080MC_IMAGES
+        : is1080MIC
+        ? SZGH_1080MIC_IMAGES
+        : is880TC
+        ? SZGH_880TC_IMAGES
+        : is880TIC
+        ? SZGH_880TIC_IMAGES
+        : is1080TC
+        ? SZGH_1080TC_IMAGES
+        : is1000MDB
+        ? SZGH_1000MDB_IMAGES
+        : is990MDB
+        ? SZGH_990MDB_IMAGES
+        : is990MDC
+        ? SZGH_990MDC_IMAGES
+        : is990TDB
+        ? SZGH_990TDB_IMAGES
+        : is990TDC
+        ? SZGH_990TDC_IMAGES
+        : is1000MC
+        ? SZGH_1000MC_IMAGES
+        : is1000MDC
+        ? SZGH_1000MDC_IMAGES
+        : is1000MDCB
+        ? SZGH_1000MDCB_IMAGES
+        : is1000TDB
+        ? SZGH_1000TDB_IMAGES
+        : isCNCIO12
+        ? SZGH_CNC_IO12_IMAGES
+        : hasAnyCustomImage && override.images
+        ? override.images
+        : item.images;
+
+      const baseFourLabels: string[] = is880MC
+        ? SZGH_880MC_IMAGE_LABELS
+        : is1080MC
+        ? SZGH_1080MC_IMAGE_LABELS
+        : is1080MIC
+        ? SZGH_1080MIC_IMAGE_LABELS
+        : is880TC
+        ? SZGH_880TC_IMAGE_LABELS
+        : is880TIC
+        ? SZGH_880TIC_IMAGE_LABELS
+        : is1080TC
+        ? SZGH_1080TC_IMAGE_LABELS
+        : is1000MDB
+        ? SZGH_1000MDB_IMAGE_LABELS
+        : is990MDB
+        ? SZGH_990MDB_IMAGE_LABELS
+        : is990MDC
+        ? SZGH_990MDC_IMAGE_LABELS
+        : is990TDB
+        ? SZGH_990TDB_IMAGE_LABELS
+        : is990TDC
+        ? SZGH_990TDC_IMAGE_LABELS
+        : is1000MC
+        ? SZGH_1000MC_IMAGE_LABELS
+        : is1000MDC
+        ? SZGH_1000MDC_IMAGE_LABELS
+        : is1000MDCB
+        ? SZGH_1000MDCB_IMAGE_LABELS
+        : is1000TDB
+        ? SZGH_1000TDB_IMAGE_LABELS
+        : isCNCIO12
+        ? SZGH_CNC_IO12_IMAGE_LABELS
+        : item.imageLabels;
+
+      const { images: resolvedImages, imageLabels: resolvedLabels } =
+        applyPanelPicturesToGallery(baseFourImages, baseFourLabels, {
+          modelNumber: resolvedModel,
+          title: effectiveTitle,
+          description: effectiveDesc,
+        });
 
       return {
         ...item,
@@ -591,9 +782,41 @@ export default function App() {
         inStock: override.stockCount > 0,
         price: override.price,
         hasIOBoardOption: isIOBoard ? false : item.hasIOBoardOption,
-        defaultImageIndex:
-          override.defaultImageIndex ?? item.defaultImageIndex ?? 0,
-        images: hasAnyCustomImage && override.images ? override.images : item.images,
+        defaultImageIndex: is880MC
+          ? SZGH_880MC_DEFAULT_IMAGE_INDEX
+          : is1080MC
+          ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
+          : is1080MIC
+          ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
+          : is880TC
+          ? SZGH_880TC_DEFAULT_IMAGE_INDEX
+          : is880TIC
+          ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+          : is1080TC
+          ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
+          : is1000MDB
+          ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+          : is990MDB
+          ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
+          : is990MDC
+          ? SZGH_990MDC_DEFAULT_IMAGE_INDEX
+          : is990TDB
+          ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
+          : is990TDC
+          ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
+          : is1000MC
+          ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
+          : is1000MDC
+          ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+          : is1000MDCB
+          ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+          : is1000TDB
+          ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
+          : isCNCIO12
+          ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
+          : override.defaultImageIndex ?? item.defaultImageIndex ?? 0,
+        images: resolvedImages,
+        imageLabels: resolvedLabels,
       };
     });
 
@@ -606,10 +829,17 @@ export default function App() {
       }
       const cat: ProductCategory = override.category || 'Controllers';
       const subcat = override.subcategory ?? '';
-      const desc = override.description ?? '';
-      const ttl = deriveTitleFromDescription(desc, override.title);
+      const rawDesc = override.description ?? '';
+      const rawTtl = deriveTitleFromDescription(rawDesc, override.title);
+      const normPanel = normalizePanelStrings({
+        modelNumber: override.modelNumber,
+        title: rawTtl,
+        description: rawDesc,
+      });
+      const desc = normPanel.description;
+      const ttl = deriveTitleFromDescription(desc, normPanel.title) || normPanel.title;
       const normalizedModel = normalizeIOBoardModelNumber(
-        override.modelNumber,
+        normPanel.modelNumber,
         desc,
         ttl
       );
@@ -619,6 +849,106 @@ export default function App() {
         title: ttl,
         price: override.price,
       });
+      const is880MC = isSZGH880MCModel({ modelNumber: normalizedModel });
+      const is1080MC = isSZGH1080MCModel({ modelNumber: normalizedModel });
+      const is1080MIC = isSZGH1080MICModel({ modelNumber: normalizedModel });
+      const is880TC = isSZGH880TCModel({ modelNumber: normalizedModel });
+      const is880TIC = isSZGH880TICModel({ modelNumber: normalizedModel });
+      const is1080TC = isSZGH1080TCModel({ modelNumber: normalizedModel });
+      const is1000MDB = isSZGH1000MDBModel({ modelNumber: normalizedModel });
+      const is990MDB = isSZGH990MDBModel({ modelNumber: normalizedModel });
+      const is990MDC = isSZGH990MDCModel({ modelNumber: normalizedModel });
+      const is990TDB = isSZGH990TDBModel({ modelNumber: normalizedModel });
+      const is990TDC = isSZGH990TDCModel({ modelNumber: normalizedModel });
+      const is1000MC = isSZGH1000MCModel({ modelNumber: normalizedModel });
+      const is1000MDC = isSZGH1000MDCModel({ modelNumber: normalizedModel });
+      const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: normalizedModel });
+      const is1000TDB = isSZGH1000TDBModel({ modelNumber: normalizedModel });
+      const isCNCIO12 = isSZGHCNCIO12Model({
+        modelNumber: normalizedModel,
+        title: ttl,
+        description: desc,
+      });
+
+      const baseFourImages: string[] = is880MC
+        ? SZGH_880MC_IMAGES
+        : is1080MC
+        ? SZGH_1080MC_IMAGES
+        : is1080MIC
+        ? SZGH_1080MIC_IMAGES
+        : is880TC
+        ? SZGH_880TC_IMAGES
+        : is880TIC
+        ? SZGH_880TIC_IMAGES
+        : is1080TC
+        ? SZGH_1080TC_IMAGES
+        : is1000MDB
+        ? SZGH_1000MDB_IMAGES
+        : is990MDB
+        ? SZGH_990MDB_IMAGES
+        : is990MDC
+        ? SZGH_990MDC_IMAGES
+        : is990TDB
+        ? SZGH_990TDB_IMAGES
+        : is990TDC
+        ? SZGH_990TDC_IMAGES
+        : is1000MC
+        ? SZGH_1000MC_IMAGES
+        : is1000MDC
+        ? SZGH_1000MDC_IMAGES
+        : is1000MDCB
+        ? SZGH_1000MDCB_IMAGES
+        : is1000TDB
+        ? SZGH_1000TDB_IMAGES
+        : isCNCIO12
+        ? SZGH_CNC_IO12_IMAGES
+        : override.images || ['', '', '', ''];
+
+      const baseFourLabels: string[] = is880MC
+        ? SZGH_880MC_IMAGE_LABELS
+        : is1080MC
+        ? SZGH_1080MC_IMAGE_LABELS
+        : is1080MIC
+        ? SZGH_1080MIC_IMAGE_LABELS
+        : is880TC
+        ? SZGH_880TC_IMAGE_LABELS
+        : is880TIC
+        ? SZGH_880TIC_IMAGE_LABELS
+        : is1080TC
+        ? SZGH_1080TC_IMAGE_LABELS
+        : is1000MDB
+        ? SZGH_1000MDB_IMAGE_LABELS
+        : is990MDB
+        ? SZGH_990MDB_IMAGE_LABELS
+        : is990MDC
+        ? SZGH_990MDC_IMAGE_LABELS
+        : is990TDB
+        ? SZGH_990TDB_IMAGE_LABELS
+        : is990TDC
+        ? SZGH_990TDC_IMAGE_LABELS
+        : is1000MC
+        ? SZGH_1000MC_IMAGE_LABELS
+        : is1000MDC
+        ? SZGH_1000MDC_IMAGE_LABELS
+        : is1000MDCB
+        ? SZGH_1000MDCB_IMAGE_LABELS
+        : is1000TDB
+        ? SZGH_1000TDB_IMAGE_LABELS
+        : isCNCIO12
+        ? SZGH_CNC_IO12_IMAGE_LABELS
+        : [
+            'Picture #1 View',
+            'Picture #2 View',
+            'Picture #3 View',
+            'Picture #4 View',
+          ];
+
+      const { images: resolvedImages, imageLabels: resolvedLabels } =
+        applyPanelPicturesToGallery(baseFourImages, baseFourLabels, {
+          modelNumber: normalizedModel,
+          title: ttl,
+          description: desc,
+        });
 
       customProducts.push({
         id: customId,
@@ -638,16 +968,43 @@ export default function App() {
         inStock: override.stockCount > 0,
         stockCount: override.stockCount,
         stockStatus: override.stockStatus,
-        defaultImageIndex: override.defaultImageIndex ?? 0,
+        defaultImageIndex: is880MC
+          ? SZGH_880MC_DEFAULT_IMAGE_INDEX
+          : is1080MC
+          ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
+          : is1080MIC
+          ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
+          : is880TC
+          ? SZGH_880TC_DEFAULT_IMAGE_INDEX
+          : is880TIC
+          ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+          : is1080TC
+          ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
+          : is1000MDB
+          ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+          : is990MDB
+          ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
+          : is990MDC
+          ? SZGH_990MDC_DEFAULT_IMAGE_INDEX
+          : is990TDB
+          ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
+          : is990TDC
+          ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
+          : is1000MC
+          ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
+          : is1000MDC
+          ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+          : is1000MDCB
+          ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+          : is1000TDB
+          ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
+          : isCNCIO12
+          ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
+          : override.defaultImageIndex ?? 0,
         warranty: '1 Year Official SZGH Pakistan Warranty',
         hasIOBoardOption: cat === 'Controllers' && !isIOBoard,
-        images: override.images || ['', '', '', ''],
-        imageLabels: [
-          'Picture #1 View',
-          'Picture #2 View',
-          'Picture #3 View',
-          'Picture #4 View',
-        ],
+        images: resolvedImages,
+        imageLabels: resolvedLabels,
         specs: [
           { label: 'Model Number', value: normalizedModel },
           ...(ttl ? [{ label: 'Product Title', value: ttl }] : []),
@@ -659,8 +1016,286 @@ export default function App() {
       });
     }
 
-    return [...customProducts, ...mergedBuiltIn];
+    const hasCustom880MC = customProducts.some((p) =>
+      isSZGH880MCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1080MC = customProducts.some((p) =>
+      isSZGH1080MCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1080MIC = customProducts.some((p) =>
+      isSZGH1080MICModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom880TC = customProducts.some((p) =>
+      isSZGH880TCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom880TIC = customProducts.some((p) =>
+      isSZGH880TICModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1080TC = customProducts.some((p) =>
+      isSZGH1080TCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1000MDB = customProducts.some((p) =>
+      isSZGH1000MDBModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom990MDB = customProducts.some((p) =>
+      isSZGH990MDBModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom990MDC = customProducts.some((p) =>
+      isSZGH990MDCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom990TDB = customProducts.some((p) =>
+      isSZGH990TDBModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom990TDC = customProducts.some((p) =>
+      isSZGH990TDCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1000MC = customProducts.some((p) =>
+      isSZGH1000MCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1000MDC = customProducts.some((p) =>
+      isSZGH1000MDCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1000MDCB = customProducts.some((p) =>
+      isSZGH1000MDCBModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1000TDB = customProducts.some((p) =>
+      isSZGH1000TDBModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustomCNCIO12 = customProducts.some((p) =>
+      isSZGHCNCIO12Model({
+        modelNumber: p.modelNumber,
+        title: p.title,
+        description: p.description,
+      })
+    );
+    const filteredBuiltIn = mergedBuiltIn.filter((p) => {
+      if (hasCustom880MC && p.id.startsWith('prod-cnc-880mc-')) return false;
+      if (hasCustom1080MC && p.id.startsWith('prod-cnc-1080mc-')) return false;
+      if (hasCustom1080MIC && p.id.startsWith('prod-cnc-1080mic-')) return false;
+      if (hasCustom880TC && p.id.startsWith('prod-cnc-880tc-')) return false;
+      if (hasCustom880TIC && p.id.startsWith('prod-cnc-880tic-')) return false;
+      if (hasCustom1080TC && p.id.startsWith('prod-cnc-1080tc-')) return false;
+      if (
+        hasCustom1000MDB &&
+        (p.id === 'prod-cnc-1000mdb' || p.id.startsWith('prod-cnc-1000mdb-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom990MDB &&
+        (p.id === 'prod-cnc-990mdb' || p.id.startsWith('prod-cnc-990mdb-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom990MDC &&
+        (p.id === 'prod-cnc-990mdc' || p.id.startsWith('prod-cnc-990mdc-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom990TDB &&
+        (p.id === 'prod-cnc-990tdb' || p.id.startsWith('prod-cnc-990tdb-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom990TDC &&
+        (p.id === 'prod-cnc-990tdc' || p.id.startsWith('prod-cnc-990tdc-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom1000MC &&
+        (p.id === 'prod-cnc-1000mc' || p.id.startsWith('prod-cnc-1000mc-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom1000MDC &&
+        (p.id === 'prod-cnc-1000mdc' || p.id.startsWith('prod-cnc-1000mdc-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom1000MDCB &&
+        (p.id === 'prod-cnc-1000mdcb' || p.id.startsWith('prod-cnc-1000mdcb-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom1000TDB &&
+        (p.id === 'prod-cnc-1000tdb' || p.id.startsWith('prod-cnc-1000tdb-'))
+      ) {
+        return false;
+      }
+      if (hasCustomCNCIO12 && p.id === 'prod-cnc-io12') {
+        return false;
+      }
+      return true;
+    });
+
+    return [...customProducts, ...filteredBuiltIn];
   }, [cloudInventoryOverrides, customProductIds]);
+
+  // Automatically sync the official pictures into Firestore for any matching inventory docs when Admin is signed in
+  useEffect(() => {
+    if (!isAuthorizedAdmin || !currentUser) return;
+    for (const [productId, override] of Object.entries(cloudInventoryOverrides)) {
+      if (!override.modelNumber) continue;
+      const normPanel = normalizePanelStrings({
+        modelNumber: override.modelNumber,
+        title: override.title,
+        description: override.description,
+      });
+      const hasABPanel = hasABPanelInProduct(override);
+      const hasCEPanel = hasCEPanelInProduct(override);
+
+      const is880MC = isSZGH880MCModel({ modelNumber: override.modelNumber });
+      const is1080MC = isSZGH1080MCModel({ modelNumber: override.modelNumber });
+      const is1080MIC = isSZGH1080MICModel({ modelNumber: override.modelNumber });
+      const is880TC = isSZGH880TCModel({ modelNumber: override.modelNumber });
+      const is880TIC = isSZGH880TICModel({ modelNumber: override.modelNumber });
+      const is1080TC = isSZGH1080TCModel({ modelNumber: override.modelNumber });
+      const is1000MDB = isSZGH1000MDBModel({ modelNumber: override.modelNumber });
+      const is990MDB = isSZGH990MDBModel({ modelNumber: override.modelNumber });
+      const is990MDC = isSZGH990MDCModel({ modelNumber: override.modelNumber });
+      const is990TDB = isSZGH990TDBModel({ modelNumber: override.modelNumber });
+      const is990TDC = isSZGH990TDCModel({ modelNumber: override.modelNumber });
+      const is1000MC = isSZGH1000MCModel({ modelNumber: override.modelNumber });
+      const is1000MDC = isSZGH1000MDCModel({ modelNumber: override.modelNumber });
+      const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: override.modelNumber });
+      const is1000TDB = isSZGH1000TDBModel({ modelNumber: override.modelNumber });
+      const isCNCIO12 = isSZGHCNCIO12Model({
+        modelNumber: override.modelNumber,
+        title: override.title,
+        description: override.description,
+      });
+      if (
+        !is880MC &&
+        !is1080MC &&
+        !is1080MIC &&
+        !is880TC &&
+        !is880TIC &&
+        !is1080TC &&
+        !is1000MDB &&
+        !is990MDB &&
+        !is990MDC &&
+        !is990TDB &&
+        !is990TDC &&
+        !is1000MC &&
+        !is1000MDC &&
+        !is1000MDCB &&
+        !is1000TDB &&
+        !isCNCIO12 &&
+        !hasABPanel &&
+        !hasCEPanel
+      ) {
+        continue;
+      }
+
+      const baseTargetImages: string[] = is880MC
+        ? SZGH_880MC_IMAGES
+        : is1080MC
+        ? SZGH_1080MC_IMAGES
+        : is1080MIC
+        ? SZGH_1080MIC_IMAGES
+        : is880TC
+        ? SZGH_880TC_IMAGES
+        : is880TIC
+        ? SZGH_880TIC_IMAGES
+        : is1080TC
+        ? SZGH_1080TC_IMAGES
+        : is1000MDB
+        ? SZGH_1000MDB_IMAGES
+        : is990MDB
+        ? SZGH_990MDB_IMAGES
+        : is990MDC
+        ? SZGH_990MDC_IMAGES
+        : is990TDB
+        ? SZGH_990TDB_IMAGES
+        : is990TDC
+        ? SZGH_990TDC_IMAGES
+        : is1000MC
+        ? SZGH_1000MC_IMAGES
+        : is1000MDC
+        ? SZGH_1000MDC_IMAGES
+        : is1000MDCB
+        ? SZGH_1000MDCB_IMAGES
+        : is1000TDB
+        ? SZGH_1000TDB_IMAGES
+        : isCNCIO12
+        ? SZGH_CNC_IO12_IMAGES
+        : override.images || ['', '', '', ''];
+
+      const { images: targetImages } = applyPanelPicturesToGallery(
+        baseTargetImages,
+        [],
+        normPanel
+      );
+
+      const targetDefaultIdx = is880MC
+        ? SZGH_880MC_DEFAULT_IMAGE_INDEX
+        : is1080MC
+        ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
+        : is1080MIC
+        ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
+        : is880TC
+        ? SZGH_880TC_DEFAULT_IMAGE_INDEX
+        : is880TIC
+        ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+        : is1080TC
+        ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
+        : is1000MDB
+        ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+        : is990MDB
+        ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
+        : is990MDC
+        ? SZGH_990MDC_DEFAULT_IMAGE_INDEX
+        : is990TDB
+        ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
+        : is990TDC
+        ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
+        : is1000MC
+        ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
+        : is1000MDC
+        ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+        : is1000MDCB
+        ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+        : is1000TDB
+        ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
+        : isCNCIO12
+        ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
+        : override.defaultImageIndex ?? 0;
+
+      const imagesMatch =
+        override.images?.length === targetImages.length &&
+        targetImages.every((img, idx) => override.images?.[idx] === img);
+      const descMatches =
+        (!hasABPanel && !hasCEPanel) ||
+        override.description === normPanel.description;
+      const alreadySynced =
+        override.defaultImageIndex === targetDefaultIdx &&
+        imagesMatch &&
+        descMatches;
+      if (!alreadySynced) {
+        updateDoc(doc(db, 'inventory', productId), {
+          images: targetImages,
+          defaultImageIndex: targetDefaultIdx,
+          ...(hasABPanel || hasCEPanel
+            ? {
+                modelNumber: normPanel.modelNumber.slice(0, 120),
+                description: normPanel.description.slice(0, 1500),
+              }
+            : {}),
+          updatedBy: currentUser.uid,
+          updatedAt: serverTimestamp(),
+        }).catch(() => {
+          // Ignore transient sync error
+        });
+      }
+    }
+  }, [isAuthorizedAdmin, currentUser, cloudInventoryOverrides]);
 
   // Merge same model & number of axes into 1 product listing with Axis Selection Tabs
   const mergedCatalogProducts = useMemo(
