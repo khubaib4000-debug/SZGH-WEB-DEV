@@ -11,6 +11,12 @@ import {
   TrendingUp,
   CornerDownRight,
   ChevronRight,
+  Mail,
+  Phone,
+  Clock,
+  QrCode,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import {
   HERO_CATEGORIES,
@@ -259,6 +265,14 @@ export default function App() {
 
   const [selectedProductModal, setSelectedProductModal] =
     useState<ProductItem | null>(null);
+  const [activeQrLightbox, setActiveQrLightbox] = useState<{
+    id: string;
+    title: string;
+    subtitle: string;
+    badge: string;
+    image: string;
+    href?: string;
+  } | null>(null);
 
   // 5. Interactive Video Modal / Active Video State
   const [activeVideo, setActiveVideo] = useState<VideoPresentation>(VIDEOS_DATABASE[0]);
@@ -2085,17 +2099,244 @@ export default function App() {
                 </div>
               </div>
             </section>
+
+            {/* ================================================================
+                SECTION 5: OFFICIAL CONTACT US & SCAN-TO-CONNECT QR HUB
+                ================================================================ */}
+            <section
+              id="contact"
+              className="py-16 bg-slate-100/80 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800"
+            >
+              <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="mb-10">
+                  <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#0068AD] dark:text-sky-400 mb-2">
+                    OFFICIAL CORPORATE &amp; TECHNICAL CONTACT DESK
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    Contact SZGH Pakistan
+                  </h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+                    Connect directly with our CNC automation engineers and B2B sales desk via phone, email, WhatsApp, WeChat, Instagram, or Facebook.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                  {/* Left Column: Direct Contact Details & Business Hours */}
+                  <div className="lg:col-span-5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 flex flex-col justify-between shadow-sm">
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3 pb-5 border-b border-slate-200 dark:border-slate-800">
+                        <div className="h-14 w-auto px-2.5 py-1 rounded bg-white border border-slate-200 flex items-center justify-center">
+                          <img
+                            src="/assets/aistudio/szgh-pakistan-logo_baed6be7.png"
+                            alt="SZGH Pakistan Logo"
+                            className="h-12 w-auto object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                        <div>
+                          <div className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
+                            SZGH PAKISTAN
+                          </div>
+                          <div className="text-xs font-semibold text-[#0068AD] dark:text-sky-400">
+                            BY KH ENTERPRISES (PVT) LTD
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-5">
+                        {/* Email */}
+                        <div className="flex items-start gap-3.5">
+                          <div className="w-10 h-10 rounded-[5px] bg-[#0068AD]/10 dark:bg-[#0068AD]/20 text-[#0068AD] dark:text-sky-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <Mail className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Official Email
+                            </div>
+                            <a
+                              href="mailto:info@szghpakistan.com"
+                              className="text-base sm:text-lg font-bold text-slate-900 dark:text-white hover:text-[#0068AD] dark:hover:text-sky-400 transition-colors break-all"
+                            >
+                              info@szghpakistan.com
+                            </a>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              For B2B quotations, technical inquiries &amp; proforma invoices
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Telephone / Mobile Numbers */}
+                        <div className="flex items-start gap-3.5">
+                          <div className="w-10 h-10 rounded-[5px] bg-[#E77817]/10 dark:bg-[#E77817]/20 text-[#E77817] flex items-center justify-center shrink-0 mt-0.5">
+                            <Phone className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Telephone &amp; Direct Helpline
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-0.5">
+                              <a
+                                href="tel:+923214800265"
+                                className="text-base sm:text-lg font-bold text-slate-900 dark:text-white hover:text-[#0068AD] dark:hover:text-sky-400 transition-colors"
+                              >
+                                +92 321 4800265
+                              </a>
+                              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">|</span>
+                              <a
+                                href="tel:+923212741106"
+                                className="text-base sm:text-lg font-bold text-slate-900 dark:text-white hover:text-[#0068AD] dark:hover:text-sky-400 transition-colors"
+                              >
+                                +92 321 2741106
+                              </a>
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              Direct sales, CNC retrofit booking &amp; engineering support
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Business Hours */}
+                        <div className="flex items-start gap-3.5">
+                          <div className="w-10 h-10 rounded-[5px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <Clock className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              Business Hours
+                            </div>
+                            <div className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                              Mon–Sat: 9:00 AM – 8:00 PM
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              Pakistan Standard Time (PKT) · Sunday Closed
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <a
+                        href="https://wa.me/923214800265"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs sm:text-sm font-normal transition-colors"
+                      >
+                        <Phone className="w-4 h-4" />
+                        WhatsApp (+92 321 4800265)
+                      </a>
+                      <a
+                        href="mailto:info@szghpakistan.com"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white text-xs sm:text-sm font-normal transition-colors"
+                      >
+                        <Mail className="w-4 h-4" />
+                        Email Us Directly
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Right Column: 4 Readjusted Professional QR Code Graphics */}
+                  <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {[
+                      {
+                        id: 'whatsapp',
+                        title: 'WhatsApp Official',
+                        subtitle: '+92 321 4800265',
+                        badge: 'Instant Engineering Chat',
+                        image: '/assets/qr-whatsapp.png',
+                        href: 'https://wa.me/qr/MFFMZ3VILZJKL1',
+                      },
+                      {
+                        id: 'wechat',
+                        title: 'WeChat Official',
+                        subtitle: '+92 321 4800265',
+                        badge: 'B2B Technical Representative',
+                        image: '/assets/qr-wechat.png',
+                      },
+                      {
+                        id: 'instagram',
+                        title: 'Instagram Official',
+                        subtitle: '@SZGHPAKISTAN',
+                        badge: 'Follow Machine Demos & Reels',
+                        image: '/assets/qr-instagram.png',
+                        href: 'https://www.instagram.com/szghpakistan?exln=MWtkbGpyaWdqOHoweQ==',
+                      },
+                      {
+                        id: 'facebook',
+                        title: 'Facebook Official',
+                        subtitle: 'SZGH Pakistan',
+                        badge: 'Official Corporate Page',
+                        image: '/assets/qr-facebook.png',
+                        href: 'https://www.facebook.com/share/p/1CQH67EBnE/',
+                      },
+                    ].map((qr) => (
+                      <div
+                        key={qr.id}
+                        className="rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 flex flex-col justify-between shadow-sm hover:border-[#0068AD] dark:hover:border-sky-500 transition-colors"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setActiveQrLightbox(qr)}
+                          className="group relative w-full rounded bg-slate-50 dark:bg-slate-950 p-2 flex items-center justify-center overflow-hidden cursor-pointer border border-slate-100 dark:border-slate-800"
+                          title={`Click to enlarge ${qr.title} QR Code`}
+                        >
+                          <img
+                            src={qr.image}
+                            alt={`${qr.title} - ${qr.subtitle} QR Code`}
+                            className="w-full max-w-[230px] h-auto object-contain rounded transition-transform duration-200 group-hover:scale-[1.03]"
+                            loading="lazy"
+                          />
+                        </button>
+
+                        <div className="pt-3 mt-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                              {qr.title}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {qr.subtitle}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setActiveQrLightbox(qr)}
+                              className="px-3 py-1.5 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs font-normal transition-colors cursor-pointer"
+                            >
+                              Enlarge QR
+                            </button>
+                            {qr.href && (
+                              <a
+                                href={qr.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white transition-colors"
+                                title={`Open ${qr.title}`}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
           </>
         )}
       </main>
 
       {/* ================================================================
-          CORPORATE FOOTER WITH INTEGRATED COMPANY LOGO
+          CORPORATE FOOTER WITH INTEGRATED COMPANY LOGO, CONTACT & QR CODES
           ================================================================ */}
-      <footer id="contact" className="bg-slate-950 text-slate-400 border-t border-slate-800">
+      <footer id="footer-contact" className="bg-slate-950 text-slate-400 border-t border-slate-800">
         <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 pb-10 border-b border-slate-800">
-            <div className="lg:col-span-5 space-y-4">
+            {/* Column 1: Logo & Contact Information */}
+            <div className="lg:col-span-4 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="h-16 w-auto px-2.5 py-1 rounded bg-white flex items-center justify-center overflow-hidden">
                   <img
@@ -2114,12 +2355,135 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 Official Pakistan distributor and turnkey integration partner for SZGH CNC Controllers, AC Servo Motors &amp; Drives, CNC Machine Tools, and 6-Axis Industrial Robots. All products backed by a 1 Year Official Warranty.
               </p>
+
+              {/* Footer Direct Contact Block */}
+              <div className="pt-2 space-y-2 text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-[#E77817] shrink-0" />
+                  <span className="text-slate-400">Email:</span>
+                  <a
+                    href="mailto:info@szghpakistan.com"
+                    className="font-semibold text-white hover:text-sky-400 transition-colors"
+                  >
+                    info@szghpakistan.com
+                  </a>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Phone className="w-4 h-4 text-[#0068AD] shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-slate-400">Tel: </span>
+                    <a
+                      href="tel:+923214800265"
+                      className="font-semibold text-white hover:text-sky-400 transition-colors"
+                    >
+                      +92 321 4800265
+                    </a>
+                    <span className="text-slate-600 mx-1.5">,</span>
+                    <a
+                      href="tel:+923212741106"
+                      className="font-semibold text-white hover:text-sky-400 transition-colors"
+                    >
+                      +92 321 2741106
+                    </a>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-slate-400">Business Hours:</span>
+                  <span className="font-semibold text-white">
+                    Mon–Sat: 9:00 AM – 8:00 PM
+                  </span>
+                </div>
+              </div>
+              {/* Official Social Media Clickable Icons in Lower Left Corner */}
+              <div className="pt-3">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+                  Follow &amp; Connect With Us
+                </div>
+                <div className="flex items-center gap-2.5">
+                  {/* WhatsApp */}
+                  <a
+                    href="https://wa.me/qr/MFFMZ3VILZJKL1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-[5px] bg-[#25D366]/15 hover:bg-[#25D366] text-[#25D366] hover:text-white border border-[#25D366]/30 hover:border-[#25D366] flex items-center justify-center transition-all duration-150 cursor-pointer group shadow-sm"
+                    title="Connect on WhatsApp (https://wa.me/qr/MFFMZ3VILZJKL1)"
+                    aria-label="SZGH Pakistan WhatsApp"
+                  >
+                    <svg
+                      className="w-5 h-5 fill-current transition-transform group-hover:scale-110"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12.031 2C6.516 2 2.031 6.484 2.031 12c0 1.984.582 3.844 1.586 5.422L2 22l4.75-1.547A9.92 9.92 0 0 0 12.03 22c5.516 0 10-4.484 10-10s-4.484-10-10-10zm0 18.281a8.23 8.23 0 0 1-4.219-1.156l-.304-.18-2.82.918.941-2.75-.195-.312A8.257 8.257 0 0 1 3.75 12c0-4.57 3.71-8.281 8.281-8.281s8.281 3.711 8.281 8.281-3.71 8.281-8.281 8.281zm4.539-6.203c-.25-.125-1.469-.727-1.695-.812-.227-.086-.39-.125-.555.125-.164.25-.648.812-.797.984-.148.164-.297.188-.547.062s-1.055-.39-2.012-1.242c-.746-.664-1.25-1.484-1.398-1.734-.148-.25-.016-.387.109-.508.113-.113.25-.297.375-.445.125-.149.164-.25.25-.414.082-.164.043-.313-.02-.438s-.555-1.34-.762-1.832c-.203-.48-.41-.414-.555-.422h-.476c-.164 0-.438.062-.668.312s-.883.863-.883 2.102.902 2.438 1.027 2.605c.125.164 1.774 2.711 4.3 3.797.602.258 1.07.414 1.438.531.605.192 1.156.164 1.59.102.484-.07 1.469-.602 1.68-1.18.207-.578.207-1.078.144-1.18-.062-.101-.226-.164-.476-.289z" />
+                    </svg>
+                  </a>
+
+                  {/* WeChat */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveQrLightbox({
+                        id: 'wechat',
+                        title: 'WeChat Official',
+                        subtitle: '+92 321 4800265 (SZGH Pakistan)',
+                        badge: 'B2B Technical Representative',
+                        image: '/assets/qr-wechat.png',
+                      })
+                    }
+                    className="w-9 h-9 rounded-[5px] bg-[#07C160]/15 hover:bg-[#07C160] text-[#07C160] hover:text-white border border-[#07C160]/30 hover:border-[#07C160] flex items-center justify-center transition-all duration-150 cursor-pointer group shadow-sm"
+                    title="WeChat: +923214800265 (Click to scan QR code)"
+                    aria-label="SZGH Pakistan WeChat"
+                  >
+                    <svg
+                      className="w-5 h-5 fill-current transition-transform group-hover:scale-110"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M8.691 2.188C3.891 2.188 0 5.477 0 9.531c0 2.32 1.285 4.383 3.281 5.727-.145.746-.738 2.695-.762 2.789-.043.152.023.305.164.367.066.027.137.039.207.039.09 0 .18-.027.258-.082.027-.02 1.957-1.34 2.898-1.98.832.227 1.719.352 2.645.352.324 0 .64-.02.953-.055-.547-1.14-.852-2.422-.852-3.777 0-4.52 4.148-8.188 9.262-8.188.355 0 .703.023 1.05.066C17.652 4.215 13.504 2.188 8.691 2.188zm-2.437 4.27c.652 0 1.18.527 1.18 1.18 0 .648-.528 1.176-1.18 1.176-.648 0-1.176-.528-1.176-1.176 0-.653.528-1.18 1.176-1.18zm5.074 0c.648 0 1.18.527 1.18 1.18 0 .648-.532 1.176-1.18 1.176-.653 0-1.18-.528-1.18-1.176 0-.653.527-1.18 1.18-1.18zm4.777 3.328c-4.144 0-7.508 2.844-7.508 6.352 0 1.996 1.094 3.777 2.809 4.93-.125.645-.637 2.32-.656 2.402-.039.133.02.266.14.32.059.024.118.036.18.036.078 0 .156-.024.223-.071.023-.016 1.684-1.152 2.492-1.707.723.199 1.488.312 2.293.312 4.144 0 7.508-2.848 7.508-6.352s-3.364-6.352-7.508-6.352zm-2.187 3.684c.562 0 1.02.457 1.02 1.02 0 .562-.458 1.02-1.02 1.02-.563 0-1.02-.458-1.02-1.02 0-.563.457-1.02 1.02-1.02zm4.375 0c.562 0 1.02.457 1.02 1.02 0 .562-.458 1.02-1.02 1.02-.563 0-1.02-.458-1.02-1.02 0-.563.457-1.02 1.02-1.02z" />
+                    </svg>
+                  </button>
+
+                  {/* Instagram */}
+                  <a
+                    href="https://www.instagram.com/szghpakistan?exln=MWtkbGpyaWdqOHoweQ=="
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-[5px] bg-[#E4405F]/15 hover:bg-gradient-to-tr hover:from-[#F58529] hover:via-[#DD2A7B] hover:to-[#8134AF] text-[#E4405F] hover:text-white border border-[#E4405F]/30 hover:border-transparent flex items-center justify-center transition-all duration-150 cursor-pointer group shadow-sm"
+                    title="Follow on Instagram (@szghpakistan)"
+                    aria-label="SZGH Pakistan Instagram"
+                  >
+                    <svg
+                      className="w-5 h-5 fill-current transition-transform group-hover:scale-110"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                    </svg>
+                  </a>
+
+                  {/* Facebook */}
+                  <a
+                    href="https://www.facebook.com/share/p/1CQH67EBnE/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-[5px] bg-[#1877F2]/15 hover:bg-[#1877F2] text-[#1877F2] hover:text-white border border-[#1877F2]/30 hover:border-[#1877F2] flex items-center justify-center transition-all duration-150 cursor-pointer group shadow-sm"
+                    title="Visit Facebook Page (https://www.facebook.com/share/p/1CQH67EBnE/)"
+                    aria-label="SZGH Pakistan Facebook"
+                  >
+                    <svg
+                      className="w-5 h-5 fill-current transition-transform group-hover:scale-110"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
             </div>
 
-            <div className="lg:col-span-3 space-y-2.5 text-xs">
+            {/* Column 2: Storefront & Sections */}
+            <div className="lg:col-span-2 space-y-2.5 text-xs">
               <div className="font-bold text-white uppercase tracking-wider">
                 Storefront &amp; Sections
               </div>
@@ -2150,7 +2514,8 @@ export default function App() {
               </ul>
             </div>
 
-            <div className="lg:col-span-4 space-y-2.5 text-xs">
+            {/* Column 3: Direct Store Sub-Pages */}
+            <div className="lg:col-span-3 space-y-2.5 text-xs">
               <div className="font-bold text-white uppercase tracking-wider">
                 Direct Store Sub-Pages
               </div>
@@ -2160,13 +2525,74 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => handleOpenCategorySubpage(cat.id)}
-                      className="hover:text-white transition-colors cursor-pointer"
+                      className="hover:text-white transition-colors cursor-pointer text-left"
                     >
                       {cat.number}. {cat.title} — {cat.shortSubtitle}
                     </button>
                   </li>
                 ))}
               </ul>
+            </div>
+
+            {/* Column 4: Official Social & Messaging QR Codes in Footer */}
+            <div className="lg:col-span-3 space-y-3 text-xs">
+              <div className="font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <QrCode className="w-4 h-4 text-[#E77817]" />
+                Scan Official QR Codes
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  {
+                    id: 'whatsapp',
+                    title: 'WhatsApp',
+                    subtitle: '+92 321 4800265',
+                    badge: 'Instant Engineering Chat',
+                    image: '/assets/qr-whatsapp.png',
+                    href: 'https://wa.me/qr/MFFMZ3VILZJKL1',
+                  },
+                  {
+                    id: 'wechat',
+                    title: 'WeChat',
+                    subtitle: 'SZGH Pakistan',
+                    badge: 'B2B Technical Desk',
+                    image: '/assets/qr-wechat.png',
+                  },
+                  {
+                    id: 'instagram',
+                    title: 'Instagram',
+                    subtitle: '@SZGHPAKISTAN',
+                    badge: 'Official Instagram',
+                    image: '/assets/qr-instagram.png',
+                    href: 'https://www.instagram.com/szghpakistan?exln=MWtkbGpyaWdqOHoweQ==',
+                  },
+                  {
+                    id: 'facebook',
+                    title: 'Facebook',
+                    subtitle: 'SZGH Pakistan',
+                    badge: 'Official Facebook Page',
+                    image: '/assets/qr-facebook.png',
+                    href: 'https://www.facebook.com/share/p/1CQH67EBnE/',
+                  },
+                ].map((qr) => (
+                  <button
+                    key={qr.id}
+                    type="button"
+                    onClick={() => setActiveQrLightbox(qr)}
+                    className="group rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-[#0068AD] p-2 flex flex-col items-center text-center transition-colors cursor-pointer"
+                    title={`Click to enlarge ${qr.title} QR Code`}
+                  >
+                    <img
+                      src={qr.image}
+                      alt={`${qr.title} QR Code`}
+                      className="w-24 h-auto rounded bg-white p-0.5 object-contain"
+                      loading="lazy"
+                    />
+                    <span className="text-[11px] font-bold text-white mt-1.5 group-hover:text-sky-400">
+                      {qr.title}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -2181,6 +2607,67 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Enlarged QR Code Scanner Lightbox Modal */}
+      {activeQrLightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setActiveQrLightbox(null)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  {activeQrLightbox.title}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {activeQrLightbox.subtitle} — {activeQrLightbox.badge}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveQrLightbox(null)}
+                className="p-1.5 rounded-[5px] text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                aria-label="Close QR preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-950 rounded p-3 flex items-center justify-center border border-slate-200 dark:border-slate-800">
+              <img
+                src={activeQrLightbox.image}
+                alt={`${activeQrLightbox.title} QR Code`}
+                className="w-full max-h-[68vh] object-contain rounded"
+              />
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2.5">
+              {activeQrLightbox.href && (
+                <a
+                  href={activeQrLightbox.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white text-xs sm:text-sm font-normal transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open Direct Link
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setActiveQrLightbox(null)}
+                className="px-4 py-2 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs sm:text-sm font-normal transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detailed Product Description & Features Modal */}
       <ProductDetailModal
