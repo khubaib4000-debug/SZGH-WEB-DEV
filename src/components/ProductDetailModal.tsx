@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   ShoppingCart,
@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  ZoomIn,
 } from 'lucide-react';
 import {
   ProductItem,
@@ -88,6 +89,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     CONTROLLER_IO_BOARD_OPTIONS[0].id
   );
   const [addedFeedback, setAddedFeedback] = useState<boolean>(false);
+  const [isZooming, setIsZooming] = useState<boolean>(false);
+
+  const imageStageRef = useRef<HTMLDivElement | null>(null);
+  const lensRef = useRef<HTMLDivElement | null>(null);
+  const zoomInnerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const initialAxis =
@@ -123,6 +129,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setQuantity(1);
     setSelectedIOBoardId(CONTROLLER_IO_BOARD_OPTIONS[0].id);
     setAddedFeedback(false);
+    setIsZooming(false);
   }, [product]);
 
   if (!product) return null;
@@ -202,6 +209,42 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setActiveImageIdx(validIndices[nextPos]);
   };
 
+  const activeImageSrc = effectiveImages[activeImageIdx] || '';
+  const hasActiveImage = Boolean(activeImageSrc && activeImageSrc.trim().length > 0);
+
+  const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!hasActiveImage || !imageStageRef.current) return;
+    const rect = imageStageRef.current.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const relX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+    const relY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+
+    const uPct = (relX / rect.width) * 100;
+    const vPct = (relY / rect.height) * 100;
+
+    // 2.5x zoom -> lens covers 40% width x 40% height, so top-left clamps to [0%, 60%]
+    const lensLeftPct = Math.max(0, Math.min(60, uPct - 20));
+    const lensTopPct = Math.max(0, Math.min(60, vPct - 20));
+
+    if (!isZooming) {
+      setIsZooming(true);
+    }
+
+    if (lensRef.current) {
+      lensRef.current.style.transform = `translate3d(${lensLeftPct * 2.5}%, ${
+        lensTopPct * 2.5
+      }%, 0)`;
+    }
+    if (zoomInnerRef.current) {
+      zoomInnerRef.current.style.transform = `translate3d(-${lensLeftPct}%, -${lensTopPct}%, 0)`;
+    }
+  };
+
+  const handleImageMouseLeave = () => {
+    setIsZooming(false);
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-950/80 backdrop-blur-xs overflow-y-auto"
@@ -238,48 +281,109 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </div>
 
         {/* Contiguous 2-Column Purchase & Detailed Features Module */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 p-4 sm:p-8 overflow-y-auto flex-1">
-          {/* Left Column: Main Image + 4-Thumbnail Switcher + Features (6 cols) */}
-          <div className="lg:col-span-6 flex flex-col gap-4 sm:gap-5">
-            <div className="relative aspect-4/3 w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-              {effectiveImages[activeImageIdx] ? (
-                <img
-                  src={effectiveImages[activeImageIdx]}
-                  alt={`${effectiveTitle} - ${
-                    effectiveImageLabels[activeImageIdx] || `View ${activeImageIdx + 1}`
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 p-4 sm:p-8 overflow-y-auto flex-1">
+          {/* Left Column: Main Image + Right-Side Cursor Zoom Flyout + Thumbnail Switcher + Features (6 cols) */}
+          <div className="md:col-span-6 flex flex-col gap-4 sm:gap-5">
+            <div className="relative">
+              {/* Main Picture Stage with Cursor-Tracking Magnifier Lens */}
+              <div
+                ref={imageStageRef}
+                onMouseEnter={handleImageMouseMove}
+                onMouseMove={handleImageMouseMove}
+                onMouseLeave={handleImageMouseLeave}
+                className={`relative aspect-4/3 w-full rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 select-none ${
+                  hasActiveImage ? 'cursor-crosshair' : ''
+                }`}
+              >
+                {hasActiveImage ? (
+                  <img
+                    src={activeImageSrc}
+                    alt={`${effectiveTitle} - ${
+                      effectiveImageLabels[activeImageIdx] || `View ${activeImageIdx + 1}`
+                    }`}
+                    referrerPolicy="no-referrer"
+                    draggable={false}
+                    className="w-full h-full object-contain p-3 pointer-events-none"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-mono-tabular">
+                    {effectiveModelNumber}
+                  </div>
+                )}
+
+                {/* Cursor-Following Magnifier Lens Box */}
+                {hasActiveImage && (
+                  <div
+                    ref={lensRef}
+                    className={`absolute top-0 left-0 w-[40%] h-[40%] rounded border-2 border-[#1E2985] dark:border-emerald-400 bg-[#1E2985]/15 dark:bg-emerald-400/15 shadow-sm pointer-events-none will-change-transform ${
+                      isZooming ? 'opacity-100' : 'opacity-0 hidden'
+                    }`}
+                  />
+                )}
+
+                {/* Prev / Next Navigation Arrows */}
+                <button
+                  type="button"
+                  onClick={handlePrevImage}
+                  onMouseEnter={() => setIsZooming(false)}
+                  onMouseMove={(e) => e.stopPropagation()}
+                  aria-label="Previous image"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-slate-700 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextImage}
+                  onMouseEnter={() => setIsZooming(false)}
+                  onMouseMove={(e) => e.stopPropagation()}
+                  aria-label="Next image"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-slate-700 transition-colors cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Current View Caption & Hover Zoom Hint */}
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none">
+                  <div className="px-3 py-1 rounded bg-slate-950/90 border border-slate-700 text-xs font-mono-tabular text-slate-200 truncate">
+                    View {activeImageIdx + 1}/{effectiveImages.length || 4}:{' '}
+                    {effectiveImageLabels[activeImageIdx] || `View ${activeImageIdx + 1}`}
+                  </div>
+                  {hasActiveImage && !isZooming && (
+                    <div className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-950/85 border border-slate-700 text-[11px] font-medium text-slate-200 shrink-0">
+                      <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Hover to Zoom</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right-Side Synchronized High-Resolution Zoom View Panel (SZGH Auto Style) */}
+              {hasActiveImage && (
+                <div
+                  aria-hidden={!isZooming}
+                  className={`hidden md:block absolute top-0 left-[calc(100%+1.5rem)] lg:left-[calc(100%+2rem)] w-full aspect-4/3 z-40 rounded-lg overflow-hidden bg-white dark:bg-slate-950 border-2 border-[#1E2985] dark:border-emerald-500 shadow-2xl pointer-events-none transition-opacity duration-100 ${
+                    isZooming ? 'opacity-100 visible' : 'opacity-0 invisible'
                   }`}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-contain p-3"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-mono-tabular">
-                  {effectiveModelNumber}
+                >
+                  <div
+                    ref={zoomInnerRef}
+                    className="absolute top-0 left-0 w-[250%] h-[250%] max-w-none will-change-transform"
+                  >
+                    <img
+                      src={activeImageSrc}
+                      alt={`${effectiveTitle} zoomed view`}
+                      referrerPolicy="no-referrer"
+                      draggable={false}
+                      className="w-full h-full object-contain p-3"
+                    />
+                  </div>
+                  <div className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded bg-slate-950/85 border border-slate-700 text-[11px] font-mono-tabular text-white flex items-center gap-1.5">
+                    <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{effectiveImageLabels[activeImageIdx] || `View ${activeImageIdx + 1}`} (2.5× Zoom)</span>
+                  </div>
                 </div>
               )}
-
-              {/* Prev / Next Navigation Arrows */}
-              <button
-                type="button"
-                onClick={handlePrevImage}
-                aria-label="Previous image"
-                className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-slate-700 transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={handleNextImage}
-                aria-label="Next image"
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-slate-700 transition-colors cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-
-              {/* Current View Caption */}
-              <div className="absolute bottom-3 left-3 px-3 py-1 rounded bg-slate-950/90 border border-slate-700 text-xs font-mono-tabular text-slate-200">
-                View {activeImageIdx + 1}/{effectiveImages.length || 4}:{' '}
-                {effectiveImageLabels[activeImageIdx] || `View ${activeImageIdx + 1}`}
-              </div>
             </div>
 
             {/* Thumbnail Gallery Selector (4 slots standard, 6 slots for A+B / C+E Panel items) */}
@@ -348,7 +452,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
 
           {/* Right Column: Detailed Description, Axes Tabs, I/O Board Selector, Specs & Purchase Module (6 cols) */}
-          <div className="lg:col-span-6 flex flex-col justify-between gap-6">
+          <div className="md:col-span-6 flex flex-col justify-between gap-6">
             <div className="space-y-4">
               <div>
                 <div className="font-mono-tabular text-xs font-bold text-[#1E2985] dark:text-sky-400 flex items-center gap-2">
