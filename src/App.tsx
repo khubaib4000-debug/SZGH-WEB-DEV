@@ -1654,7 +1654,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => handleOpenCategorySubpage('All')}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-3 sm:py-2.5 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold transition-colors shadow-xs cursor-pointer shrink-0"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs sm:text-sm font-normal transition-colors cursor-pointer shrink-0"
                   >
                     <span>
                       Browse Full Catalog ({mergedCatalogProducts.length} Models · 6 Per Page)
@@ -1674,17 +1674,22 @@ export default function App() {
                         Click any main product family or specific subcategory below to open its dedicated catalog view
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {HERO_CATEGORIES.map((cat) => {
+                    <div className="flex flex-wrap items-center gap-2">
+                      {HERO_CATEGORIES.map((cat, idx) => {
                         const count = mergedCatalogProducts.filter(
                           (p) => p.category === cat.id
                         ).length;
+                        const isOrange = idx % 2 === 1;
                         return (
                           <button
                             key={cat.id}
                             type="button"
                             onClick={() => handleOpenCategorySubpage(cat.id, null)}
-                            className="px-3 py-1.5 rounded-md text-xs font-bold bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 hover:bg-[#1E2985] hover:text-white dark:hover:bg-emerald-600 transition-colors border border-slate-300/80 dark:border-slate-800 cursor-pointer"
+                            className={`px-3.5 py-2 rounded-[5px] text-xs font-normal text-white transition-colors cursor-pointer ${
+                              isOrange
+                                ? 'bg-[#E77817] hover:bg-[#d1680f]'
+                                : 'bg-[#0068AD] hover:bg-[#00558F]'
+                            }`}
                           >
                             {cat.title} ({count}) →
                           </button>
@@ -2042,7 +2047,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleTopNavNavigate('application')}
-                            className="px-5 py-2.5 rounded-md bg-[#1E2985] hover:bg-[#151d63] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                            className="px-5 py-2.5 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs sm:text-sm font-normal transition-colors cursor-pointer"
                           >
                             Book Now
                           </button>
@@ -2053,7 +2058,7 @@ export default function App() {
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center px-5 py-2.5 rounded-md bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                            className="inline-flex items-center justify-center px-5 py-2.5 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white text-xs sm:text-sm font-normal transition-colors cursor-pointer"
                           >
                             Apply for Annual Maintenance Plan
                           </a>

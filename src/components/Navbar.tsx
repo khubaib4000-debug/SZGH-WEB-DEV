@@ -174,7 +174,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <button
                               type="button"
                               onClick={() => handleSubcategoryJump('All', null)}
-                              className="px-3 py-1.5 rounded-md bg-[#1E2985] hover:bg-[#161f69] dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+                              className="px-4 py-2 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs font-normal transition-colors cursor-pointer"
                             >
                               View Full Catalog →
                             </button>
@@ -282,7 +282,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 type="button"
                 onClick={onSignIn}
                 title="Sign in with Google (Customers & Administrators)"
-                className="flex items-center justify-center gap-1 sm:gap-1.5 h-8 sm:h-10 px-2 sm:px-3 rounded-md border border-white sm:border-2 bg-white text-[#1E2985] hover:bg-emerald-50 dark:border-[#1E2985] dark:bg-white dark:text-[#1E2985] dark:hover:bg-[#1E2985] dark:hover:text-white text-[11px] sm:text-xs font-extrabold transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 h-8 sm:h-10 px-2.5 sm:px-3.5 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs sm:text-sm font-normal transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 <span>Sign In</span>
@@ -336,12 +336,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               type="button"
               onClick={onOpenCart}
               aria-label={`Shopping Cart (${cartCount} items)`}
-              className="relative flex items-center justify-center gap-1 sm:gap-2 h-8 sm:h-10 px-2 sm:px-3.5 rounded-md bg-[#0D5C2B] hover:bg-[#094720] dark:bg-[#1E2985] dark:hover:bg-[#161f69] text-white text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
+              className="relative flex items-center justify-center gap-1 sm:gap-2 h-8 sm:h-10 px-2.5 sm:px-3.5 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white text-xs sm:text-sm font-normal transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="hidden sm:inline">Cart</span>
               <span
-                className="inline-flex items-center justify-center min-w-4 sm:min-w-5 h-4 sm:h-5 px-1 rounded text-[10px] sm:text-xs font-mono-tabular font-bold bg-white text-[#0D5C2B] dark:text-[#1E2985]"
+                className="inline-flex items-center justify-center min-w-4 sm:min-w-5 h-4 sm:h-5 px-1 rounded-[3px] text-[10px] sm:text-xs font-mono-tabular font-semibold bg-white text-[#E77817]"
                 aria-label={`${cartCount} items in cart`}
               >
                 {cartCount}
@@ -457,7 +457,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     setMobileMenuOpen(false);
                     onSignIn();
                   }}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[#1E2985] text-white text-xs font-extrabold cursor-pointer"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs font-normal cursor-pointer"
                 >
                   <LogIn className="w-4 h-4" />
                   <span>Sign In with Google</span>

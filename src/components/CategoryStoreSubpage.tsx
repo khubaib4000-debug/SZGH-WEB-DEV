@@ -230,23 +230,23 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
             <button
               type="button"
               onClick={onBackToMain}
-              className="self-start inline-flex items-center gap-2 px-3.5 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200 transition-colors cursor-pointer"
+              className="self-start inline-flex items-center gap-2 px-4 py-2 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-white text-xs sm:text-sm font-normal transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 shrink-0" />
               <span>Back to Home Page</span>
             </button>
 
             {/* Quick Category Switcher (Touch-Scrollable on Mobile) */}
-            <div className="w-full sm:w-auto flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
+            <div className="w-full sm:w-auto flex items-center gap-1.5 p-1 rounded-[5px] bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => {
                   handleSelectSubcategory(null, 'All', null);
                   setSearchQuery('');
                 }}
-                className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-[5px] text-xs font-normal transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                   category === 'All' && !activeSubcat && !selectedGroupId
-                    ? 'bg-[#1E2985] dark:bg-emerald-600 text-white'
+                    ? 'bg-[#0068AD] text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
                 }`}
               >
@@ -265,9 +265,9 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                       handleSelectSubcategory(null, cat.id, null);
                       setSearchQuery('');
                     }}
-                    className={`px-3 py-1.5 rounded text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    className={`px-3.5 py-1.5 rounded-[5px] text-xs font-normal transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                       isActive
-                        ? 'bg-[#1E2985] dark:bg-emerald-600 text-white'
+                        ? 'bg-[#0068AD] text-white'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
                     }`}
                   >
@@ -370,10 +370,10 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
             <button
               type="button"
               onClick={() => handleSelectSubcategory(null, category, null)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`px-3.5 py-1.5 rounded-[5px] text-xs font-normal border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 !activeSubcat && !selectedGroupId
-                  ? 'bg-[#0D5C2B] border-[#0D5C2B] text-white shadow-2xs'
-                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                  ? 'bg-[#E77817] border-[#E77817] text-white'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-[#0068AD]'
               }`}
             >
               All in {category === 'All' ? 'Catalog' : currentCategoryMeta.title}
@@ -395,15 +395,15 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                         group.id
                       )
                     }
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-[5px] text-xs font-normal border transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                       isSelected
-                        ? 'bg-[#1E2985] dark:bg-emerald-600 border-[#1E2985] dark:border-emerald-500 text-white shadow-xs'
-                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-[#1E2985] dark:hover:border-emerald-500 hover:text-[#1E2985] dark:hover:text-emerald-400'
+                        ? 'bg-[#0068AD] border-[#0068AD] text-white'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-[#0068AD] hover:text-[#0068AD] dark:hover:border-sky-400 dark:hover:text-sky-400'
                     }`}
                   >
                     <span>{subcat}</span>
                     <span
-                      className={`px-1.5 py-0.2 rounded text-[10px] font-mono-tabular font-bold ${
+                      className={`px-1.5 py-0.2 rounded-[3px] text-[10px] font-mono-tabular font-semibold ${
                         isSelected
                           ? 'bg-white/20 text-white'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -655,7 +655,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                         type="button"
                         onClick={() => handleGoToPage(safeCurrentPage - 1)}
                         disabled={safeCurrentPage <= 1}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3.5 py-2 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-xs font-normal text-white disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                       >
                         <ChevronLeft className="w-4 h-4" />
                         <span>Previous</span>
@@ -669,10 +669,10 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                               key={pageNum}
                               type="button"
                               onClick={() => handleGoToPage(pageNum)}
-                              className={`px-3.5 py-2 rounded-md text-xs font-mono-tabular font-bold transition-colors cursor-pointer ${
+                              className={`px-3.5 py-2 rounded-[5px] text-xs font-mono-tabular font-normal transition-colors cursor-pointer ${
                                 isCurrent
-                                  ? 'bg-[#1E2985] dark:bg-emerald-600 text-white shadow-xs'
-                                  : 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                  ? 'bg-[#E77817] text-white'
+                                  : 'border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:border-[#0068AD] hover:text-[#0068AD]'
                               }`}
                             >
                               Page {pageNum}
@@ -685,7 +685,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                         type="button"
                         onClick={() => handleGoToPage(safeCurrentPage + 1)}
                         disabled={safeCurrentPage >= totalPages}
-                        className="inline-flex items-center gap-1 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3.5 py-2 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-xs font-normal text-white disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                       >
                         <span>Next</span>
                         <ChevronRight className="w-4 h-4" />

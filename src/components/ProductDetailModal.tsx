@@ -504,15 +504,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </p>
               </div>
 
-              {/* Axes Selection Tabs — 3D Button Style with Clear Outline */}
+              {/* Axes Selection Tabs — Clean Flat Screenshot Button Style */}
               {hasAxisTabs && product.axisVariants && (
-                <div className="p-4 rounded-lg bg-slate-100/90 dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 space-y-3 shadow-inner">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-white">
+                <div className="p-4 rounded-[5px] bg-slate-100/90 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-medium text-slate-900 dark:text-white">
                     <span className="flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
+                      <Layers className="w-4 h-4 text-[#0068AD] dark:text-sky-400" />
                       <span>Select Axes:</span>
                     </span>
-                    <span className="font-mono-tabular text-[#1E2985] dark:text-emerald-400">
+                    <span className="font-mono-tabular text-[#0068AD] dark:text-sky-400 font-semibold">
                       {activeAxisVariant?.axisLabel}
                     </span>
                   </div>
@@ -530,10 +530,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           role="tab"
                           aria-selected={isSelected}
                           onClick={() => setSelectedAxisId(variant.id)}
-                          className={`py-2 px-3 rounded-md text-xs font-extrabold tracking-wide transition-all duration-150 cursor-pointer select-none ${
+                          className={`py-2 px-3 rounded-[5px] text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
                             isSelected
-                              ? 'bg-gradient-to-b from-[#2b3ab8] to-[#1E2985] dark:from-emerald-500 dark:to-emerald-700 text-white border-2 border-[#0c1248] dark:border-emerald-200 border-b-4 border-b-[#070b2e] dark:border-b-emerald-950 shadow-[0_3px_6px_rgba(30,41,133,0.35),inset_0_1px_0_rgba(255,255,255,0.4)] -translate-y-[1px]'
-                              : 'bg-gradient-to-b from-white to-slate-200 dark:from-slate-800 dark:to-slate-900 text-slate-800 dark:text-slate-200 border-2 border-slate-400 dark:border-slate-600 border-b-4 border-b-slate-500 dark:border-b-slate-950 shadow-[0_2px_4px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] hover:-translate-y-[1px] hover:border-[#1E2985] dark:hover:border-emerald-400 active:translate-y-[1px]'
+                              ? 'bg-[#0068AD] text-white border border-[#0068AD]'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-[#0068AD] hover:text-[#0068AD] dark:hover:border-sky-400 dark:hover:text-sky-400'
                           }`}
                         >
                           {variant.axisLabel}
@@ -544,15 +544,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               )}
 
-              {/* I/O Board 2-Tab Selector — 3D Button Style with Clear Outline */}
+              {/* I/O Board 2-Tab Selector — Clean Flat Screenshot Button Style */}
               {isController && (
-                <div className="p-4 rounded-lg bg-slate-100/90 dark:bg-slate-950 border-2 border-slate-300 dark:border-slate-700 space-y-3 shadow-inner">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-white">
+                <div className="p-4 rounded-[5px] bg-slate-100/90 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-medium text-slate-900 dark:text-white">
                     <span className="flex items-center gap-2">
-                      <Cpu className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
+                      <Cpu className="w-4 h-4 text-[#0068AD] dark:text-sky-400" />
                       <span>I/O Board Configuration:</span>
                     </span>
-                    <span className="font-mono-tabular text-[#0D5C2B] dark:text-emerald-400">
+                    <span className="font-mono-tabular text-[#E77817] font-semibold">
                       {activeIOBoard && activeIOBoard.priceDelta > 0
                         ? `+PKR ${activeIOBoard.priceDelta.toLocaleString()}`
                         : 'Standard Included'}
@@ -572,10 +572,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           role="tab"
                           aria-selected={isActiveTab}
                           onClick={() => setSelectedIOBoardId(opt.id)}
-                          className={`py-2 px-3 rounded-md text-xs font-extrabold tracking-wide transition-all duration-150 cursor-pointer select-none ${
+                          className={`py-2 px-3 rounded-[5px] text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
                             isActiveTab
-                              ? 'bg-gradient-to-b from-[#2b3ab8] to-[#1E2985] dark:from-emerald-500 dark:to-emerald-700 text-white border-2 border-[#0c1248] dark:border-emerald-200 border-b-4 border-b-[#070b2e] dark:border-b-emerald-950 shadow-[0_3px_6px_rgba(30,41,133,0.35),inset_0_1px_0_rgba(255,255,255,0.4)] -translate-y-[1px]'
-                              : 'bg-gradient-to-b from-white to-slate-200 dark:from-slate-800 dark:to-slate-900 text-slate-800 dark:text-slate-200 border-2 border-slate-400 dark:border-slate-600 border-b-4 border-b-slate-500 dark:border-b-slate-950 shadow-[0_2px_4px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] hover:-translate-y-[1px] hover:border-[#1E2985] dark:hover:border-emerald-400 active:translate-y-[1px]'
+                              ? 'bg-[#0068AD] text-white border border-[#0068AD]'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-[#0068AD] hover:text-[#0068AD] dark:hover:border-sky-400 dark:hover:text-sky-400'
                           }`}
                         >
                           {opt.shortLabel}
@@ -591,7 +591,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                   Technical Specifications
                 </h3>
-                <div className="border border-slate-200 dark:border-slate-800 rounded-md divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+                <div className="border border-slate-200 dark:border-slate-800 rounded-[5px] divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                   {product.specs.map((spec, idx) => (
                     <div
                       key={idx}
@@ -611,26 +611,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Quantity Stepper & Primary 3D Add to Cart CTA */}
+            {/* Quantity Stepper & Primary Add to Cart CTA (Screenshot Flat Button Style) */}
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center gap-3">
-                <div className="flex items-center border-2 border-slate-400 dark:border-slate-600 border-b-4 border-b-slate-500 dark:border-b-slate-950 rounded-md bg-gradient-to-b from-white to-slate-100 dark:from-slate-800 dark:to-slate-900 shadow-xs">
+                <div className="flex items-center border border-slate-300 dark:border-slate-700 rounded-[5px] bg-white dark:bg-slate-900">
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                     aria-label="Decrease quantity"
-                    className="p-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   >
                     <Minus className="w-4 h-4" />
                   </button>
-                  <span className="px-4 py-2 font-mono-tabular text-sm font-extrabold text-slate-900 dark:text-white">
+                  <span className="px-4 py-2 font-mono-tabular text-sm font-semibold text-slate-900 dark:text-white">
                     {quantity}
                   </span>
                   <button
                     type="button"
                     onClick={() => setQuantity((q) => q + 1)}
                     aria-label="Increase quantity"
-                    className="p-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                    className="p-2.5 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -639,10 +639,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAdd}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-5 rounded-md text-sm font-extrabold text-white transition-all duration-150 cursor-pointer select-none ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-5 rounded-[5px] text-sm font-normal text-white transition-colors duration-150 cursor-pointer select-none ${
                     addedFeedback
-                      ? 'bg-gradient-to-b from-emerald-600 to-[#0D5C2B] border-2 border-emerald-950 border-b-4 border-b-emerald-950 shadow-[0_3px_6px_rgba(13,92,43,0.35),inset_0_1px_0_rgba(255,255,255,0.35)]'
-                      : 'bg-gradient-to-b from-[#2b3ab8] to-[#1E2985] hover:from-[#3344cc] hover:to-[#161f69] dark:from-emerald-500 dark:to-emerald-700 border-2 border-[#0c1248] dark:border-emerald-200 border-b-4 border-b-[#070b2e] dark:border-b-emerald-950 shadow-[0_3px_6px_rgba(30,41,133,0.35),inset_0_1px_0_rgba(255,255,255,0.35)] hover:-translate-y-[1px] active:translate-y-[1px]'
+                      ? 'bg-[#0D5C2B]'
+                      : 'bg-[#E77817] hover:bg-[#d1680f]'
                   }`}
                 >
                   {addedFeedback ? (

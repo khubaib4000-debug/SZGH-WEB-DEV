@@ -4,26 +4,35 @@
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    --font-mono: 'IBM Plex Mono', monospace;
+    --font-sans: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-mono: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  }
+
+  html,
+  body,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: var(--font-sans);
   }
 
   html {
-    font-family: var(--font-sans);
     scroll-behavior: smooth;
     overflow-x: clip;
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow-x: clip;
   }
 }
 
-.font-mono-tabular {
-  font-family: var(--font-mono);
+.font-mono-tabular,
+.font-mono {
+  font-family: var(--font-sans) !important;
   font-variant-numeric: tabular-nums;
 }
 
