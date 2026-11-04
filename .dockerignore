@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+.git
+.aistudio
+.netlify
+*.log
+public/SZGH-Pakistan-Full-Code-Backup.txt
