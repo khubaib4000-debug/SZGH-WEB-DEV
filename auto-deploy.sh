@@ -11,12 +11,16 @@ flock -n 9 || exit 0
 REPO_DIR="/root/SZGH-WEB-DEV"
 cd "$REPO_DIR" || exit 1
 chmod +x "$REPO_DIR/auto-deploy.sh" 2>/dev/null || true
+cp -f "$REPO_DIR/auto-deploy.sh" /root/auto-deploy.sh 2>/dev/null || true
+chmod +x /root/auto-deploy.sh 2>/dev/null || true
 
-# Ensure cron always invokes /bin/bash so file permissions never block execution
+# Ensure cron always invokes /bin/bash every 2 minutes via both root crontab and /etc/cron.d
 CRON_CMD="*/2 * * * * /bin/bash /root/SZGH-WEB-DEV/auto-deploy.sh >> /var/log/szgh-deploy.log 2>&1"
 if ! crontab -l 2>/dev/null | grep -Fq "/bin/bash /root/SZGH-WEB-DEV/auto-deploy.sh"; then
     (crontab -l 2>/dev/null | grep -v "auto-deploy.sh"; echo "$CRON_CMD") | crontab - 2>/dev/null || true
 fi
+echo "*/2 * * * * root /bin/bash /root/SZGH-WEB-DEV/auto-deploy.sh >> /var/log/szgh-deploy.log 2>&1" > /etc/cron.d/szgh-auto-deploy 2>/dev/null || true
+chmod 644 /etc/cron.d/szgh-auto-deploy 2>/dev/null || true
 
 # Fetch all latest branch refs from GitHub so origin/main is updated
 git fetch origin --prune >/dev/null 2>&1

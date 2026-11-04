@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://szghpakistan.com/sitemap.xml
+Host: https://szghpakistan.com
