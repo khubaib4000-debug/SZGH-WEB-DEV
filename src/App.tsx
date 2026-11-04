@@ -233,10 +233,26 @@ export default function App() {
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<NavSection>('home');
 
-  // 3. Dedicated Category & Subcategory Store Sub-Page State (Opened when clicking any category, subcategory, or Products nav)
+  // 3. Dedicated Category & Subcategory Store Sub-Page State (Opened when clicking any category, subcategory, or Products nav, or via ?category= URL)
   const [activeSubpageCategory, setActiveSubpageCategory] = useState<
     ProductCategory | 'All' | null
-  >(null);
+  >(() => {
+    try {
+      const catParam = new URLSearchParams(window.location.search).get('category');
+      if (
+        catParam === 'Controllers' ||
+        catParam === 'Motors' ||
+        catParam === 'Machines' ||
+        catParam === 'Robots' ||
+        catParam === 'All'
+      ) {
+        return catParam;
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
+    return null;
+  });
   const [activeSubpageSubcategory, setActiveSubpageSubcategory] = useState<
     string | null
   >(null);
