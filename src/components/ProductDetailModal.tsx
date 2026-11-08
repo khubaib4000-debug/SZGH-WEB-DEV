@@ -88,6 +88,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [selectedIOBoardId, setSelectedIOBoardId] = useState<string>(
     CONTROLLER_IO_BOARD_OPTIONS[0].id
   );
+  const [selectedServoConfigId, setSelectedServoConfigId] = useState<
+    'base' | 'brake' | 'absolute'
+  >(product?.servoConfigOptions?.[0]?.id || 'base');
   const [addedFeedback, setAddedFeedback] = useState<boolean>(false);
   const [isZooming, setIsZooming] = useState<boolean>(false);
 
@@ -101,6 +104,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         ? product.axisVariants[0]
         : undefined;
     setSelectedAxisId(initialAxis ? initialAxis.id : product?.id || '');
+    setSelectedServoConfigId(product?.servoConfigOptions?.[0]?.id || 'base');
 
     const imgs =
       initialAxis?.images &&
@@ -136,6 +140,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const hasAxisTabs =
     Boolean(product.axisVariants) && (product.axisVariants?.length ?? 0) > 0;
+  const servoConfigOptions = product.servoConfigOptions || [];
+  const activeServoConfig =
+    servoConfigOptions.length > 0
+      ? servoConfigOptions.find((opt) => opt.id === selectedServoConfigId) ||
+        servoConfigOptions[0]
+      : undefined;
 
   const effectiveModelNumber =
     product.baseModelNumber || product.modelNumber;
@@ -149,7 +159,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       ? activeAxisVariant.description
       : product.description
   );
-  const effectivePrice = activeAxisVariant
+  const effectivePrice = activeServoConfig
+    ? activeServoConfig.price
+    : activeAxisVariant
     ? activeAxisVariant.price
     : product.price;
   const effectiveStockCount = activeAxisVariant
@@ -172,7 +184,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     effectivePrice + (activeIOBoard ? activeIOBoard.priceDelta : 0);
 
   const handleAdd = () => {
-    const resolvedProductForCart: ProductItem = activeAxisVariant
+    const resolvedProductForCart: ProductItem = activeServoConfig
+      ? {
+          ...product,
+          id: `${product.id}-${activeServoConfig.id}`,
+          modelNumber: `${effectiveModelNumber} (${activeServoConfig.shortLabel})`,
+          title: `${effectiveTitle || effectiveModelNumber} — ${activeServoConfig.shortLabel}`,
+          description: effectiveDescription,
+          price: activeServoConfig.price,
+          images: effectiveImages,
+        }
+      : activeAxisVariant
       ? {
           ...product,
           id: activeAxisVariant.id,
@@ -572,6 +594,50 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           role="tab"
                           aria-selected={isActiveTab}
                           onClick={() => setSelectedIOBoardId(opt.id)}
+                          className={`py-2 px-3 rounded-[5px] text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
+                            isActiveTab
+                              ? 'bg-[#0068AD] text-white border border-[#0068AD]'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-[#0068AD] hover:text-[#0068AD] dark:hover:border-sky-400 dark:hover:text-sky-400'
+                          }`}
+                        >
+                          {opt.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Servo Motor 3-Tab Configuration Selector (Base / With Brake / Absolute) */}
+              {servoConfigOptions.length > 0 && (
+                <div className="p-4 rounded-[5px] bg-slate-100/90 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-medium text-slate-900 dark:text-white">
+                    <span className="flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-[#0068AD] dark:text-sky-400" />
+                      <span>Select Motor Configuration:</span>
+                    </span>
+                    {activeServoConfig && (
+                      <span className="font-mono-tabular text-[#0068AD] dark:text-sky-400 font-semibold">
+                        {activeServoConfig.shortLabel} — PKR{' '}
+                        {activeServoConfig.price.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    role="tablist"
+                    aria-label="Select Servo Motor configuration"
+                    className="grid grid-cols-3 gap-2.5"
+                  >
+                    {servoConfigOptions.map((opt) => {
+                      const isActiveTab =
+                        (activeServoConfig?.id || 'base') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActiveTab}
+                          onClick={() => setSelectedServoConfigId(opt.id)}
                           className={`py-2 px-3 rounded-[5px] text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
                             isActiveTab
                               ? 'bg-[#0068AD] text-white border border-[#0068AD]'

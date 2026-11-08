@@ -159,6 +159,27 @@ export {
   SZGH_CE_PANEL_IMAGES,
   SZGH_CE_PANEL_IMAGE_LABELS,
 };
+import {
+  CONTROLLER_RATE_LIST_2026,
+  SERVO_MOTOR_RATE_LIST_2026,
+  SERVO_DRIVER_RATE_LIST_2026,
+  OFFICIAL_IO_BOARD_PRICE_PKR,
+  ServoMotorConfigOption,
+  buildControllerFeatures,
+  buildServoMotorConfigOptions,
+  resolveOfficialRateListPricing,
+} from './rateList2026';
+
+export type { ServoMotorConfigOption };
+export {
+  CONTROLLER_RATE_LIST_2026,
+  SERVO_MOTOR_RATE_LIST_2026,
+  SERVO_DRIVER_RATE_LIST_2026,
+  OFFICIAL_IO_BOARD_PRICE_PKR,
+  buildControllerFeatures,
+  buildServoMotorConfigOptions,
+  resolveOfficialRateListPricing,
+};
 
 export type ProductCategory = 'Controllers' | 'Motors' | 'Machines' | 'Robots';
 
@@ -178,9 +199,9 @@ export const CONTROLLER_IO_BOARD_OPTIONS: IOBoardOption[] = [
   },
   {
     id: 'with-io',
-    label: 'With I/O (+PKR 20,000)',
+    label: 'With I/O (+PKR 22,000)',
     shortLabel: 'With I/O',
-    priceDelta: 20000,
+    priceDelta: OFFICIAL_IO_BOARD_PRICE_PKR,
   },
 ];
 
@@ -210,6 +231,7 @@ export interface ProductItem {
   modelNumber: string;
   baseModelNumber?: string;
   axisVariants?: AxisVariantOption[];
+  servoConfigOptions?: ServoMotorConfigOption[];
   category: ProductCategory;
   subcategory: string;
   description: string;
@@ -475,6 +497,16 @@ export function resolveOfficialSubcategory(item: {
   title?: string;
   description?: string;
 }): string {
+  // Prefer authoritative subcategory from Controller Rate List-1 when matched
+  const rateMatched = resolveOfficialRateListPricing({
+    modelNumber: item.modelNumber,
+    title: item.title,
+    description: item.description,
+  });
+  if (rateMatched.subcategory) {
+    return rateMatched.subcategory;
+  }
+
   const rawSub = (item.subcategory || '').trim();
   // If already an exact official subcategory (case-insensitive), return canonical casing
   const exactMatch = ALL_OFFICIAL_SUBCATEGORIES.find(
@@ -495,10 +527,15 @@ export function resolveOfficialSubcategory(item: {
       return 'Grinder controller';
     }
     if (
-      combined.includes('engrav') ||
-      combined.includes('router') ||
-      /1000MD[C]|880MD|990MD/i.test(model)
+      combined.includes('milling') ||
+      combined.includes('drilling') ||
+      combined.includes('vmc') ||
+      combined.includes('machining center') ||
+      /MD|MC|1000M|880M|990M|1080M|1500M/i.test(model)
     ) {
+      return 'Drilling and milling machine CNC controller';
+    }
+    if (combined.includes('engrav') || combined.includes('router')) {
       return 'Engraving CNC controller';
     }
     if (
@@ -506,18 +543,9 @@ export function resolveOfficialSubcategory(item: {
       combined.includes('turning') ||
       combined.includes('turn-mill') ||
       combined.includes('turret') ||
-      /TD|TC|990T|1000T|880T|1080T/i.test(model)
+      /TD|TC|990T|1000T|880T|1080T|1500T/i.test(model)
     ) {
       return 'Lathe controller';
-    }
-    if (
-      combined.includes('milling') ||
-      combined.includes('drilling') ||
-      combined.includes('vmc') ||
-      combined.includes('machining center') ||
-      /MD|MC|1000M|880M|990M|1080M/i.test(model)
-    ) {
-      return 'Drilling and milling machine CNC controller';
     }
     return 'Drilling and milling machine CNC controller';
   }
@@ -535,7 +563,7 @@ export function resolveOfficialSubcategory(item: {
     }
 
     // 2. Spindle Servo Motors and Drivers
-    if (combined.includes('spindle') || /SZGH-08|SZGH-10|SZGH-12|S4T2P|SPINDLE/i.test(model)) {
+    if (combined.includes('spindle') || /SZGH-08-|SZGH-10-|SZGH-12-|S4T2P|SPINDLE/i.test(model)) {
       if (
         (combined.includes('driver') || combined.includes('drive') || combined.includes('inverter') || /S4T2P|SD500|SPD/i.test(model)) &&
         !combined.includes('motor &') &&
@@ -552,7 +580,7 @@ export function resolveOfficialSubcategory(item: {
       (combined.includes('servo driver') ||
         combined.includes('servo drive') ||
         combined.includes('amplifier') ||
-        /^SZGH[-\s]*SD|^SD[0-9]|[-+\s]SD[0-9]/i.test(model)) &&
+        /^SZGH[-\s]*(?:SD|E7[DIA]|ED75)|^SD[0-9]|^E7[DIA]|[-+\s]SD[0-9]/i.test(model)) &&
       !combined.includes('servo motor')
     ) {
       return 'Servo Driver';
@@ -592,7 +620,7 @@ export function resolveOfficialSubcategory(item: {
   return rawSub || 'Drilling and milling machine CNC controller';
 }
 
-export const PRODUCTS_DATABASE: ProductItem[] = [
+const RAW_PRODUCTS_DATABASE: ProductItem[] = [
   // ==========================================================================
   // CATEGORY 1: CNC SYSTEM (Controllers — Supports I/O Board Selection)
   // Subcategories:
@@ -1647,35 +1675,6 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
     compatibility: ['Rotary CNC Engravers', 'Drilling & Milling Machines', 'Mold Routers'],
   },
   {
-    id: 'prod-cnc-990mdb-5',
-    title: 'High-Speed Multi-Axis CNC Milling & Engraving Controller (990MDb Series)',
-    modelNumber: 'SZGH-CNC990MDb-5',
-    category: 'Controllers',
-    subcategory: 'Engraving CNC controller',
-    description:
-      'Multi-axis SZGH-990MDb CNC milling, drilling, and mold engraving controller with simultaneous interpolation, PLC ATC support, and optically isolated I/O expansion.',
-    features: [
-      'Simultaneous multi-axis interpolation for complex mold and rotary machining',
-      'Complete package compatibility with MPG handwheel, I/O board, spindle, and servo drives',
-      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
-    ],
-    price: 212000,
-    usdEstimate: 762,
-    inStock: true,
-    stockCount: 8,
-    defaultImageIndex: SZGH_990MDB_DEFAULT_IMAGE_INDEX,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: true,
-    images: SZGH_990MDB_IMAGES as [string, string, string, string],
-    imageLabels: SZGH_990MDB_IMAGE_LABELS as [string, string, string, string],
-    specs: [
-      { label: 'Model Series', value: 'SZGH-990MDb' },
-      { label: 'Minimum Command Unit', value: '0.001 mm' },
-      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
-    ],
-    compatibility: ['Multi-Axis CNC Routers', 'Drilling & Milling Centers', 'Mold Engraving Machines'],
-  },
-  {
     id: 'prod-cnc-990mdc-3',
     title: 'Industrial CNC Milling, Drilling & Engraving Controller (990MDc Series)',
     modelNumber: 'SZGH-CNC990MDc-3',
@@ -1734,35 +1733,6 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
       { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
     ],
     compatibility: ['Rotary CNC Engravers', 'Drilling & Milling Machines', 'Mold Routers'],
-  },
-  {
-    id: 'prod-cnc-990mdc-5',
-    title: 'Industrial Multi-Axis CNC Milling & Engraving Controller (990MDc Series)',
-    modelNumber: 'SZGH-CNC990MDc-5',
-    category: 'Controllers',
-    subcategory: 'Engraving CNC controller',
-    description:
-      'Multi-axis SZGH-990MDc CNC milling, drilling, and mold engraving controller with simultaneous interpolation, PLC ATC support, and optically isolated I/O expansion.',
-    features: [
-      'Simultaneous multi-axis interpolation for complex mold and rotary machining',
-      'Complete package compatibility with MPG handwheel, I/O board, spindle, and servo drives',
-      'Compatible with Without I/O and With I/O (+PKR 20,000) expansion board configurations',
-    ],
-    price: 218000,
-    usdEstimate: 784,
-    inStock: true,
-    stockCount: 9,
-    defaultImageIndex: SZGH_990MDC_DEFAULT_IMAGE_INDEX,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: true,
-    images: SZGH_990MDC_IMAGES as [string, string, string, string],
-    imageLabels: SZGH_990MDC_IMAGE_LABELS as [string, string, string, string],
-    specs: [
-      { label: 'Model Series', value: 'SZGH-990MDc' },
-      { label: 'Minimum Command Unit', value: '0.001 mm' },
-      { label: 'Display Screen', value: '8.0" Industrial Color TFT LCD' },
-    ],
-    compatibility: ['Multi-Axis CNC Routers', 'Drilling & Milling Centers', 'Mold Engraving Machines'],
   },
   {
     id: 'prod-cnc-1000mdc-3',
@@ -2567,6 +2537,256 @@ export const PRODUCTS_DATABASE: ProductItem[] = [
   },
 ];
 
+function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] {
+  const updatedExisting: ProductItem[] = existingItems.map((item) => {
+    const resolved = resolveOfficialRateListPricing(item);
+    if (
+      resolved.price !== undefined ||
+      resolved.description !== undefined ||
+      resolved.title !== undefined ||
+      resolved.subcategory !== undefined
+    ) {
+      const nextPrice = resolved.price !== undefined ? resolved.price : item.price;
+      return {
+        ...item,
+        price: nextPrice,
+        usdEstimate: Math.max(1, Math.round(nextPrice / 278)),
+        ...(resolved.title ? { title: resolved.title } : {}),
+        ...(resolved.description ? { description: resolved.description } : {}),
+        ...(resolved.subcategory ? { subcategory: resolved.subcategory } : {}),
+        ...(resolved.features ? { features: resolved.features } : {}),
+        ...(resolved.servoConfigOptions
+          ? { servoConfigOptions: resolved.servoConfigOptions }
+          : {}),
+      };
+    }
+    return item;
+  });
+
+  const existingModelSet = new Set(
+    updatedExisting.map((p) => p.modelNumber.trim().toUpperCase())
+  );
+
+  const additionalControllers: ProductItem[] = [];
+  for (const row of CONTROLLER_RATE_LIST_2026) {
+    const upperModel = row.modelNumber.trim().toUpperCase();
+    if (existingModelSet.has(upperModel)) continue;
+    existingModelSet.add(upperModel);
+
+    const slug = row.modelNumber
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    const hasAB = /\(A\+B Panel\)/i.test(row.modelNumber);
+    const hasCE = /\(C\+E Panel\)/i.test(row.modelNumber);
+    const hasCPanel = /\(C Panel\)/i.test(row.modelNumber);
+
+    const baseImages: string[] = /880TC/i.test(row.modelNumber)
+      ? SZGH_880TC_IMAGES
+      : /1080TC/i.test(row.modelNumber)
+      ? SZGH_1080TC_IMAGES
+      : /1080TIC/i.test(row.modelNumber)
+      ? SZGH_880TIC_IMAGES
+      : /880MC/i.test(row.modelNumber)
+      ? SZGH_880MC_IMAGES
+      : /1080MC/i.test(row.modelNumber)
+      ? SZGH_1080MC_IMAGES
+      : /1080MIC/i.test(row.modelNumber)
+      ? SZGH_1080MIC_IMAGES
+      : /1000TDB|1500TDB/i.test(row.modelNumber)
+      ? SZGH_1000TDB_IMAGES
+      : /1000TDC|1500TDC/i.test(row.modelNumber)
+      ? SZGH_990TDC_IMAGES
+      : /1000MDB|1500MDB/i.test(row.modelNumber)
+      ? SZGH_1000MDB_IMAGES
+      : /1000MDCB|1500MDCB/i.test(row.modelNumber)
+      ? SZGH_1000MDCB_IMAGES
+      : /1000MDC|1500MDC/i.test(row.modelNumber)
+      ? SZGH_1000MDC_IMAGES
+      : [
+          HERO_SHOWCASE_PHOTOS.controllers,
+          ...createIndustrialProductGallery(
+            row.modelNumber,
+            'Controllers',
+            '#0068AD',
+            '400 × 245 × 115 mm',
+            '24VDC Industrial CNC Control'
+          ).slice(1),
+        ];
+
+    const baseLabels: string[] = [
+      'Front Operator Console',
+      'Angle & Cutout View',
+      'Rear DB Interface Ports',
+      'System Wiring Topology',
+    ];
+
+    const galleryImages = hasAB
+      ? [...baseImages.slice(0, 4), ...SZGH_AB_PANEL_IMAGES]
+      : hasCE
+      ? [...baseImages.slice(0, 4), ...SZGH_CE_PANEL_IMAGES]
+      : hasCPanel
+      ? [...baseImages.slice(0, 4), SZGH_PANEL_C_IMAGE]
+      : baseImages.slice(0, 4);
+
+    const galleryLabels = hasAB
+      ? [...baseLabels, ...SZGH_AB_PANEL_IMAGE_LABELS]
+      : hasCE
+      ? [...baseLabels, ...SZGH_CE_PANEL_IMAGE_LABELS]
+      : hasCPanel
+      ? [...baseLabels, 'C-Panel']
+      : baseLabels;
+
+    additionalControllers.push({
+      id: `prod-cnc-${slug}`,
+      title: row.spec,
+      modelNumber: row.modelNumber,
+      category: 'Controllers',
+      subcategory: row.subcategory,
+      description: row.description,
+      features: buildControllerFeatures(row),
+      price: row.pricePKR,
+      usdEstimate: Math.max(1, Math.round(row.pricePKR / 278)),
+      inStock: true,
+      stockCount: 10,
+      defaultImageIndex: 0,
+      warranty: '1 Year Official Warranty',
+      hasIOBoardOption: true,
+      images: galleryImages,
+      imageLabels: galleryLabels,
+      specs: [
+        { label: 'Model Number', value: row.modelNumber },
+        { label: 'Configuration', value: row.spec },
+        { label: 'Encoder Support', value: row.isAbsolute ? 'Absolute Supported' : 'Incremental' },
+        { label: 'ATC Support', value: row.supportsATC ? 'ATC Supported' : 'Standard Control' },
+        { label: 'Minimum Command Unit', value: '0.001 mm' },
+        { label: 'Warranty', value: '1 Year Official SZGH Pakistan Warranty' },
+      ],
+      compatibility: [
+        row.subcategory === 'Lathe controller'
+          ? 'CNC Turning Centers & Slant-Bed Lathes'
+          : 'Vertical Machining Centers (VMC) & CNC Milling Machines',
+      ],
+    });
+  }
+
+  const servoMotorItems: ProductItem[] = SERVO_MOTOR_RATE_LIST_2026.map((row) => {
+    const slug = row.modelNumber.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const configOptions = buildServoMotorConfigOptions(row);
+    return {
+      id: `prod-motor-${slug}`,
+      title: `SZGH AC Servo Motor (${row.spec})`,
+      modelNumber: row.modelNumber,
+      category: 'Motors',
+      subcategory: 'Servo motor',
+      description: `Industrial SZGH AC Servo Motor ${row.modelNumber} (${row.spec}). Available in Base Motor (PKR ${row.basePricePKR.toLocaleString()}), With Brake (PKR ${row.brakePricePKR.toLocaleString()}), and Absolute Encoder (PKR ${row.absolutePricePKR.toLocaleString()}) configurations.`,
+      features: [
+        `Specification: ${row.spec} high-torque industrial AC servo motor`,
+        `Selectable configurations: Base Motor (PKR ${row.basePricePKR.toLocaleString()}), With 24VDC Holding Brake (PKR ${row.brakePricePKR.toLocaleString()}), or Multi-Turn Absolute Encoder (PKR ${row.absolutePricePKR.toLocaleString()})`,
+        '300% peak overload torque capacity with IP65 sealed NdFeB permanent magnet rotor',
+        'Direct plug-and-play compatibility with SZGH-E7 series digital servo drivers and CNC controllers',
+      ],
+      price: row.basePricePKR,
+      servoConfigOptions: configOptions,
+      usdEstimate: Math.max(1, Math.round(row.basePricePKR / 278)),
+      inStock: true,
+      stockCount: 20,
+      warranty: '1 Year Official Warranty',
+      hasIOBoardOption: false,
+      images: [
+        HERO_SHOWCASE_PHOTOS.motors,
+        ...createIndustrialProductGallery(
+          row.modelNumber,
+          'Motors',
+          '#0068AD',
+          row.spec.includes('flange') ? row.spec.split(',')[0] : 'Standard Servo Flange',
+          row.spec
+        ).slice(1),
+      ],
+      imageLabels: [
+        'AC Servo Motor View',
+        'Flange & Shaft CAD',
+        'Encoder & Brake Pinout',
+        'CNC Axis Integration',
+      ],
+      specs: [
+        { label: 'Model Number', value: row.modelNumber },
+        { label: 'Motor Specification', value: row.spec },
+        { label: 'Base Retail Price', value: `PKR ${row.basePricePKR.toLocaleString()}` },
+        { label: 'With Brake Price', value: `PKR ${row.brakePricePKR.toLocaleString()}` },
+        { label: 'Absolute Encoder Price', value: `PKR ${row.absolutePricePKR.toLocaleString()}` },
+        { label: 'Protection Class', value: 'IP65 Industrial Sealed Housing' },
+      ],
+      compatibility: ['CNC Lathe & VMC Feed Axes', 'Industrial Robots', 'SZGH-E7 Digital Servo Drivers'],
+    };
+  });
+
+  const servoDriverItems: ProductItem[] = SERVO_DRIVER_RATE_LIST_2026.map((row) => {
+    const slug = row.modelNumber.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const isEtherCAT = /EtherCAT/i.test(row.spec);
+    const isAbsolute = /Absolute/i.test(row.spec);
+    return {
+      id: `prod-driver-${slug}`,
+      title: `SZGH Digital AC Servo Driver — ${row.spec}`,
+      modelNumber: row.modelNumber,
+      category: 'Motors',
+      subcategory: 'Servo Driver',
+      description: `Official ${row.modelNumber} digital AC ${row.spec}. Engineered for high-response position, speed, and torque control across SZGH AC servo motors.`,
+      features: [
+        `Driver Specification: ${row.spec}`,
+        isEtherCAT
+          ? 'High-speed 100Mbps EtherCAT industrial fieldbus communication with multi-turn absolute encoder support'
+          : isAbsolute
+          ? 'Dedicated multi-turn absolute encoder interface with battery-backup position memory'
+          : 'Triple-loop DSP vector control supporting differential pulse/direction, analog voltage, and RS485 Modbus',
+        'Built-in regenerative braking protection, over-current, over-voltage, and encoder fault diagnostics',
+        'Direct plug-and-play CN1/CN2 interface with all SZGH CNC lathe, milling, and robot controllers',
+      ],
+      price: row.basePricePKR,
+      usdEstimate: Math.max(1, Math.round(row.basePricePKR / 278)),
+      inStock: true,
+      stockCount: 18,
+      warranty: '1 Year Official Warranty',
+      hasIOBoardOption: false,
+      images: [
+        HERO_SHOWCASE_PHOTOS.motors,
+        ...createIndustrialProductGallery(
+          row.modelNumber,
+          'Motors',
+          '#2563eb',
+          '185 × 85 × 170 mm',
+          row.spec
+        ).slice(1),
+      ],
+      imageLabels: [
+        'Digital Servo Driver View',
+        'Cabinet Mounting CAD',
+        'CN1/CN2 Terminal Pinout',
+        'Multi-Axis Drive Bank',
+      ],
+      specs: [
+        { label: 'Model Number', value: row.modelNumber },
+        { label: 'Driver Specification', value: row.spec },
+        { label: 'Control Architecture', value: isEtherCAT ? 'EtherCAT Bus + Absolute' : isAbsolute ? 'Absolute Servo Driver' : 'Pulse/Dir + Analog + Modbus' },
+        { label: 'Warranty', value: '1 Year Official SZGH Pakistan Warranty' },
+      ],
+      compatibility: ['SZGH AC Servo Motors', 'CNC Lathe & Milling Controllers', 'Industrial Automation Cabinets'],
+    };
+  });
+
+  return [
+    ...updatedExisting,
+    ...additionalControllers,
+    ...servoMotorItems,
+    ...servoDriverItems,
+  ];
+}
+
+export const PRODUCTS_DATABASE: ProductItem[] = buildRateListCatalogItems(
+  RAW_PRODUCTS_DATABASE
+);
+
 export interface VideoPresentation {
   id: string;
   title: string;
@@ -3068,6 +3288,17 @@ export function extractBaseModelAndAxis(product: ProductItem): {
     return {
       baseModelDisplay: 'CNC-IO12',
       baseModelKey: `${product.category}::CNC-IO12`,
+      axisCount: null,
+      axisLabel: null,
+    };
+  }
+
+  // Motors & Drivers should never have axis variants extracted
+  if (product.category === 'Motors') {
+    const motorKey = rawModel.toUpperCase().replace(/[\s_]+/g, '-');
+    return {
+      baseModelDisplay: rawModel,
+      baseModelKey: `Motors::${motorKey}`,
       axisCount: null,
       axisLabel: null,
     };

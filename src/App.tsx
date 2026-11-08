@@ -100,6 +100,7 @@ import {
   hasCEPanelInProduct,
   normalizePanelStrings,
   applyPanelPicturesToGallery,
+  resolveOfficialRateListPricing,
 } from './data/products';
 import {
   onAuthStateChanged,
@@ -797,20 +798,34 @@ export default function App() {
           description: effectiveDesc,
         });
 
+      const ratePricing = resolveOfficialRateListPricing({
+        modelNumber: resolvedModel,
+        title: effectiveTitle,
+        description: effectiveDesc,
+      });
+
+      const finalDesc = ratePricing.description || effectiveDesc;
+      const finalTitle = ratePricing.title || effectiveTitle;
+      const finalSubcat =
+        ratePricing.subcategory ||
+        (override.subcategory !== undefined
+          ? override.subcategory
+          : item.subcategory);
+
       return {
         ...item,
         modelNumber: resolvedModel,
-        title: effectiveTitle,
+        title: finalTitle,
         category: override.category || item.category,
-        subcategory:
-          override.subcategory !== undefined
-            ? override.subcategory
-            : item.subcategory,
-        description: effectiveDesc,
+        subcategory: finalSubcat,
+        description: finalDesc,
+        features: ratePricing.features || item.features,
         stockCount: override.stockCount,
         stockStatus: override.stockStatus,
         inStock: override.stockCount > 0,
-        price: override.price,
+        price: ratePricing.price !== undefined ? ratePricing.price : override.price,
+        servoConfigOptions:
+          ratePricing.servoConfigOptions || item.servoConfigOptions,
         hasIOBoardOption: isIOBoard ? false : item.hasIOBoardOption,
         defaultImageIndex: is880MC
           ? SZGH_880MC_DEFAULT_IMAGE_INDEX
@@ -980,21 +995,38 @@ export default function App() {
           description: desc,
         });
 
+      const ratePricing = resolveOfficialRateListPricing({
+        modelNumber: normalizedModel,
+        title: ttl,
+        description: desc,
+      });
+      const finalCustomPrice =
+        ratePricing.price !== undefined ? ratePricing.price : override.price;
+      const finalCustomDesc = ratePricing.description || desc;
+      const finalCustomTitle = ratePricing.title || ttl;
+      const finalCustomSubcat = ratePricing.subcategory || subcat;
+
       customProducts.push({
         id: customId,
         modelNumber: normalizedModel,
-        title: ttl,
+        title: finalCustomTitle,
         category: cat,
-        subcategory: subcat,
-        description: desc,
-        features: desc
-          ? [
-              '1 Year Official SZGH Pakistan Replacement & Technical Support Warranty',
-              'Ready Stock Dispatch from Lahore Warehouse Across Pakistan',
-            ]
-          : [],
-        price: override.price,
-        usdEstimate: override.price > 0 ? Math.max(1, Math.round(override.price / 278)) : 0,
+        subcategory: finalCustomSubcat,
+        description: finalCustomDesc,
+        features:
+          ratePricing.features ||
+          (finalCustomDesc
+            ? [
+                '1 Year Official SZGH Pakistan Replacement & Technical Support Warranty',
+                'Ready Stock Dispatch from Lahore Warehouse Across Pakistan',
+              ]
+            : []),
+        price: finalCustomPrice,
+        servoConfigOptions: ratePricing.servoConfigOptions,
+        usdEstimate:
+          finalCustomPrice > 0
+            ? Math.max(1, Math.round(finalCustomPrice / 278))
+            : 0,
         inStock: override.stockCount > 0,
         stockCount: override.stockCount,
         stockStatus: override.stockStatus,
@@ -1298,24 +1330,47 @@ export default function App() {
         ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
         : override.defaultImageIndex ?? 0;
 
+      const ratePricing = resolveOfficialRateListPricing({
+        modelNumber: normPanel.modelNumber,
+        title: normPanel.title,
+        description: normPanel.description,
+      });
+      const targetDesc = ratePricing.description || normPanel.description;
+      const targetTitle = ratePricing.title || normPanel.title;
+      const targetSubcat = ratePricing.subcategory || override.subcategory;
+      const priceMatches =
+        ratePricing.price === undefined || override.price === ratePricing.price;
       const imagesMatch =
         override.images?.length === targetImages.length &&
         targetImages.every((img, idx) => override.images?.[idx] === img);
       const descMatches =
-        (!hasABPanel && !hasCEPanel) ||
-        override.description === normPanel.description;
+        (!hasABPanel && !hasCEPanel && !ratePricing.description) ||
+        override.description === targetDesc;
+      const subcatMatches =
+        !ratePricing.subcategory || override.subcategory === targetSubcat;
       const alreadySynced =
         override.defaultImageIndex === targetDefaultIdx &&
         imagesMatch &&
-        descMatches;
+        descMatches &&
+        subcatMatches &&
+        priceMatches;
       if (!alreadySynced) {
         updateDoc(doc(db, 'inventory', productId), {
           images: targetImages,
           defaultImageIndex: targetDefaultIdx,
-          ...(hasABPanel || hasCEPanel
+          ...(ratePricing.price !== undefined
+            ? { price: Math.round(ratePricing.price) }
+            : {}),
+          ...(ratePricing.subcategory
+            ? { subcategory: ratePricing.subcategory.slice(0, 120) }
+            : {}),
+          ...(ratePricing.title
+            ? { title: targetTitle.slice(0, 200) }
+            : {}),
+          ...(hasABPanel || hasCEPanel || ratePricing.description
             ? {
                 modelNumber: normPanel.modelNumber.slice(0, 120),
-                description: normPanel.description.slice(0, 1500),
+                description: targetDesc.slice(0, 1500),
               }
             : {}),
           updatedBy: currentUser.uid,

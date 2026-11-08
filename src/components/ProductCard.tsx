@@ -88,11 +88,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [selectedIOBoardId, setSelectedIOBoardId] = useState<string>(
     CONTROLLER_IO_BOARD_OPTIONS[0].id
   );
+  const servoConfigOptions = product.servoConfigOptions || [];
+  const [selectedServoConfigId, setSelectedServoConfigId] = useState<
+    'base' | 'brake' | 'absolute'
+  >(servoConfigOptions[0]?.id || 'base');
   const [justAdded, setJustAdded] = useState<boolean>(false);
 
   useEffect(() => {
     setSelectedImageIndex(defaultIdx);
-  }, [product.id, selectedAxisId, defaultIdx]);
+    setSelectedServoConfigId(product.servoConfigOptions?.[0]?.id || 'base');
+  }, [product.id, selectedAxisId, defaultIdx, product.servoConfigOptions]);
+
+  const activeServoConfig =
+    servoConfigOptions.length > 0
+      ? servoConfigOptions.find((opt) => opt.id === selectedServoConfigId) ||
+        servoConfigOptions[0]
+      : undefined;
 
   const isController =
     (product.category === 'Controllers' || Boolean(product.hasIOBoardOption)) &&
@@ -103,7 +114,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       CONTROLLER_IO_BOARD_OPTIONS[0]
     : undefined;
 
-  const basePricePKR = activeAxis ? activeAxis.price : product.price;
+  const basePricePKR = activeServoConfig
+    ? activeServoConfig.price
+    : activeAxis
+    ? activeAxis.price
+    : product.price;
   const effectivePricePKR =
     basePricePKR + (activeIOBoard ? activeIOBoard.priceDelta : 0);
 
@@ -123,6 +138,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     product.baseModelNumber || product.modelNumber;
 
   const buildSelectedProductPayload = (): ProductItem => {
+    if (activeServoConfig) {
+      return {
+        ...product,
+        id: `${product.id}-${activeServoConfig.id}`,
+        modelNumber: `${displayModelHeader} (${activeServoConfig.shortLabel})`,
+        title: `${displayTitle || displayModelHeader} — ${activeServoConfig.shortLabel}`,
+        description: displayDescription,
+        price: activeServoConfig.price,
+        images: displayImages,
+        defaultImageIndex: defaultIdx,
+      };
+    }
     if (!activeAxis) return product;
     return {
       ...product,
@@ -385,6 +412,52 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
           )}
+
+          {/* Servo Motor 3-Tab Configuration Selector (Base / With Brake / Absolute) */}
+          {servoConfigOptions.length > 0 && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="mt-2.5 p-2.5 rounded-[5px] bg-slate-100/90 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2"
+            >
+              <div className="flex items-center justify-between text-xs font-medium text-slate-800 dark:text-slate-200">
+                <span className="flex items-center gap-1.5">
+                  <Cpu className="w-3.5 h-3.5 text-[#0068AD] dark:text-sky-400" />
+                  <span>Motor Configuration:</span>
+                </span>
+                {activeServoConfig && (
+                  <span className="font-mono-tabular text-[#0068AD] dark:text-sky-400 font-semibold">
+                    {activeServoConfig.shortLabel}
+                  </span>
+                )}
+              </div>
+              <div
+                role="tablist"
+                aria-label="Select Servo Motor configuration"
+                className="grid grid-cols-3 gap-1.5 pt-0.5"
+              >
+                {servoConfigOptions.map((opt) => {
+                  const isActiveTab =
+                    (activeServoConfig?.id || 'base') === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActiveTab}
+                      onClick={() => setSelectedServoConfigId(opt.id)}
+                      className={`py-2 px-2 rounded-[5px] text-[11px] font-medium transition-colors duration-150 cursor-pointer select-none truncate ${
+                        isActiveTab
+                          ? 'bg-[#0068AD] text-white border border-[#0068AD]'
+                          : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-[#0068AD] hover:text-[#0068AD] dark:hover:border-sky-400 dark:hover:text-sky-400'
+                      }`}
+                    >
+                      {opt.shortLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Price & Dual Action Buttons (Screenshot Blue #0068AD & Orange #E77817 Style) */}
@@ -398,6 +471,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 ? 'Pricing'
                 : activeIOBoard && activeIOBoard.priceDelta > 0
                 ? 'Price (incl. I/O Board)'
+                : activeServoConfig
+                ? `Price (${activeServoConfig.shortLabel})`
                 : 'Unit Price'}
             </span>
             <span className="text-lg font-bold font-mono-tabular text-slate-900 dark:text-white">
