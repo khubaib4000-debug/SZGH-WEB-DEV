@@ -60,6 +60,10 @@ import {
   SZGH_1000MDB_IMAGES,
   SZGH_1000MDB_IMAGE_LABELS,
   SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
+  isSZGH1500MDBModel,
+  SZGH_1500MDB_IMAGES,
+  SZGH_1500MDB_IMAGE_LABELS,
+  SZGH_1500MDB_DEFAULT_IMAGE_INDEX,
   isSZGH990MDBModel,
   SZGH_990MDB_IMAGES,
   SZGH_990MDB_IMAGE_LABELS,
@@ -84,10 +88,18 @@ import {
   SZGH_1000MDC_IMAGES,
   SZGH_1000MDC_IMAGE_LABELS,
   SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+  isSZGH1500MDCModel,
+  SZGH_1500MDC_IMAGES,
+  SZGH_1500MDC_IMAGE_LABELS,
+  SZGH_1500MDC_DEFAULT_IMAGE_INDEX,
   isSZGH1000MDCBModel,
   SZGH_1000MDCB_IMAGES,
   SZGH_1000MDCB_IMAGE_LABELS,
   SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+  isSZGH1500MDCBModel,
+  SZGH_1500MDCB_IMAGES,
+  SZGH_1500MDCB_IMAGE_LABELS,
+  SZGH_1500MDCB_DEFAULT_IMAGE_INDEX,
   isSZGH1000TDBModel,
   SZGH_1000TDB_IMAGES,
   SZGH_1000TDB_IMAGE_LABELS,
@@ -707,13 +719,16 @@ export default function App() {
       const is880TIC = isSZGH880TICModel({ modelNumber: resolvedModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: resolvedModel });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: resolvedModel });
+      const is1500MDB = isSZGH1500MDBModel({ modelNumber: resolvedModel });
       const is990MDB = isSZGH990MDBModel({ modelNumber: resolvedModel });
       const is990MDC = isSZGH990MDCModel({ modelNumber: resolvedModel });
       const is990TDB = isSZGH990TDBModel({ modelNumber: resolvedModel });
       const is990TDC = isSZGH990TDCModel({ modelNumber: resolvedModel });
       const is1000MC = isSZGH1000MCModel({ modelNumber: resolvedModel });
       const is1000MDC = isSZGH1000MDCModel({ modelNumber: resolvedModel });
+      const is1500MDC = isSZGH1500MDCModel({ modelNumber: resolvedModel });
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: resolvedModel });
+      const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: resolvedModel });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: resolvedModel });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: resolvedModel,
@@ -735,6 +750,8 @@ export default function App() {
         ? SZGH_1080TC_IMAGES
         : is1000MDB
         ? SZGH_1000MDB_IMAGES
+        : is1500MDB
+        ? SZGH_1500MDB_IMAGES
         : is990MDB
         ? SZGH_990MDB_IMAGES
         : is990MDC
@@ -747,8 +764,12 @@ export default function App() {
         ? SZGH_1000MC_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
+        : is1500MDC
+        ? SZGH_1500MDC_IMAGES
         : is1000MDCB
         ? SZGH_1000MDCB_IMAGES
+        : is1500MDCB
+        ? SZGH_1500MDCB_IMAGES
         : is1000TDB
         ? SZGH_1000TDB_IMAGES
         : isCNCIO12
@@ -771,6 +792,8 @@ export default function App() {
         ? SZGH_1080TC_IMAGE_LABELS
         : is1000MDB
         ? SZGH_1000MDB_IMAGE_LABELS
+        : is1500MDB
+        ? SZGH_1500MDB_IMAGE_LABELS
         : is990MDB
         ? SZGH_990MDB_IMAGE_LABELS
         : is990MDC
@@ -783,8 +806,12 @@ export default function App() {
         ? SZGH_1000MC_IMAGE_LABELS
         : is1000MDC
         ? SZGH_1000MDC_IMAGE_LABELS
+        : is1500MDC
+        ? SZGH_1500MDC_IMAGE_LABELS
         : is1000MDCB
         ? SZGH_1000MDCB_IMAGE_LABELS
+        : is1500MDCB
+        ? SZGH_1500MDCB_IMAGE_LABELS
         : is1000TDB
         ? SZGH_1000TDB_IMAGE_LABELS
         : isCNCIO12
@@ -841,6 +868,8 @@ export default function App() {
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB
           ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+          : is1500MDB
+          ? SZGH_1500MDB_DEFAULT_IMAGE_INDEX
           : is990MDB
           ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
           : is990MDC
@@ -853,8 +882,12 @@ export default function App() {
           ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
           : is1000MDC
           ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+          : is1500MDC
+          ? SZGH_1500MDC_DEFAULT_IMAGE_INDEX
           : is1000MDCB
           ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+          : is1500MDCB
+          ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
           : is1000TDB
           ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
           : isCNCIO12
@@ -901,13 +934,16 @@ export default function App() {
       const is880TIC = isSZGH880TICModel({ modelNumber: normalizedModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: normalizedModel });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: normalizedModel });
+      const is1500MDB = isSZGH1500MDBModel({ modelNumber: normalizedModel });
       const is990MDB = isSZGH990MDBModel({ modelNumber: normalizedModel });
       const is990MDC = isSZGH990MDCModel({ modelNumber: normalizedModel });
       const is990TDB = isSZGH990TDBModel({ modelNumber: normalizedModel });
       const is990TDC = isSZGH990TDCModel({ modelNumber: normalizedModel });
       const is1000MC = isSZGH1000MCModel({ modelNumber: normalizedModel });
       const is1000MDC = isSZGH1000MDCModel({ modelNumber: normalizedModel });
+      const is1500MDC = isSZGH1500MDCModel({ modelNumber: normalizedModel });
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: normalizedModel });
+      const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: normalizedModel });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: normalizedModel });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: normalizedModel,
@@ -929,6 +965,8 @@ export default function App() {
         ? SZGH_1080TC_IMAGES
         : is1000MDB
         ? SZGH_1000MDB_IMAGES
+        : is1500MDB
+        ? SZGH_1500MDB_IMAGES
         : is990MDB
         ? SZGH_990MDB_IMAGES
         : is990MDC
@@ -941,8 +979,12 @@ export default function App() {
         ? SZGH_1000MC_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
+        : is1500MDC
+        ? SZGH_1500MDC_IMAGES
         : is1000MDCB
         ? SZGH_1000MDCB_IMAGES
+        : is1500MDCB
+        ? SZGH_1500MDCB_IMAGES
         : is1000TDB
         ? SZGH_1000TDB_IMAGES
         : isCNCIO12
@@ -963,6 +1005,8 @@ export default function App() {
         ? SZGH_1080TC_IMAGE_LABELS
         : is1000MDB
         ? SZGH_1000MDB_IMAGE_LABELS
+        : is1500MDB
+        ? SZGH_1500MDB_IMAGE_LABELS
         : is990MDB
         ? SZGH_990MDB_IMAGE_LABELS
         : is990MDC
@@ -975,8 +1019,12 @@ export default function App() {
         ? SZGH_1000MC_IMAGE_LABELS
         : is1000MDC
         ? SZGH_1000MDC_IMAGE_LABELS
+        : is1500MDC
+        ? SZGH_1500MDC_IMAGE_LABELS
         : is1000MDCB
         ? SZGH_1000MDCB_IMAGE_LABELS
+        : is1500MDCB
+        ? SZGH_1500MDCB_IMAGE_LABELS
         : is1000TDB
         ? SZGH_1000TDB_IMAGE_LABELS
         : isCNCIO12
@@ -1044,6 +1092,8 @@ export default function App() {
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB
           ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+          : is1500MDB
+          ? SZGH_1500MDB_DEFAULT_IMAGE_INDEX
           : is990MDB
           ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
           : is990MDC
@@ -1056,8 +1106,12 @@ export default function App() {
           ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
           : is1000MDC
           ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+          : is1500MDC
+          ? SZGH_1500MDC_DEFAULT_IMAGE_INDEX
           : is1000MDCB
           ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+          : is1500MDCB
+          ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
           : is1000TDB
           ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
           : isCNCIO12
@@ -1099,6 +1153,9 @@ export default function App() {
     const hasCustom1000MDB = customProducts.some((p) =>
       isSZGH1000MDBModel({ modelNumber: p.modelNumber })
     );
+    const hasCustom1500MDB = customProducts.some((p) =>
+      isSZGH1500MDBModel({ modelNumber: p.modelNumber })
+    );
     const hasCustom990MDB = customProducts.some((p) =>
       isSZGH990MDBModel({ modelNumber: p.modelNumber })
     );
@@ -1117,8 +1174,14 @@ export default function App() {
     const hasCustom1000MDC = customProducts.some((p) =>
       isSZGH1000MDCModel({ modelNumber: p.modelNumber })
     );
+    const hasCustom1500MDC = customProducts.some((p) =>
+      isSZGH1500MDCModel({ modelNumber: p.modelNumber })
+    );
     const hasCustom1000MDCB = customProducts.some((p) =>
       isSZGH1000MDCBModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1500MDCB = customProducts.some((p) =>
+      isSZGH1500MDCBModel({ modelNumber: p.modelNumber })
     );
     const hasCustom1000TDB = customProducts.some((p) =>
       isSZGH1000TDBModel({ modelNumber: p.modelNumber })
@@ -1140,6 +1203,14 @@ export default function App() {
       if (
         hasCustom1000MDB &&
         (p.id === 'prod-cnc-1000mdb' || p.id.startsWith('prod-cnc-1000mdb-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom1500MDB &&
+        (p.id === 'prod-cnc-1500mdb' ||
+          p.id.startsWith('prod-cnc-1500mdb-') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1500mdb-'))
       ) {
         return false;
       }
@@ -1180,8 +1251,24 @@ export default function App() {
         return false;
       }
       if (
+        hasCustom1500MDC &&
+        (p.id === 'prod-cnc-1500mdc' ||
+          p.id.startsWith('prod-cnc-1500mdc-') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1500mdc-'))
+      ) {
+        return false;
+      }
+      if (
         hasCustom1000MDCB &&
         (p.id === 'prod-cnc-1000mdcb' || p.id.startsWith('prod-cnc-1000mdcb-'))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom1500MDCB &&
+        (p.id === 'prod-cnc-1500mdcb' ||
+          p.id.startsWith('prod-cnc-1500mdcb-') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1500mdcb-'))
       ) {
         return false;
       }
@@ -1220,13 +1307,16 @@ export default function App() {
       const is880TIC = isSZGH880TICModel({ modelNumber: override.modelNumber });
       const is1080TC = isSZGH1080TCModel({ modelNumber: override.modelNumber });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: override.modelNumber });
+      const is1500MDB = isSZGH1500MDBModel({ modelNumber: override.modelNumber });
       const is990MDB = isSZGH990MDBModel({ modelNumber: override.modelNumber });
       const is990MDC = isSZGH990MDCModel({ modelNumber: override.modelNumber });
       const is990TDB = isSZGH990TDBModel({ modelNumber: override.modelNumber });
       const is990TDC = isSZGH990TDCModel({ modelNumber: override.modelNumber });
       const is1000MC = isSZGH1000MCModel({ modelNumber: override.modelNumber });
       const is1000MDC = isSZGH1000MDCModel({ modelNumber: override.modelNumber });
+      const is1500MDC = isSZGH1500MDCModel({ modelNumber: override.modelNumber });
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: override.modelNumber });
+      const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: override.modelNumber });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: override.modelNumber });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: override.modelNumber,
@@ -1241,13 +1331,16 @@ export default function App() {
         !is880TIC &&
         !is1080TC &&
         !is1000MDB &&
+        !is1500MDB &&
         !is990MDB &&
         !is990MDC &&
         !is990TDB &&
         !is990TDC &&
         !is1000MC &&
         !is1000MDC &&
+        !is1500MDC &&
         !is1000MDCB &&
+        !is1500MDCB &&
         !is1000TDB &&
         !isCNCIO12 &&
         !hasABPanel &&
@@ -1270,6 +1363,8 @@ export default function App() {
         ? SZGH_1080TC_IMAGES
         : is1000MDB
         ? SZGH_1000MDB_IMAGES
+        : is1500MDB
+        ? SZGH_1500MDB_IMAGES
         : is990MDB
         ? SZGH_990MDB_IMAGES
         : is990MDC
@@ -1282,8 +1377,12 @@ export default function App() {
         ? SZGH_1000MC_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
+        : is1500MDC
+        ? SZGH_1500MDC_IMAGES
         : is1000MDCB
         ? SZGH_1000MDCB_IMAGES
+        : is1500MDCB
+        ? SZGH_1500MDCB_IMAGES
         : is1000TDB
         ? SZGH_1000TDB_IMAGES
         : isCNCIO12
@@ -1310,6 +1409,8 @@ export default function App() {
         ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
         : is1000MDB
         ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+        : is1500MDB
+        ? SZGH_1500MDB_DEFAULT_IMAGE_INDEX
         : is990MDB
         ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
         : is990MDC
@@ -1322,8 +1423,12 @@ export default function App() {
         ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
         : is1000MDC
         ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+        : is1500MDC
+        ? SZGH_1500MDC_DEFAULT_IMAGE_INDEX
         : is1000MDCB
         ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+        : is1500MDCB
+        ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
         : is1000TDB
         ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
         : isCNCIO12

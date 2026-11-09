@@ -86,6 +86,21 @@ import {
   SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
 } from './szgh1000tdbImages';
 import {
+  SZGH_1500MDB_IMAGES,
+  SZGH_1500MDB_IMAGE_LABELS,
+  SZGH_1500MDB_DEFAULT_IMAGE_INDEX,
+} from './szgh1500mdbImages';
+import {
+  SZGH_1500MDCB_IMAGES,
+  SZGH_1500MDCB_IMAGE_LABELS,
+  SZGH_1500MDCB_DEFAULT_IMAGE_INDEX,
+} from './szgh1500mdcbImages';
+import {
+  SZGH_1500MDC_IMAGES,
+  SZGH_1500MDC_IMAGE_LABELS,
+  SZGH_1500MDC_DEFAULT_IMAGE_INDEX,
+} from './szgh1500mdcImages';
+import {
   SZGH_CNC_IO12_IMAGES,
   SZGH_CNC_IO12_IMAGE_LABELS,
   SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
@@ -123,6 +138,15 @@ export {
   SZGH_1000MDB_IMAGES,
   SZGH_1000MDB_IMAGE_LABELS,
   SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
+  SZGH_1500MDB_IMAGES,
+  SZGH_1500MDB_IMAGE_LABELS,
+  SZGH_1500MDB_DEFAULT_IMAGE_INDEX,
+  SZGH_1500MDC_IMAGES,
+  SZGH_1500MDC_IMAGE_LABELS,
+  SZGH_1500MDC_DEFAULT_IMAGE_INDEX,
+  SZGH_1500MDCB_IMAGES,
+  SZGH_1500MDCB_IMAGE_LABELS,
+  SZGH_1500MDCB_DEFAULT_IMAGE_INDEX,
   SZGH_990MDB_IMAGES,
   SZGH_990MDB_IMAGE_LABELS,
   SZGH_990MDB_DEFAULT_IMAGE_INDEX,
@@ -2598,11 +2622,17 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       ? SZGH_1000TDB_IMAGES
       : /1000TDC|1500TDC/i.test(row.modelNumber)
       ? SZGH_990TDC_IMAGES
-      : /1000MDB|1500MDB/i.test(row.modelNumber)
+      : /1500MDB/i.test(row.modelNumber)
+      ? SZGH_1500MDB_IMAGES
+      : /1000MDB/i.test(row.modelNumber)
       ? SZGH_1000MDB_IMAGES
-      : /1000MDCB|1500MDCB/i.test(row.modelNumber)
+      : /1500MDCB/i.test(row.modelNumber)
+      ? SZGH_1500MDCB_IMAGES
+      : /1000MDCB/i.test(row.modelNumber)
       ? SZGH_1000MDCB_IMAGES
-      : /1000MDC|1500MDC/i.test(row.modelNumber)
+      : /1500MDC/i.test(row.modelNumber)
+      ? SZGH_1500MDC_IMAGES
+      : /1000MDC/i.test(row.modelNumber)
       ? SZGH_1000MDC_IMAGES
       : [
           HERO_SHOWCASE_PHOTOS.controllers,
@@ -2615,12 +2645,18 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
           ).slice(1),
         ];
 
-    const baseLabels: string[] = [
-      'Front Operator Console',
-      'Angle & Cutout View',
-      'Rear DB Interface Ports',
-      'System Wiring Topology',
-    ];
+    const baseLabels: string[] = /1500MDB/i.test(row.modelNumber)
+      ? SZGH_1500MDB_IMAGE_LABELS
+      : /1500MDCB/i.test(row.modelNumber)
+      ? SZGH_1500MDCB_IMAGE_LABELS
+      : /1500MDC/i.test(row.modelNumber)
+      ? SZGH_1500MDC_IMAGE_LABELS
+      : [
+          'Front Operator Console',
+          'Angle & Cutout View',
+          'Rear DB Interface Ports',
+          'System Wiring Topology',
+        ];
 
     const galleryImages = hasAB
       ? [...baseImages.slice(0, 4), ...SZGH_AB_PANEL_IMAGES]
@@ -3510,6 +3546,22 @@ export function isSZGH1000MDBModel(item: {
 }
 
 /**
+ * Strictly identifies ONLY SZGH-1500MDb models (e.g. SZGH-1500MDb, SZGH-CNC1500MDb, CNC 1500MDb,
+ * 1500MDb, SZGH-1500MDb-3, SZGH-1500MDb-4, SZGH-1500MDb-5, SZGH-CNC1500MDb-3 (A+B Panel), CNC1500MDb)
+ * so the 4 official SZGH-1500MDb logo-watermarked pictures (with 1500MDb（1）.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1500MDb models.
+ */
+export function isSZGH1500MDBModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ|SG)?GH[-\s]*)?(?:CNC[-\s]*)?1500[-\s]*(?:[1-8][-\s]*)?MDB(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
  * Strictly identifies ONLY SZGH-990MDb models (e.g. SZGH-990MDb, SZGH-CNC990MDb, 990MDb,
  * SZGH-990MDb-3, SZGH-990MDb-4, SZGH-990MDb-5, SZGH-CNC990MDb-3, SZGH-990-3MDb, CNC990MDb)
  * so the 4 official SZGH-990MDb logo-watermarked pictures (with 990MDb（1）.jpg at index 0
@@ -3606,6 +3658,22 @@ export function isSZGH1000MDCModel(item: {
 }
 
 /**
+ * Strictly identifies ONLY SZGH-1500MDc models (e.g. SZGH-1500MDc, SZGH-CNC1500MDc, CNC 1500MDc,
+ * 1500MDc, SZGH-1500MDc-3, SZGH-1500MDc-4, SZGH-1500MDc-5, SZGH-CNC1500MDc-3 (A+B Panel), CNC1500MDc)
+ * so the 4 official SZGH-1500MDc logo-watermarked pictures (with 1500MDc（1）.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1500MDc models (and NOT 1500MDcb).
+ */
+export function isSZGH1500MDCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ|SG)?GH[-\s]*)?(?:CNC[-\s]*)?1500[-\s]*(?:[1-8][-\s]*)?MDC(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
  * Strictly identifies ONLY SZGH-1000MDcb models (e.g. SZGH-1000MDcb, SZGH-CNC1000MDcb, CNC 1000MDcb,
  * 1000MDcb, SZGH-1000MDcb-3, SZGH-1000MDcb-4, SZGH-1000MDcb-5, SZGH-CNC1000MDcb-3, SZGH-1000-3MDcb, CNC1000MDcb)
  * so the 4 official SZGH-1000MDcb logo-watermarked pictures (with 1000MDcb（1）.jpg at index 0
@@ -3617,6 +3685,22 @@ export function isSZGH1000MDCBModel(item: {
 }): boolean {
   const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
   return /(?:^|[^A-Z0-9])(?:(?:SZ)?GH[-\s]*)?(?:CNC[-\s]*)?1000[-\s]*(?:[1-8][-\s]*)?MDCB[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-1500MDcb models (e.g. SZGH-1500MDcb, SZGH-CNC1500MDcb, CNC 1500MDcb,
+ * 1500MDcb, SZGH-1500MDcb-3, SZGH-1500MDcb-4, SZGH-1500MDcb-5, SZGH-CNC1500MDcb-3 (A+B Panel), CNC1500MDcb)
+ * so the 4 official SZGH-1500MDcb logo-watermarked pictures (with 1500MDcb（1）.jpg at index 0
+ * as the default picture) are applied exclusively to SZGH-1500MDcb models.
+ */
+export function isSZGH1500MDCBModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:(?:SZ|SG)?GH[-\s]*)?(?:CNC[-\s]*)?1500[-\s]*(?:[1-8][-\s]*)?MDCB[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
     checkStr
   );
 }
@@ -3723,6 +3807,10 @@ export function mergeProductsByModelAndAxes(
       modelNumber: normalizedModel,
       baseModelNumber: baseModelDisplay,
     });
+    const is1500MDB = isSZGH1500MDBModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
     const is990MDB = isSZGH990MDBModel({
       modelNumber: normalizedModel,
       baseModelNumber: baseModelDisplay,
@@ -3747,7 +3835,15 @@ export function mergeProductsByModelAndAxes(
       modelNumber: normalizedModel,
       baseModelNumber: baseModelDisplay,
     });
+    const is1500MDC = isSZGH1500MDCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
     const is1000MDCB = isSZGH1000MDCBModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is1500MDCB = isSZGH1500MDCBModel({
       modelNumber: normalizedModel,
       baseModelNumber: baseModelDisplay,
     });
@@ -3776,6 +3872,8 @@ export function mergeProductsByModelAndAxes(
       ? SZGH_1080TC_IMAGES
       : is1000MDB
       ? SZGH_1000MDB_IMAGES
+      : is1500MDB
+      ? SZGH_1500MDB_IMAGES
       : is990MDB
       ? SZGH_990MDB_IMAGES
       : is990MDC
@@ -3788,8 +3886,12 @@ export function mergeProductsByModelAndAxes(
       ? SZGH_1000MC_IMAGES
       : is1000MDC
       ? SZGH_1000MDC_IMAGES
+      : is1500MDC
+      ? SZGH_1500MDC_IMAGES
       : is1000MDCB
       ? SZGH_1000MDCB_IMAGES
+      : is1500MDCB
+      ? SZGH_1500MDCB_IMAGES
       : is1000TDB
       ? SZGH_1000TDB_IMAGES
       : isCNCIO12
@@ -3810,6 +3912,8 @@ export function mergeProductsByModelAndAxes(
       ? SZGH_1080TC_IMAGE_LABELS
       : is1000MDB
       ? SZGH_1000MDB_IMAGE_LABELS
+      : is1500MDB
+      ? SZGH_1500MDB_IMAGE_LABELS
       : is990MDB
       ? SZGH_990MDB_IMAGE_LABELS
       : is990MDC
@@ -3822,8 +3926,12 @@ export function mergeProductsByModelAndAxes(
       ? SZGH_1000MC_IMAGE_LABELS
       : is1000MDC
       ? SZGH_1000MDC_IMAGE_LABELS
+      : is1500MDC
+      ? SZGH_1500MDC_IMAGE_LABELS
       : is1000MDCB
       ? SZGH_1000MDCB_IMAGE_LABELS
+      : is1500MDCB
+      ? SZGH_1500MDCB_IMAGE_LABELS
       : is1000TDB
       ? SZGH_1000TDB_IMAGE_LABELS
       : isCNCIO12
@@ -3865,6 +3973,8 @@ export function mergeProductsByModelAndAxes(
         ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
         : is1000MDB
         ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+        : is1500MDB
+        ? SZGH_1500MDB_DEFAULT_IMAGE_INDEX
         : is990MDB
         ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
         : is990MDC
@@ -3877,8 +3987,12 @@ export function mergeProductsByModelAndAxes(
         ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
         : is1000MDC
         ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+        : is1500MDC
+        ? SZGH_1500MDC_DEFAULT_IMAGE_INDEX
         : is1000MDCB
         ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+        : is1500MDCB
+        ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
         : is1000TDB
         ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
         : isCNCIO12
