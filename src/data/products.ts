@@ -251,10 +251,10 @@ export interface ProductItem {
 }
 
 export const HERO_SHOWCASE_PHOTOS = {
-  controllers: '/assets/aistudio/Screenshot_2026-10-27_031942_212a47cf.png',
-  motors: '/assets/aistudio/Screenshot_2026-10-27_031831_c857e8e6.png',
-  machines: '/assets/aistudio/Screenshot_2026-10-27_032001_2db549f8.png',
-  robots: '/assets/aistudio/Screenshot_2026-10-27_031846_9193b16f.png',
+  controllers: '/assets/hero/hero-controllers-hd.jpg',
+  motors: '/assets/hero/hero-motors-hd.jpg',
+  machines: '/assets/hero/hero-machines-hd.jpg',
+  robots: '/assets/hero/hero-robots-hd.jpg',
 };
 
 export interface CategoryMeta {
