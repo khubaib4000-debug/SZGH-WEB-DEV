@@ -34,8 +34,9 @@ if [ -n "$REMOTE" ] && [ "$LOCAL" != "$REMOTE" ]; then
     chmod +x "$REPO_DIR/auto-deploy.sh" 2>/dev/null || true
     sed -i 's/RUN npm install$/RUN npm install --legacy-peer-deps/' Dockerfile
     if docker build -t szghpakistan-web .; then
+        mkdir -p /root/szgh-whatsapp-auth
         docker rm -f szgh >/dev/null 2>&1 || true
-        docker run -d --name szgh --restart always --net proxy-network -p 8086:80 szghpakistan-web
+        docker run -d --name szgh --restart always --net proxy-network -p 8086:80 -v /root/szgh-whatsapp-auth:/app/whatsapp_auth_info szghpakistan-web
         echo "[$(date)] Live website updated successfully to $REMOTE!"
     else
         echo "[$(date)] ERROR: docker build failed; resetting HEAD back to $LOCAL so next cron run retries."

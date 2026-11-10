@@ -69,6 +69,9 @@ import {
   isSZGH1000MDBModel,
   SZGH_1000MDB_IMAGES,
   SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
+  isSZGH1500MDBModel,
+  SZGH_1500MDB_IMAGES,
+  SZGH_1500MDB_DEFAULT_IMAGE_INDEX,
   isSZGH990MDBModel,
   SZGH_990MDB_IMAGES,
   SZGH_990MDB_DEFAULT_IMAGE_INDEX,
@@ -87,9 +90,15 @@ import {
   isSZGH1000MDCModel,
   SZGH_1000MDC_IMAGES,
   SZGH_1000MDC_DEFAULT_IMAGE_INDEX,
+  isSZGH1500MDCModel,
+  SZGH_1500MDC_IMAGES,
+  SZGH_1500MDC_DEFAULT_IMAGE_INDEX,
   isSZGH1000MDCBModel,
   SZGH_1000MDCB_IMAGES,
   SZGH_1000MDCB_DEFAULT_IMAGE_INDEX,
+  isSZGH1500MDCBModel,
+  SZGH_1500MDCB_IMAGES,
+  SZGH_1500MDCB_DEFAULT_IMAGE_INDEX,
   isSZGH1000TDBModel,
   SZGH_1000TDB_IMAGES,
   SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
@@ -634,13 +643,16 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     const is880TIC = isSZGH880TICModel({ modelNumber: trimmedModel });
     const is1080TC = isSZGH1080TCModel({ modelNumber: trimmedModel });
     const is1000MDB = isSZGH1000MDBModel({ modelNumber: trimmedModel });
+    const is1500MDB = isSZGH1500MDBModel({ modelNumber: trimmedModel });
     const is990MDB = isSZGH990MDBModel({ modelNumber: trimmedModel });
     const is990MDC = isSZGH990MDCModel({ modelNumber: trimmedModel });
     const is990TDB = isSZGH990TDBModel({ modelNumber: trimmedModel });
     const is990TDC = isSZGH990TDCModel({ modelNumber: trimmedModel });
     const is1000MC = isSZGH1000MCModel({ modelNumber: trimmedModel });
     const is1000MDC = isSZGH1000MDCModel({ modelNumber: trimmedModel });
+    const is1500MDC = isSZGH1500MDCModel({ modelNumber: trimmedModel });
     const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: trimmedModel });
+    const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: trimmedModel });
     const is1000TDB = isSZGH1000TDBModel({ modelNumber: trimmedModel });
     const isCNCIO12 = isSZGHCNCIO12Model({
       modelNumber: trimmedModel,
@@ -666,6 +678,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       ? SZGH_1080TC_IMAGES
       : is1000MDB
       ? SZGH_1000MDB_IMAGES
+      : is1500MDB
+      ? SZGH_1500MDB_IMAGES
       : is990MDB
       ? SZGH_990MDB_IMAGES
       : is990MDC
@@ -678,8 +692,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       ? SZGH_1000MC_IMAGES
       : is1000MDC
       ? SZGH_1000MDC_IMAGES
+      : is1500MDC
+      ? SZGH_1500MDC_IMAGES
       : is1000MDCB
       ? SZGH_1000MDCB_IMAGES
+      : is1500MDCB
+      ? SZGH_1500MDCB_IMAGES
       : is1000TDB
       ? SZGH_1000TDB_IMAGES
       : isCNCIO12
@@ -705,6 +723,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
       : is1000MDB
       ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+      : is1500MDB
+      ? SZGH_1500MDB_DEFAULT_IMAGE_INDEX
       : is990MDB
       ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
       : is990MDC
@@ -717,8 +737,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
       : is1000MDC
       ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+      : is1500MDC
+      ? SZGH_1500MDC_DEFAULT_IMAGE_INDEX
       : is1000MDCB
       ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+      : is1500MDCB
+      ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
       : is1000TDB
       ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
       : isCNCIO12
@@ -1048,13 +1072,16 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       const is880TIC = isSZGH880TICModel({ modelNumber: effectiveModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: effectiveModel });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: effectiveModel });
+      const is1500MDB = isSZGH1500MDBModel({ modelNumber: effectiveModel });
       const is990MDB = isSZGH990MDBModel({ modelNumber: effectiveModel });
       const is990MDC = isSZGH990MDCModel({ modelNumber: effectiveModel });
       const is990TDB = isSZGH990TDBModel({ modelNumber: effectiveModel });
       const is990TDC = isSZGH990TDCModel({ modelNumber: effectiveModel });
       const is1000MC = isSZGH1000MCModel({ modelNumber: effectiveModel });
       const is1000MDC = isSZGH1000MDCModel({ modelNumber: effectiveModel });
+      const is1500MDC = isSZGH1500MDCModel({ modelNumber: effectiveModel });
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: effectiveModel });
+      const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: effectiveModel });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: effectiveModel });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: effectiveModel,
@@ -1081,6 +1108,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         ? SZGH_1080TC_IMAGES
         : is1000MDB
         ? SZGH_1000MDB_IMAGES
+        : is1500MDB
+        ? SZGH_1500MDB_IMAGES
         : is990MDB
         ? SZGH_990MDB_IMAGES
         : is990MDC
@@ -1093,8 +1122,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         ? SZGH_1000MC_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
+        : is1500MDC
+        ? SZGH_1500MDC_IMAGES
         : is1000MDCB
         ? SZGH_1000MDCB_IMAGES
+        : is1500MDCB
+        ? SZGH_1500MDCB_IMAGES
         : is1000TDB
         ? SZGH_1000TDB_IMAGES
         : isCNCIO12
@@ -1131,6 +1164,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB
           ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
+          : is1500MDB
+          ? SZGH_1500MDB_DEFAULT_IMAGE_INDEX
           : is990MDB
           ? SZGH_990MDB_DEFAULT_IMAGE_INDEX
           : is990MDC
@@ -1143,8 +1178,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
           : is1000MDC
           ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
+          : is1500MDC
+          ? SZGH_1500MDC_DEFAULT_IMAGE_INDEX
           : is1000MDCB
           ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
+          : is1500MDCB
+          ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
           : is1000TDB
           ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
           : isCNCIO12

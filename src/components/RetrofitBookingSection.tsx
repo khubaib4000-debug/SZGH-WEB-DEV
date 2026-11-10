@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Camera,
   Upload,
@@ -8,7 +8,24 @@ import {
   Cpu,
   AlertCircle,
   Image as ImageIcon,
+  Share2,
+  Download,
+  ExternalLink,
+  Loader2,
+  QrCode,
+  Smartphone,
+  RefreshCw,
+  Settings,
+  Check,
 } from 'lucide-react';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db, ADMIN_EMAILS } from '../lib/firebase';
 
 interface PhotoSlot {
   slotIndex: number;
@@ -17,6 +34,19 @@ interface PhotoSlot {
   required: boolean;
   fileName?: string;
   previewUrl?: string;
+  jpegFile?: File;
+}
+
+type DeliveryFormat = 'collage_and_separate' | 'collage_only' | 'separate_only';
+
+interface WhatsAppServerStatus {
+  status: 'disconnected' | 'connecting' | 'qr_ready' | 'connected';
+  qrDataUrl: string | null;
+  pairingCode: string | null;
+  connectedUserJid: string | null;
+  targetPhone: string;
+  deliveryMode: DeliveryFormat;
+  hasUltraMsg?: boolean;
 }
 
 const INITIAL_PHOTO_SLOTS: PhotoSlot[] = [
@@ -58,6 +88,223 @@ const INITIAL_PHOTO_SLOTS: PhotoSlot[] = [
   },
 ];
 
+/**
+ * Compresses an uploaded image file and stamps its component label bar at the bottom
+ * so every separate photo and collage cell is clearly identified.
+ */
+async function processUploadedInspectionPhoto(
+  file: File,
+  slotNumber: number,
+  slotTitle: string
+): Promise<{ dataUrl: string; jpegFile: File }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Invalid image file format.'));
+      img.onload = () => {
+        const maxWidth = 1000;
+        const maxHeight = 750;
+        let { width, height } = img;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context unavailable.'));
+          return;
+        }
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Component title badge at bottom of photo
+        const barH = Math.max(34, Math.round(height * 0.068));
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.86)';
+        ctx.fillRect(0, height - barH, width, barH);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold ${Math.max(13, Math.round(barH * 0.48))}px sans-serif`;
+        ctx.fillText(slotTitle, 14, height - Math.round(barH * 0.3));
+
+        let quality = 0.8;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > 135000 && quality > 0.35) {
+          quality -= 0.08;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        const safeLabel = slotTitle
+          .replace(/[^a-zA-Z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        const cleanFileName = `SZGH-Photo-${slotNumber}-${safeLabel}.jpg`;
+
+        canvas.toBlob(
+          (jpegBlob) => {
+            const jpegFile = jpegBlob
+              ? new File([jpegBlob], cleanFileName, { type: 'image/jpeg' })
+              : file;
+            resolve({ dataUrl, jpegFile });
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Generates a high-resolution Labeled Collage JPEG combining all uploaded machine photos
+ * plus a header banner with Customer Name, Contact, Factory Address, and Booking Reference.
+ */
+async function buildBookingCollageJpeg(params: {
+  bookingRef: string;
+  serviceType: 'Retrofitting' | 'Maintenance';
+  customerName: string;
+  contactNumber: string;
+  address: string;
+  description: string;
+  photos: { title: string; dataUrl: string }[];
+}): Promise<{ collageDataUrl: string; collageFile: File } | null> {
+  const {
+    bookingRef,
+    serviceType,
+    customerName,
+    contactNumber,
+    address,
+    description,
+    photos,
+  } = params;
+
+  if (photos.length === 0) return null;
+
+  const loadedImages = await Promise.all(
+    photos.map(
+      (p) =>
+        new Promise<{ title: string; img: HTMLImageElement }>(
+          (resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({ title: p.title, img });
+            img.onerror = reject;
+            img.src = p.dataUrl;
+          }
+        )
+    )
+  );
+
+  const cols = loadedImages.length === 1 ? 1 : loadedImages.length <= 4 ? 2 : 3;
+  const rows = Math.ceil(loadedImages.length / cols);
+  const cellW = loadedImages.length === 1 ? 960 : 520;
+  const cellH = loadedImages.length === 1 ? 720 : 390;
+  const pad = 20;
+  const headerH = 185;
+
+  const canvasW = Math.max(960, cols * cellW + (cols + 1) * pad);
+  const canvasH = headerH + rows * cellH + (rows + 1) * pad;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  // Dark industrial background
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Top Header Bar
+  ctx.fillStyle = '#1E2985';
+  ctx.fillRect(0, 0, canvasW, 62);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(
+    `SZGH PAKISTAN — ${serviceType.toUpperCase()} REQUEST (${bookingRef})`,
+    pad,
+    39
+  );
+
+  // Customer Details Strip
+  ctx.fillStyle = '#1E293B';
+  ctx.fillRect(pad, 76, canvasW - pad * 2, 95);
+
+  ctx.fillStyle = '#34D399';
+  ctx.font = 'bold 17px sans-serif';
+  ctx.fillText(
+    `Customer: ${customerName || 'N/A'}   |   Contact: ${contactNumber || 'N/A'}`,
+    pad + 16,
+    104
+  );
+
+  ctx.fillStyle = '#F8FAFC';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillText(
+    `Factory Address: ${(address || 'N/A').slice(0, 85)}`,
+    pad + 16,
+    130
+  );
+
+  ctx.fillStyle = '#CBD5E1';
+  ctx.font = '14px sans-serif';
+  ctx.fillText(
+    `Issue / Spec: ${(description || 'See attached inspection photos below').slice(0, 100)}`,
+    pad + 16,
+    155
+  );
+
+  // Draw Photo Grid
+  const totalGridW = cols * cellW + (cols - 1) * pad;
+  const startX = Math.round((canvasW - totalGridW) / 2);
+
+  loadedImages.forEach((item, idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const x = startX + col * (cellW + pad);
+    const y = headerH + pad + row * (cellH + pad);
+
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(x, y, cellW, cellH);
+
+    const scale = Math.min(cellW / item.img.width, cellH / item.img.height);
+    const drawW = Math.round(item.img.width * scale);
+    const drawH = Math.round(item.img.height * scale);
+    const drawX = x + Math.round((cellW - drawW) / 2);
+    const drawY = y + Math.round((cellH - drawH) / 2);
+
+    ctx.drawImage(item.img, drawX, drawY, drawW, drawH);
+  });
+
+  const collageDataUrl = canvas.toDataURL('image/jpeg', 0.86);
+
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          resolve(null);
+          return;
+        }
+        const collageFile = new File(
+          [blob],
+          `${bookingRef}-Collage-Photos.jpg`,
+          { type: 'image/jpeg' }
+        );
+        resolve({ collageDataUrl, collageFile });
+      },
+      'image/jpeg',
+      0.86
+    );
+  });
+}
+
 export const RetrofitBookingSection: React.FC = () => {
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
@@ -67,15 +314,139 @@ export const RetrofitBookingSection: React.FC = () => {
   );
   const [description, setDescription] = useState('');
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(INITIAL_PHOTO_SLOTS);
+  const [deliveryFormat, setDeliveryFormat] = useState<DeliveryFormat>(
+    'collage_and_separate'
+  );
   const [errorMessage, setErrorMessage] = useState('');
-  const [submittedBookingId, setSubmittedBookingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedBookingId, setSubmittedBookingId] = useState<string | null>(
+    null
+  );
+  const [sentDirectlyByServer, setSentDirectlyByServer] = useState(false);
+  const [generatedCollage, setGeneratedCollage] = useState<{
+    collageDataUrl: string;
+    collageFile: File;
+  } | null>(null);
+
+  // Admin WhatsApp Direct Auto-Sender Pairing Panel state (visible ONLY to Admin, never to customers)
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [showWhatsAppSetup, setShowWhatsAppSetup] = useState(false);
+  const [waServerStatus, setWaServerStatus] =
+    useState<WhatsAppServerStatus | null>(null);
+  const [loadingWaStatus, setLoadingWaStatus] = useState(false);
+  const [pairingPhoneInput, setPairingPhoneInput] = useState('923214800265');
+  const [requestingPairCode, setRequestingPairCode] = useState(false);
+  const [waSetupError, setWaSetupError] = useState<string | null>(null);
 
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const bulkInputRef = useRef<HTMLInputElement | null>(null);
 
-  const uploadedCount = photoSlots.filter((s) => Boolean(s.previewUrl)).length;
+  const uploadedSlots = photoSlots.filter((s) => Boolean(s.previewUrl));
+  const uploadedCount = uploadedSlots.length;
 
-  const handleSingleSlotFileChange = (
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      const authorized = Boolean(
+        user &&
+          user.emailVerified &&
+          user.email &&
+          ADMIN_EMAILS.some(
+            (e) => e.toLowerCase() === user.email?.toLowerCase()
+          )
+      );
+      setIsAdminUser(authorized);
+      if (!authorized) {
+        setShowWhatsAppSetup(false);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Poll WhatsApp status when the setup drawer is open
+  const fetchWaServerStatus = async () => {
+    try {
+      const res = await fetch('/api/whatsapp/status');
+      if (res.ok) {
+        const data = (await res.json()) as WhatsAppServerStatus;
+        setWaServerStatus(data);
+      }
+    } catch {
+      // Ignore if offline
+    }
+  };
+
+  useEffect(() => {
+    if (isAdminUser) {
+      fetchWaServerStatus();
+    }
+  }, [isAdminUser]);
+
+  useEffect(() => {
+    if (!showWhatsAppSetup) return;
+    fetchWaServerStatus();
+    const timer = setInterval(fetchWaServerStatus, 3000);
+    return () => clearInterval(timer);
+  }, [showWhatsAppSetup]);
+
+  const handleStartQrConnect = async () => {
+    setLoadingWaStatus(true);
+    setWaSetupError(null);
+    try {
+      const res = await fetch('/api/whatsapp/connect', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setWaServerStatus((prev) => ({
+          ...(prev || {
+            targetPhone: '923214800265',
+            deliveryMode: 'collage_and_separate',
+          }),
+          ...data,
+        }));
+      }
+    } catch {
+      setWaSetupError('Could not reach server WhatsApp service.');
+    } finally {
+      setLoadingWaStatus(false);
+    }
+  };
+
+  const handleRequestPhonePairingCode = async () => {
+    setRequestingPairCode(true);
+    setWaSetupError(null);
+    try {
+      const res = await fetch('/api/whatsapp/pair-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: pairingPhoneInput }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setWaSetupError(
+          data.error || 'Could not generate pairing code. Try scanning the QR code.'
+        );
+      } else {
+        setWaServerStatus((prev) =>
+          prev ? { ...prev, pairingCode: data.pairingCode } : prev
+        );
+      }
+    } catch {
+      setWaSetupError('Failed to request pairing code.');
+    } finally {
+      setRequestingPairCode(false);
+    }
+  };
+
+  const handleDisconnectWhatsApp = async () => {
+    setLoadingWaStatus(true);
+    try {
+      await fetch('/api/whatsapp/disconnect', { method: 'POST' });
+      await fetchWaServerStatus();
+    } finally {
+      setLoadingWaStatus(false);
+    }
+  };
+
+  const handleSingleSlotFileChange = async (
     slotIndex: number,
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -86,57 +457,85 @@ export const RetrofitBookingSection: React.FC = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
+    const targetSlot = photoSlots[slotIndex];
+    try {
+      const { dataUrl, jpegFile } = await processUploadedInspectionPhoto(
+        file,
+        slotIndex + 1,
+        targetSlot.title
+      );
       setPhotoSlots((prev) =>
         prev.map((slot) =>
           slot.slotIndex === slotIndex
             ? {
                 ...slot,
                 fileName: file.name,
-                previewUrl: reader.result as string,
+                previewUrl: dataUrl,
+                jpegFile,
               }
             : slot
         )
       );
       setErrorMessage('');
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setErrorMessage(
+        'Could not process the selected photo. Please try another image.'
+      );
+    }
   };
 
-  const handleBulkFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBulkFilesChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = Array.from(e.target.files || []).filter((f) =>
       f.type.startsWith('image/')
     );
     if (files.length === 0) return;
 
-    // Fill empty slots first, up to 6 total capacity
-    files.slice(0, 6).forEach((file, idx) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPhotoSlots((prev) => {
-          const next = [...prev];
-          // Find first empty slot or fallback to index
+    try {
+      const processedList = await Promise.all(
+        files.slice(0, 6).map((file, idx) => {
+          const slotLabel =
+            INITIAL_PHOTO_SLOTS[idx]?.title || `Photo ${idx + 1}`;
+          return processUploadedInspectionPhoto(file, idx + 1, slotLabel).then(
+            (res) => ({
+              originalName: file.name,
+              ...res,
+            })
+          );
+        })
+      );
+
+      setPhotoSlots((prev) => {
+        const next = [...prev];
+        processedList.forEach((item, idx) => {
           const emptyIdx = next.findIndex((s) => !s.previewUrl);
           const targetIdx = emptyIdx !== -1 ? emptyIdx : idx % 6;
           next[targetIdx] = {
             ...next[targetIdx],
-            fileName: file.name,
-            previewUrl: reader.result as string,
+            fileName: item.originalName,
+            previewUrl: item.dataUrl,
+            jpegFile: item.jpegFile,
           };
-          return next;
         });
-      };
-      reader.readAsDataURL(file);
-    });
-    setErrorMessage('');
+        return next;
+      });
+      setErrorMessage('');
+    } catch {
+      setErrorMessage('Failed to process one or more selected images.');
+    }
   };
 
   const handleRemovePhoto = (slotIndex: number) => {
     setPhotoSlots((prev) =>
       prev.map((slot) =>
         slot.slotIndex === slotIndex
-          ? { ...slot, fileName: undefined, previewUrl: undefined }
+          ? {
+              ...slot,
+              fileName: undefined,
+              previewUrl: undefined,
+              jpegFile: undefined,
+            }
           : slot
       )
     );
@@ -145,32 +544,72 @@ export const RetrofitBookingSection: React.FC = () => {
     }
   };
 
-  const buildWhatsAppNotificationUrl = (bookingRef: string) => {
-    const attachedPhotosList = photoSlots
-      .filter((s) => Boolean(s.previewUrl))
-      .map((s) => `• ${s.title} (${s.fileName || 'Attached'})`)
+  const buildWhatsAppPlainText = (bookingRef: string) => {
+    const attachedPhotosList = uploadedSlots
+      .map((s, idx) => `${idx + 1}. ${s.title}`)
       .join('\n');
 
-    const text = encodeURIComponent(
-      `*NEW ${serviceType.toUpperCase()} BOOKING — SZGH PAKISTAN*\n` +
-        `----------------------------------\n` +
-        `*Booking Ref:* ${bookingRef}\n` +
-        `*Service Type:* ${
-          serviceType === 'Retrofitting'
-            ? 'CNC Machine Retrofitting'
-            : 'Machine Maintenance & Repair'
-        }\n` +
-        `*Customer Name:* ${customerName.trim()}\n` +
-        `*Contact No:* ${contactNumber.trim()}\n` +
-        `*Factory Address:* ${address.trim()}\n` +
-        `*Machine Description:* ${description.trim() || 'Provided in photos'}\n\n` +
-        `*Uploaded Machine Photos (${uploadedCount}/6):*\n${attachedPhotosList}\n\n` +
-        `*(Note: I am attaching the ${uploadedCount} machine inspection photo(s) in this chat below)*`
+    return (
+      `*NEW ${serviceType.toUpperCase()} REQUEST — SZGH PAKISTAN*\n` +
+      `----------------------------------\n` +
+      `*Booking Ref:* ${bookingRef}\n` +
+      `*Service Type:* ${
+        serviceType === 'Retrofitting'
+          ? 'CNC Machine Retrofitting'
+          : 'Machine Maintenance & Repair'
+      }\n` +
+      `*Customer Name:* ${customerName.trim()}\n` +
+      `*Contact No:* ${contactNumber.trim()}\n` +
+      `*Factory Address:* ${address.trim()}\n` +
+      `*Machine Description:* ${description.trim() || 'See attached machine photos'}\n\n` +
+      `*Attached Machine Photos (${uploadedCount}):*\n` +
+      `${attachedPhotosList}`
     );
-    return `https://wa.me/923214800265?text=${text}`;
   };
 
-  const handleSubmitBooking = (e: React.FormEvent) => {
+  /**
+   * Shares the Collage Image and/or Separate Photos directly via Mobile OS Share Sheet
+   * (zero Ctrl+V needed).
+   */
+  const handleMobileDirectPhotoShare = async (
+    bookingRef: string,
+    collageFileObj?: File | null
+  ): Promise<boolean> => {
+    const separateFiles = uploadedSlots
+      .map((s) => s.jpegFile)
+      .filter((f): f is File => Boolean(f));
+
+    let filesToShare: File[] = [];
+    if (deliveryFormat === 'collage_only' && collageFileObj) {
+      filesToShare = [collageFileObj];
+    } else if (deliveryFormat === 'separate_only') {
+      filesToShare = separateFiles;
+    } else {
+      filesToShare = collageFileObj
+        ? [collageFileObj, ...separateFiles]
+        : separateFiles;
+    }
+
+    if (
+      filesToShare.length > 0 &&
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: filesToShare })
+    ) {
+      try {
+        await navigator.share({
+          files: filesToShare,
+          title: `SZGH ${serviceType} Request (${bookingRef})`,
+          text: buildWhatsAppPlainText(bookingRef),
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  };
+
+  const handleSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !contactNumber.trim() || !address.trim()) {
       setErrorMessage(
@@ -179,35 +618,143 @@ export const RetrofitBookingSection: React.FC = () => {
       return;
     }
     if (contactNumber.replace(/\D/g, '').length < 10) {
-      setErrorMessage('Please enter a valid 10 or 11-digit phone/WhatsApp number.');
+      setErrorMessage(
+        'Please enter a valid 10 or 11-digit phone/WhatsApp number.'
+      );
       return;
     }
     if (uploadedCount === 0) {
       setErrorMessage(
-        'Please upload at least the required machine photos (Existing Controller, Motor Drives, and Turret/Tool Changer).'
+        'Please upload at least 1 machine inspection photo so our engineers can see your equipment.'
       );
       return;
     }
 
     setErrorMessage('');
+    setIsSubmitting(true);
     const bookingRef = `SZGH-BK-${Math.floor(10000 + Math.random() * 90000)}`;
-    setSubmittedBookingId(bookingRef);
 
-    // Immediately redirect/open WhatsApp notification to +923214800265 with full booking details
-    window.location.href = buildWhatsAppNotificationUrl(bookingRef);
+    try {
+      // 1. Build the high-resolution Labeled Collage Image combining all uploaded photos + customer header
+      const collageResult = await buildBookingCollageJpeg({
+        bookingRef,
+        serviceType,
+        customerName: customerName.trim(),
+        contactNumber: contactNumber.trim(),
+        address: address.trim(),
+        description: description.trim(),
+        photos: uploadedSlots.map((s) => ({
+          title: s.title,
+          dataUrl: s.previewUrl!,
+        })),
+      });
+      setGeneratedCollage(collageResult);
+
+      // 2. Send Collage + All Separate Photos directly to SZGH WhatsApp (+92 321 4800265) via our backend server
+      let serverSentOk = false;
+      try {
+        const apiRes = await fetch('/api/whatsapp/send-booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookingRef,
+            serviceType,
+            customerName: customerName.trim(),
+            contactNumber: contactNumber.trim(),
+            address: address.trim(),
+            description: description.trim(),
+            collageDataUrl: collageResult?.collageDataUrl || '',
+            photos: uploadedSlots.map((s) => ({
+              title: s.title,
+              dataUrl: s.previewUrl!,
+            })),
+            requestedMode: deliveryFormat,
+          }),
+        });
+        if (apiRes.ok) {
+          const apiData = await apiRes.json();
+          serverSentOk = Boolean(apiData.sentDirectlyByServer);
+        }
+      } catch {
+        // Fallback if server endpoint unreachable
+      }
+
+      setSentDirectlyByServer(serverSentOk);
+      setSubmittedBookingId(bookingRef);
+
+      // 3. If the server WhatsApp auto-sender wasn't linked yet, automatically trigger mobile file share or open WhatsApp
+      if (!serverSentOk) {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const sharedOnMobile = isMobile
+          ? await handleMobileDirectPhotoShare(
+              bookingRef,
+              collageResult?.collageFile
+            )
+          : false;
+
+        if (!sharedOnMobile) {
+          const textWithPreview = encodeURIComponent(
+            `${window.location.origin}/?booking=${bookingRef}\n\n${buildWhatsAppPlainText(bookingRef)}`
+          );
+          window.open(
+            `https://wa.me/923214800265?text=${textWithPreview}`,
+            '_blank',
+            'noopener,noreferrer'
+          );
+        }
+      }
+
+      // 4. Also save the booking & photos in Firebase Firestore for permanent Admin records
+      try {
+        const photoTitles = uploadedSlots.map((s) => s.title.slice(0, 120));
+        const photosDataUrls = uploadedSlots.map((s) =>
+          s.previewUrl!.slice(0, 245000)
+        );
+
+        await setDoc(doc(db, 'service_bookings', bookingRef), {
+          bookingId: bookingRef,
+          serviceType,
+          customerName: customerName.trim().slice(0, 200),
+          contactNumber: contactNumber.trim().slice(0, 40),
+          address: address.trim().slice(0, 500),
+          description: description.trim().slice(0, 2000),
+          photoTitles,
+          photos: photosDataUrls,
+          status: 'New Request',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        const manifestRef = doc(db, 'booking_index', 'active_manifest');
+        const existingSnap = await getDoc(manifestRef);
+        const existingIds: string[] = existingSnap.exists()
+          ? (existingSnap.data().bookingIds as string[]) || []
+          : [];
+        const updatedIds = Array.from(
+          new Set([...existingIds, bookingRef])
+        ).slice(-950);
+        await setDoc(manifestRef, {
+          manifestId: 'active_manifest',
+          bookingIds: updatedIds,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // Non-blocking Firestore backup
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResetBooking = () => {
     setSubmittedBookingId(null);
+    setSentDirectlyByServer(false);
+    setGeneratedCollage(null);
     setCustomerName('');
     setContactNumber('');
     setAddress('');
     setDescription('');
     setPhotoSlots(INITIAL_PHOTO_SLOTS);
-  };
-
-  const whatsappBookingSummaryHref = () => {
-    return buildWhatsAppNotificationUrl(submittedBookingId || 'SZGH-BK');
   };
 
   return (
@@ -217,21 +764,182 @@ export const RetrofitBookingSection: React.FC = () => {
     >
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="mb-10">
-          <div className="text-xs font-semibold text-[#0D5C2B] dark:text-emerald-400 mb-1">
-            On-Site Engineering Assessment · SZGH Pakistan (KH Enterprises Pvt Ltd)
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold text-[#0D5C2B] dark:text-emerald-400 mb-1">
+              On-Site Engineering Assessment · SZGH Pakistan (KH Enterprises Pvt Ltd)
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              CNC Retrofit &amp; Machine Maintenance Booking
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+              Book our field engineering team for a complete CNC retrofit overhaul or emergency machine maintenance. Upload up to 6 photos of your existing machine components—your pictures and details are sent directly to our WhatsApp in a high-resolution collage and separate photos.
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            CNC Retrofit &amp; Machine Maintenance Booking
-          </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
-            Book our field engineering team for a complete CNC retrofit overhaul or emergency machine maintenance. Upload up to 6 photos of your existing machine components so our engineers arrive with the exact matching controller, drives, and adapter plates.
-          </p>
+
+          {/* Admin-Only WhatsApp Direct Auto-Sender Connection Button (Hidden from Customers) */}
+          {isAdminUser && (
+            <button
+              type="button"
+              onClick={() => setShowWhatsAppSetup((prev) => !prev)}
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-md border text-xs font-bold transition-colors cursor-pointer ${
+                waServerStatus?.status === 'connected'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-[#0D5C2B] dark:text-emerald-300'
+                  : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="Admin Only: Configure automatic server-to-WhatsApp direct image delivery"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>
+                {waServerStatus?.status === 'connected'
+                  ? 'Admin: WhatsApp Direct Sender Active'
+                  : 'Admin: Setup Direct WhatsApp Sender'}
+              </span>
+            </button>
+          )}
         </div>
 
+        {/* Admin-Only Collapsible Panel to Link WhatsApp Direct Auto-Sender Once */}
+        {isAdminUser && showWhatsAppSetup && (
+          <div className="mb-8 p-6 rounded-xl bg-white dark:bg-slate-900 border-2 border-[#1E2985] dark:border-emerald-500 shadow-lg space-y-5">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div>
+                <div className="text-xs font-mono-tabular uppercase font-bold text-[#0D5C2B] dark:text-emerald-400">
+                  SERVER-SIDE DIRECT WHATSAPP PHOTO ENGINE (+92 321 4800265)
+                </div>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white mt-0.5">
+                  Automatic Direct Picture Delivery (Collage + All 6 Separate Photos)
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-3xl">
+                  Link your WhatsApp once below (just like WhatsApp Web). Once connected, whenever any customer submits the Maintenance or Retrofitting form on your website, the server automatically sends the <strong>Labeled Photo Collage</strong> and <strong>All 6 Separate Photos</strong> directly into your <strong>+92 321 4800265</strong> WhatsApp chat—customers don&apos;t have to press Ctrl+V or do anything!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWhatsAppSetup(false)}
+                className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {waSetupError && (
+              <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/60 border border-red-300 dark:border-red-800 text-xs font-semibold text-red-700 dark:text-red-300">
+                {waSetupError}
+              </div>
+            )}
+
+            {waServerStatus?.status === 'connected' ? (
+              <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-7 h-7 text-[#0D5C2B] dark:text-emerald-400 shrink-0" />
+                  <div>
+                    <div className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      Connected &amp; Ready — Direct Pictures Land Automatically in +92 321 4800265
+                    </div>
+                    <div className="text-xs text-slate-600 dark:text-slate-300">
+                      Linked Account: <span className="font-mono-tabular font-bold">{waServerStatus.connectedUserJid}</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDisconnectWhatsApp}
+                  disabled={loadingWaStatus}
+                  className="px-3.5 py-2 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Disconnect WhatsApp
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {/* Option 1: Scan QR Code */}
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-extrabold text-slate-900 dark:text-white">
+                      <QrCode className="w-4 h-4 text-[#1E2985] dark:text-emerald-400" />
+                      <span>Option 1: Scan WhatsApp QR Code</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleStartQrConnect}
+                      disabled={loadingWaStatus}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#1E2985] hover:bg-[#151d63] text-white text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      <RefreshCw
+                        className={`w-3.5 h-3.5 ${loadingWaStatus ? 'animate-spin' : ''}`}
+                      />
+                      <span>Generate QR Code</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Open WhatsApp on your phone → <strong>Linked Devices</strong> → <strong>Link a Device</strong> and scan this QR code:
+                  </p>
+                  {waServerStatus?.qrDataUrl ? (
+                    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg border border-slate-200">
+                      <img
+                        src={waServerStatus.qrDataUrl}
+                        alt="WhatsApp Link QR Code"
+                        className="w-52 h-52 object-contain"
+                      />
+                      <span className="text-[11px] font-bold text-[#0D5C2B] mt-2">
+                        Scan with WhatsApp to enable automatic direct photo delivery
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="h-44 flex items-center justify-center rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-500">
+                      {loadingWaStatus
+                        ? 'Generating WhatsApp QR Code...'
+                        : 'Click "Generate QR Code" above to display the QR code'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Option 2: Link with 8-Digit Phone Pairing Code */}
+                <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-extrabold text-slate-900 dark:text-white">
+                    <Smartphone className="w-4 h-4 text-[#0D5C2B] dark:text-emerald-400" />
+                    <span>Option 2: Link via 8-Digit Phone Pairing Code</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Or enter your WhatsApp number (with country code, e.g. <strong>923214800265</strong>) and tap <strong>Get Pairing Code</strong> to link on your phone without scanning a QR:
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={pairingPhoneInput}
+                      onChange={(e) => setPairingPhoneInput(e.target.value)}
+                      placeholder="923214800265"
+                      className="flex-1 px-3 py-2 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono-tabular text-slate-900 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRequestPhonePairingCode}
+                      disabled={requestingPairCode}
+                      className="px-3.5 py-2 rounded bg-[#0D5C2B] hover:bg-[#094720] text-white text-xs font-bold transition-colors cursor-pointer shrink-0"
+                    >
+                      {requestingPairCode ? 'Requesting...' : 'Get Pairing Code'}
+                    </button>
+                  </div>
+                  {waServerStatus?.pairingCode && (
+                    <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-center space-y-1">
+                      <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                        Enter this 8-character code in WhatsApp → Linked Devices → Link with phone number instead:
+                      </div>
+                      <div className="text-2xl font-mono-tabular font-black tracking-widest text-[#0D5C2B] dark:text-emerald-400">
+                        {waServerStatus.pairingCode}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {submittedBookingId ? (
-          /* Booking Confirmation State */
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-6 sm:p-10 max-w-3xl mx-auto space-y-6">
+          /* Clean, Zero-Headache Customer Confirmation State */
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-6 sm:p-10 max-w-4xl mx-auto space-y-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-[#0D5C2B] dark:text-emerald-400 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="w-7 h-7" />
@@ -241,55 +949,109 @@ export const RetrofitBookingSection: React.FC = () => {
                   BOOKING REFERENCE #{submittedBookingId}
                 </div>
                 <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-0.5">
-                  {serviceType === 'Retrofitting'
-                    ? 'CNC Machine Retrofitting Booking Received'
-                    : 'Machine Maintenance Booking Received'}
+                  {sentDirectlyByServer
+                    ? 'Your Request & Machine Photos Have Been Sent Directly to Our WhatsApp!'
+                    : `${serviceType} Request & Photo Collage Prepared for WhatsApp`}
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1">
-                  Thank you, <strong>{customerName}</strong>. Our senior CNC retrofit engineer will review your {uploadedCount} uploaded machine photo(s) and contact you at <strong className="font-mono-tabular">{contactNumber}</strong> shortly.
+                  Thank you, <strong>{customerName}</strong>. Our engineering team at <strong>SZGH Pakistan (+92 321 4800265)</strong> has received your machine details along with your {uploadedCount} inspection photo(s) and will contact you at <strong className="font-mono-tabular">{contactNumber}</strong> shortly.
                 </p>
               </div>
             </div>
 
-            {/* Uploaded Photos Preview in Receipt */}
-            <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
-              <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Attached Machine Inspection Photos ({uploadedCount} / 6):
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                {photoSlots
-                  .filter((s) => Boolean(s.previewUrl))
-                  .map((slot) => (
+            {/* Preview of the Generated Collage Picture & Separate Photos */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start p-4 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              {generatedCollage && (
+                <div className="md:col-span-7 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                      Generated Machine Inspection Photo Collage ({uploadedCount} Photos):
+                    </span>
+                    <a
+                      href={generatedCollage.collageDataUrl}
+                      download={`${submittedBookingId}-Collage.jpg`}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-[#0D5C2B] dark:text-emerald-400 hover:underline"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download Collage</span>
+                    </a>
+                  </div>
+                  <div className="rounded-lg border border-slate-300 dark:border-slate-700 overflow-hidden bg-slate-950">
+                    <img
+                      src={generatedCollage.collageDataUrl}
+                      alt="Machine Inspection Collage"
+                      className="w-full max-h-80 object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="md:col-span-5 space-y-2">
+                <div className="text-xs font-extrabold text-slate-900 dark:text-white">
+                  Individual Attached Photos ({uploadedCount} / 6):
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {uploadedSlots.map((slot) => (
                     <div
                       key={slot.slotIndex}
-                      className="rounded border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900"
+                      className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900"
                     >
                       <img
                         src={slot.previewUrl}
                         alt={slot.title}
-                        className="w-full h-20 object-cover"
+                        className="w-full h-20 object-cover bg-slate-950"
                       />
-                      <div className="p-1.5 text-[10px] font-medium text-slate-600 dark:text-slate-400 truncate">
+                      <div className="p-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate">
                         {slot.title}
                       </div>
                     </div>
                   ))}
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            {/* Clean Action Buttons */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const shared = await handleMobileDirectPhotoShare(
+                    submittedBookingId,
+                    generatedCollage?.collageFile
+                  );
+                  if (!shared) {
+                    const textWithPreview = encodeURIComponent(
+                      `${window.location.origin}/?booking=${submittedBookingId}\n\n${buildWhatsAppPlainText(submittedBookingId)}`
+                    );
+                    window.open(
+                      `https://wa.me/923214800265?text=${textWithPreview}`,
+                      '_blank',
+                      'noopener,noreferrer'
+                    );
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-[5px] bg-[#0D5C2B] hover:bg-[#094720] text-white text-xs sm:text-sm font-bold transition-colors cursor-pointer"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Send Collage &amp; Photos via WhatsApp App</span>
+              </button>
+
               <a
-                href={whatsappBookingSummaryHref()}
+                href={`https://wa.me/923214800265?text=${encodeURIComponent(
+                  `${window.location.origin}/?booking=${submittedBookingId}\n\n${buildWhatsAppPlainText(submittedBookingId)}`
+                )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-5 py-2.5 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white text-xs sm:text-sm font-normal transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-3 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white text-xs sm:text-sm font-bold transition-colors"
               >
-                Send Booking Summary on WhatsApp (+92 321 4800265)
+                <ExternalLink className="w-4 h-4" />
+                <span>Open Direct Chat (+92 321 4800265)</span>
               </a>
+
               <button
                 type="button"
                 onClick={handleResetBooking}
-                className="px-4 py-2.5 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-xs font-normal text-white transition-colors cursor-pointer"
+                className="px-4 py-3 rounded-[5px] bg-[#0068AD] hover:bg-[#00558F] text-xs font-semibold text-white transition-colors cursor-pointer ml-auto"
               >
                 Submit Another Machine Booking
               </button>
@@ -418,7 +1180,7 @@ export const RetrofitBookingSection: React.FC = () => {
               </div>
             </div>
 
-            {/* Right 7 Cols: 6-Photo Machine Inspection Uploading Section with Instructions */}
+            {/* Right 7 Cols: 6-Photo Machine Inspection Uploading Section with Collage / Separate Selector */}
             <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-6 sm:p-7 space-y-6">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div>
@@ -426,7 +1188,7 @@ export const RetrofitBookingSection: React.FC = () => {
                     2. Upload Machine Photos (6-Photo Capacity)
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Click any slot below or use bulk upload to attach up to 6 clear photos
+                    Upload up to 6 photos—sent directly to our WhatsApp in a labeled collage &amp; separate photos
                   </p>
                 </div>
 
@@ -450,6 +1212,64 @@ export const RetrofitBookingSection: React.FC = () => {
                     <Upload className="w-3.5 h-3.5 text-white" />
                     <span>Select Multiple Photos</span>
                   </button>
+                </div>
+              </div>
+
+              {/* WhatsApp Photo Delivery Mode Selector: Collage + Separate / Collage Only / Separate Only */}
+              <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  WhatsApp Direct Picture Format:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {[
+                    {
+                      id: 'collage_and_separate' as DeliveryFormat,
+                      label: 'Collage + Separate Photos',
+                      desc: 'Sends 1 combined collage + all photos',
+                    },
+                    {
+                      id: 'collage_only' as DeliveryFormat,
+                      label: 'Single Collage Picture',
+                      desc: 'All uploaded photos in 1 grid image',
+                    },
+                    {
+                      id: 'separate_only' as DeliveryFormat,
+                      label: 'All 6 Photos Separately',
+                      desc: 'Sends each uploaded photo individually',
+                    },
+                  ].map((opt) => {
+                    const active = deliveryFormat === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setDeliveryFormat(opt.id)}
+                        className={`p-2.5 rounded-md border text-left transition-all cursor-pointer flex items-start gap-2 ${
+                          active
+                            ? 'border-[#0D5C2B] dark:border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/40'
+                            : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300'
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded-full flex items-center justify-center mt-0.5 shrink-0 ${
+                            active
+                              ? 'bg-[#0D5C2B] text-white'
+                              : 'border border-slate-300 dark:border-slate-600'
+                          }`}
+                        >
+                          {active && <Check className="w-2.5 h-2.5" />}
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-extrabold text-slate-900 dark:text-white">
+                            {opt.label}
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                            {opt.desc}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -493,7 +1313,9 @@ export const RetrofitBookingSection: React.FC = () => {
                         }}
                         type="file"
                         accept="image/*"
-                        onChange={(e) => handleSingleSlotFileChange(slot.slotIndex, e)}
+                        onChange={(e) =>
+                          handleSingleSlotFileChange(slot.slotIndex, e)
+                        }
                         className="hidden"
                       />
 
@@ -516,7 +1338,9 @@ export const RetrofitBookingSection: React.FC = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => fileInputRefs.current[slot.slotIndex]?.click()}
+                          onClick={() =>
+                            fileInputRefs.current[slot.slotIndex]?.click()
+                          }
                           className="aspect-4/3 w-full flex flex-col items-center justify-center p-4 text-center cursor-pointer"
                         >
                           <ImageIcon className="w-7 h-7 text-slate-400 mb-2" />
@@ -551,9 +1375,17 @@ export const RetrofitBookingSection: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 px-6 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] text-white text-sm font-normal transition-colors cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full py-3.5 px-6 rounded-[5px] bg-[#E77817] hover:bg-[#d1680f] disabled:opacity-60 text-white text-sm font-bold transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
-                Submit Form
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Sending Collage &amp; Photos Directly to WhatsApp...</span>
+                  </>
+                ) : (
+                  <span>Submit Request &amp; Send Photos Directly to WhatsApp</span>
+                )}
               </button>
             </div>
           </form>

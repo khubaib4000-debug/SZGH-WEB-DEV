@@ -2,7 +2,7 @@
   "entities": {
     "InventoryItem": {
       "title": "InventoryItem",
-      "description": "Live product listing, stock quantity, price, 4-image gallery, and default display image index managed by SZGH Pakistan administrators.",
+      "description": "Live product listing, stock quantity, price, 4-to-6 image gallery (including A+B / C+E panel pictures), and default display image index managed by SZGH Pakistan administrators.",
       "type": "object",
       "properties": {
         "productId": {
@@ -16,13 +16,13 @@
           "type": "string",
           "description": "Official SZGH model number.",
           "minLength": 1,
-          "maxLength": 120
+          "maxLength": 160
         },
         "title": {
           "type": "string",
           "description": "Product display title (can be empty if not provided in Excel stock list).",
           "minLength": 0,
-          "maxLength": 200
+          "maxLength": 300
         },
         "category": {
           "type": "string",
@@ -33,13 +33,13 @@
           "type": "string",
           "description": "Technical subcategory label (can be empty if not provided in Excel stock list).",
           "minLength": 0,
-          "maxLength": 120
+          "maxLength": 160
         },
         "description": {
           "type": "string",
-          "description": "Product technical description (can be empty if not provided in Excel stock list).",
+          "description": "Product technical description including ATC / Absolute support and specifications.",
           "minLength": 0,
-          "maxLength": 1500
+          "maxLength": 2500
         },
         "price": {
           "type": "integer",
@@ -56,11 +56,11 @@
         },
         "defaultImageIndex": {
           "type": "integer",
-          "description": "Index (0 to 3) of the highlighted default image displayed on product cards."
+          "description": "Index (0 to 5) of the highlighted default image displayed on product cards."
         },
         "images": {
           "type": "array",
-          "description": "Array of up to 4 product image URLs or compressed data URLs."
+          "description": "Array of up to 6 product image URLs or compressed data URLs (4 series images + up to 2 panel images)."
         },
         "updatedBy": {
           "type": "string",
@@ -314,6 +314,98 @@
         }
       },
       "required": ["uid", "role", "createdAt"]
+    },
+    "ServiceBooking": {
+      "title": "ServiceBooking",
+      "description": "Customer CNC Retrofitting or Machine Maintenance booking request with up to 6 attached machine inspection photos shared via WhatsApp.",
+      "type": "object",
+      "properties": {
+        "bookingId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "serviceType": {
+          "type": "string",
+          "enum": ["Retrofitting", "Maintenance"]
+        },
+        "customerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "contactNumber": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 40
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "description": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "photoTitles": {
+          "type": "array",
+          "description": "Labels for each attached machine inspection photo."
+        },
+        "photos": {
+          "type": "array",
+          "description": "Array of 1 to 6 compressed machine inspection photo data URLs."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["New Request", "Reviewed", "Engineer Dispatched", "Completed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "bookingId",
+        "serviceType",
+        "customerName",
+        "contactNumber",
+        "address",
+        "description",
+        "photoTitles",
+        "photos",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BookingManifest": {
+      "title": "BookingManifest",
+      "description": "Manifest of submitted retrofitting and maintenance booking IDs.",
+      "type": "object",
+      "properties": {
+        "manifestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "bookingIds": {
+          "type": "array",
+          "description": "Bounded list of service booking document IDs."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["manifestId", "bookingIds", "updatedAt"]
     }
   },
   "firestore": {
@@ -321,7 +413,7 @@
       "schema": {
         "$ref": "#/entities/InventoryItem"
       },
-      "description": "Stores live product details, stock quantities, PKR prices, 4-photo arrays, and default image index for each product ID."
+      "description": "Stores live product details, stock quantities, PKR prices, 4-to-6 photo arrays, and default image index for each product ID."
     },
     "/catalog_index/{manifestId}": {
       "schema": {
@@ -346,6 +438,18 @@
         "$ref": "#/entities/AdminUser"
       },
       "description": "Trusted administrator lookup collection."
+    },
+    "/service_bookings/{bookingId}": {
+      "schema": {
+        "$ref": "#/entities/ServiceBooking"
+      },
+      "description": "Stores customer retrofitting and maintenance requests along with attached machine inspection photos."
+    },
+    "/booking_index/{manifestId}": {
+      "schema": {
+        "$ref": "#/entities/BookingManifest"
+      },
+      "description": "Stores the active manifest of service booking IDs."
     }
   }
 }
