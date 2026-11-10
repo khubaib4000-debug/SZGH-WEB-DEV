@@ -1384,7 +1384,7 @@ export const RetrofitBookingSection: React.FC = () => {
                     <span>Sending Collage &amp; Photos Directly to WhatsApp...</span>
                   </>
                 ) : (
-                  <span>Submit Request &amp; Send Photos Directly to WhatsApp</span>
+                  <span>Submit Request</span>
                 )}
               </button>
             </div>
