@@ -415,7 +415,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '2-axis Lathe Controller with (C+E Panel) without I/O',
     description:
       '2-axis lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDb CNC lathe controller with (C+E Panel) without I/O, featuring 8.4-inch color TFT LCD, constant surface speed (G96), and tactile rotary feed/spindle override dials.',
-    pricePKR: 166000,
+    pricePKR: 162000,
     isAbsolute: false,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -425,7 +425,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '3-axis Lathe Controller with (C+E Panel) without I/O',
     description:
       '3-axis lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDb CNC lathe controller with (C+E Panel) without I/O, featuring 8.4-inch color TFT LCD, constant surface speed (G96), and tactile rotary feed/spindle override dials.',
-    pricePKR: 192000,
+    pricePKR: 187000,
     isAbsolute: false,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -435,7 +435,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '4-axis Lathe Controller with (C+E Panel) without I/O',
     description:
       '4-axis lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDb CNC lathe controller with (C+E Panel) without I/O, featuring 8.4-inch color TFT LCD, constant surface speed (G96), and tactile rotary feed/spindle override dials.',
-    pricePKR: 218000,
+    pricePKR: 213000,
     isAbsolute: false,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -445,7 +445,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '5-axis Lathe Controller with (C+E Panel) without I/O',
     description:
       '5-axis lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDb CNC lathe controller with (C+E Panel) without I/O, featuring 8.4-inch color TFT LCD, constant surface speed (G96), and tactile rotary feed/spindle override dials.',
-    pricePKR: 283000,
+    pricePKR: 278000,
     isAbsolute: false,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -499,7 +499,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '2-axis Absolute Lathe Controller with (C+E Panel) without I/O',
     description:
       '2-axis Absolute Lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDc Absolute CNC lathe controller with (C+E Panel) without I/O, featuring multi-turn Absolute encoder support, 8.4-inch color TFT LCD, and rotary feed/spindle override dials.',
-    pricePKR: 188000,
+    pricePKR: 191000,
     isAbsolute: true,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -509,7 +509,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '3-axis Absolute Lathe Controller with (C+E Panel) without I/O',
     description:
       '3-axis Absolute Lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDc Absolute CNC lathe controller with (C+E Panel) without I/O, featuring multi-turn Absolute encoder support, 8.4-inch color TFT LCD, and rotary feed/spindle override dials.',
-    pricePKR: 214000,
+    pricePKR: 217000,
     isAbsolute: true,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -519,7 +519,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '4-axis Absolute Lathe Controller with (C+E Panel) without I/O',
     description:
       '4-axis Absolute Lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDc Absolute CNC lathe controller with (C+E Panel) without I/O, featuring multi-turn Absolute encoder support, 8.4-inch color TFT LCD, and rotary feed/spindle override dials.',
-    pricePKR: 240000,
+    pricePKR: 243000,
     isAbsolute: true,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -529,7 +529,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '5-axis Absolute Lathe Controller with (C+E Panel) without I/O',
     description:
       '5-axis Absolute Lathe with (C+E Panel) without I/O. High-precision SZGH-CNC1000TDc Absolute CNC lathe controller with (C+E Panel) without I/O, featuring multi-turn Absolute encoder support, 8.4-inch color TFT LCD, and rotary feed/spindle override dials.',
-    pricePKR: 299000,
+    pricePKR: 293496,
     isAbsolute: true,
     supportsATC: false,
     subcategory: 'Lathe controller',
@@ -701,7 +701,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '3-axis Milling Controller with (C+E Panel) Without I/O',
     description:
       '3-axis Milling with (C+E Panel) Without I/O. Industrial SZGH-CNC1000MDb CNC milling and drilling controller with (C+E Panel) Without I/O, featuring 8.4-inch color TFT LCD, rotary feed/spindle override dials, and USB DNC interface.',
-    pricePKR: 192000,
+    pricePKR: 187000,
     isAbsolute: false,
     supportsATC: false,
     subcategory: 'Drilling and milling machine CNC controller',
@@ -711,7 +711,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '4-axis Milling Controller with (C+E Panel) Without I/O',
     description:
       '4-axis Milling with (C+E Panel) Without I/O. Industrial SZGH-CNC1000MDb CNC milling and drilling controller with (C+E Panel) Without I/O, featuring 8.4-inch color TFT LCD, rotary feed/spindle override dials, and USB DNC interface.',
-    pricePKR: 218000,
+    pricePKR: 212000,
     isAbsolute: false,
     supportsATC: false,
     subcategory: 'Drilling and milling machine CNC controller',
@@ -721,7 +721,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '5-axis Milling Controller with (C+E Panel) Without I/O',
     description:
       '5-axis Milling with (C+E Panel) Without I/O. Industrial SZGH-CNC1000MDb CNC milling and drilling controller with (C+E Panel) Without I/O, featuring 8.4-inch color TFT LCD, rotary feed/spindle override dials, and USB DNC interface.',
-    pricePKR: 284730,
+    pricePKR: 278000,
     isAbsolute: false,
     supportsATC: false,
     subcategory: 'Drilling and milling machine CNC controller',
@@ -765,7 +765,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '3-axis Absolute Milling Controller without panel Without I/O (C+E Panel)',
     description:
       '3-axis Absolute milling without panel Without I/O (C+E Panel). High-performance SZGH-CNC1000MDc Absolute CNC milling and drilling controller (C+E Panel) Without I/O, featuring multi-turn Absolute encoder support, 8.4-inch color TFT LCD, and real-time 3D toolpath tracking.',
-    pricePKR: 213000,
+    pricePKR: 217000,
     isAbsolute: true,
     supportsATC: false,
     subcategory: 'Drilling and milling machine CNC controller',
@@ -775,7 +775,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '4-axis Absolute Milling Controller without panel Without I/O (C+E Panel)',
     description:
       '4-axis Absolute milling without panel Without I/O (C+E Panel). High-performance SZGH-CNC1000MDc Absolute CNC milling and drilling controller (C+E Panel) Without I/O, featuring multi-turn Absolute encoder support, 8.4-inch color TFT LCD, and real-time 3D toolpath tracking.',
-    pricePKR: 239000,
+    pricePKR: 242000,
     isAbsolute: true,
     supportsATC: false,
     subcategory: 'Drilling and milling machine CNC controller',
@@ -785,7 +785,7 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     spec: '5-axis Absolute Milling Controller without panel Without I/O (C+E Panel)',
     description:
       '5-axis Absolute milling without panel Without I/O (C+E Panel). High-performance SZGH-CNC1000MDc Absolute CNC milling and drilling controller (C+E Panel) Without I/O, featuring multi-turn Absolute encoder support, 8.4-inch color TFT LCD, and real-time 3D toolpath tracking.',
-    pricePKR: 305000,
+    pricePKR: 350000,
     isAbsolute: true,
     supportsATC: false,
     subcategory: 'Drilling and milling machine CNC controller',
@@ -1093,11 +1093,70 @@ export function buildServoMotorConfigOptions(
   ];
 }
 
+export const PANEL_CE_PRICE_DELTA_PKR = 20000;
+
+export interface PanelPricingMap {
+  A: number;
+  B: number;
+  C: number;
+  E: number;
+  defaultDisplayPrice?: number;
+}
+
+export function buildPanelPricesFromBase(basePrice: number): PanelPricingMap {
+  const p = Math.max(0, Math.round(basePrice || 0));
+  return {
+    A: p,
+    B: p,
+    C: p > 0 ? p + PANEL_CE_PRICE_DELTA_PKR : 0,
+    E: p > 0 ? p + PANEL_CE_PRICE_DELTA_PKR : 0,
+    defaultDisplayPrice: p,
+  };
+}
+
+export function buildPanelPricesFromCE(cePrice: number): PanelPricingMap {
+  const p = Math.max(0, Math.round(cePrice || 0));
+  const ab = p > 0 ? Math.max(0, p - PANEL_CE_PRICE_DELTA_PKR) : 0;
+  return {
+    A: ab,
+    B: ab,
+    C: p,
+    E: p,
+    defaultDisplayPrice: p,
+  };
+}
+
+export function stripPanelInfoFromText(text?: string): string {
+  if (!text) return '';
+  return text
+    .replace(
+      /\s*\bwith\s*[\(\（]?\s*(?:A\s*[\+\/&,\s]\s*B|C\s*[\+\/&,\s]\s*E|A|B|C|E)\s*[-–]?\s*panel\s*[\)\）]?/gi,
+      ''
+    )
+    .replace(
+      /\s*[\(\（]\s*(?:panel\s*)?(?:A\s*[\+\/&,\s]\s*B|C\s*[\+\/&,\s]\s*E|A|B|C|E)\s*[-–]?\s*(?:panel)?\s*[\)\）]/gi,
+      ''
+    )
+    .replace(
+      /\b(?:A\s*[\+\/&]\s*B|C\s*[\+\/&]\s*E)\s*[-–]?\s*panel\b/gi,
+      ''
+    )
+    .replace(
+      /\bpanel\s*(?:A\s*[\+\/&]\s*B|C\s*[\+\/&]\s*E)\b/gi,
+      ''
+    )
+    .replace(/\s*,?\s*\b(?:with|without)\s+panel\b/gi, '')
+    .replace(/\s+,/g, ',')
+    .replace(/\s+\./g, '.')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function canonicalRateKey(modelNumber: string): string {
   return (modelNumber || '')
     .toUpperCase()
-    .replace(/\s*[\(\（]\s*A\s*[\+\/]\s*B\s*[-–]?\s*PANEL\s*[\)\）]/gi, '__AB_PANEL')
-    .replace(/\s*[\(\（]\s*C\s*[\+\/]\s*E\s*[-–]?\s*PANEL\s*[\)\）]/gi, '__CE_PANEL')
+    .replace(/\s*[\(\（]\s*A\s*[\+\/&,\s]\s*B\s*[-–]?\s*(?:PANEL)?\s*[\)\）]/gi, '__AB_PANEL')
+    .replace(/\s*[\(\（]\s*C\s*[\+\/&,\s]\s*E\s*[-–]?\s*(?:PANEL)?\s*[\)\）]/gi, '__CE_PANEL')
     .replace(/\s*[\(\（]\s*C\s*[-–]?\s*PANEL\s*[\)\）]/gi, '__C_PANEL')
     .replace(/^SZGH[-\s]*CNC[-\s]*/i, '')
     .replace(/^SGZH[-\s]*CNC[-\s]*/i, '')
@@ -1105,20 +1164,102 @@ function canonicalRateKey(modelNumber: string): string {
     .replace(/^SGZH[-\s]*/i, '')
     .replace(/^GH[-\s]*/i, '')
     .replace(/^CNC[-\s]*/i, '')
-    .replace(/[\s_]+/g, '');
+    .replace(/[-\s_]+/g, '');
 }
 
 const CONTROLLER_ROW_BY_KEY = new Map<string, ControllerRateRow>();
+const CONTROLLER_ROWS_BY_SERIES_KEY = new Map<string, ControllerRateRow[]>();
+const PANEL_PRICES_BY_NO_PANEL_KEY = new Map<string, PanelPricingMap>();
+const RAW_PANEL_PAIR_BY_KEY = new Map<
+  string,
+  { abPrice?: number; cePrice?: number; seriesKey?: string }
+>();
+
 for (const row of CONTROLLER_RATE_LIST_2026) {
-  CONTROLLER_ROW_BY_KEY.set(canonicalRateKey(row.modelNumber), row);
-  // Also map without panel suffix if it is the default A+B Panel variant
-  if (row.modelNumber.includes('(A+B Panel)')) {
-    const withoutPanel = row.modelNumber.replace(/\s*\(A\+B Panel\)/i, '').trim();
-    const keyNoPanel = canonicalRateKey(withoutPanel);
-    if (!CONTROLLER_ROW_BY_KEY.has(keyNoPanel)) {
-      CONTROLLER_ROW_BY_KEY.set(keyNoPanel, row);
-    }
+  const fullKey = canonicalRateKey(row.modelNumber);
+  CONTROLLER_ROW_BY_KEY.set(fullKey, row);
+
+  const withoutPanel = stripPanelInfoFromText(row.modelNumber);
+  const keyNoPanel = canonicalRateKey(withoutPanel);
+  if (!CONTROLLER_ROW_BY_KEY.has(keyNoPanel)) {
+    CONTROLLER_ROW_BY_KEY.set(keyNoPanel, row);
   }
+
+  // Also index by series key without trailing axis digit (e.g. "1000TDB", "1000TDC", "1000MDB", "1000MDC", "1000MDCB")
+  const seriesKey = keyNoPanel.replace(/[1-8](?:\([A-Z]+\))?$/i, '');
+  if (seriesKey && seriesKey !== keyNoPanel) {
+    const list = CONTROLLER_ROWS_BY_SERIES_KEY.get(seriesKey) || [];
+    list.push(row);
+    CONTROLLER_ROWS_BY_SERIES_KEY.set(seriesKey, list);
+  }
+
+  const isAB = /\(A\+B Panel\)/i.test(row.modelNumber);
+  const isCE = /\(C\+E Panel\)/i.test(row.modelNumber);
+  const isCPanel = /\(C Panel\)/i.test(row.modelNumber);
+  const is1080SeriesPanelModel =
+    /1080[-\s_]*(?:TC|TIC|TDB|TDC|MC|MIC|MDB|MDC)/i.test(row.modelNumber);
+
+  if (isAB || isCE || isCPanel) {
+    const pair = RAW_PANEL_PAIR_BY_KEY.get(keyNoPanel) || { seriesKey };
+    if (isAB) {
+      pair.abPrice = row.pricePKR;
+    } else {
+      pair.cePrice = row.pricePKR;
+    }
+    RAW_PANEL_PAIR_BY_KEY.set(keyNoPanel, pair);
+  } else if (is1080SeriesPanelModel) {
+    const pair = RAW_PANEL_PAIR_BY_KEY.get(keyNoPanel) || { seriesKey };
+    if (pair.abPrice === undefined) {
+      pair.abPrice = row.pricePKR;
+    }
+    RAW_PANEL_PAIR_BY_KEY.set(keyNoPanel, pair);
+  }
+}
+
+for (const [keyNoPanel, pair] of RAW_PANEL_PAIR_BY_KEY.entries()) {
+  let prices: PanelPricingMap;
+  if (pair.abPrice !== undefined && pair.cePrice !== undefined) {
+    // Master PDF Rate List has both (A+B Panel) and (C+E Panel) prices
+    prices = {
+      A: pair.abPrice,
+      B: pair.abPrice,
+      C: pair.cePrice,
+      E: pair.cePrice,
+      defaultDisplayPrice: pair.abPrice,
+    };
+  } else if (pair.abPrice !== undefined) {
+    // Only A+B (or base) Panel price given -> add +20,000 when C or E is selected
+    prices = buildPanelPricesFromBase(pair.abPrice);
+  } else if (pair.cePrice !== undefined) {
+    // Only C+E (or C) Panel price given -> reduce by 20,000 when A or B is selected
+    prices = buildPanelPricesFromCE(pair.cePrice);
+  } else {
+    continue;
+  }
+
+  PANEL_PRICES_BY_NO_PANEL_KEY.set(keyNoPanel, prices);
+  if (pair.seriesKey && !PANEL_PRICES_BY_NO_PANEL_KEY.has(pair.seriesKey)) {
+    PANEL_PRICES_BY_NO_PANEL_KEY.set(pair.seriesKey, prices);
+  }
+}
+
+export function resolvePanelPricesForModel(
+  modelNumber?: string,
+  fallbackBasePrice?: number,
+  rawPanelType?: 'AB' | 'CE' | 'NONE'
+): PanelPricingMap | undefined {
+  if (modelNumber) {
+    const withoutPanel = stripPanelInfoFromText(modelNumber);
+    const keyNoPanel = canonicalRateKey(withoutPanel);
+    const fromMap = PANEL_PRICES_BY_NO_PANEL_KEY.get(keyNoPanel);
+    if (fromMap) return fromMap;
+  }
+  if (fallbackBasePrice && fallbackBasePrice > 0) {
+    return rawPanelType === 'CE'
+      ? buildPanelPricesFromCE(fallbackBasePrice)
+      : buildPanelPricesFromBase(fallbackBasePrice);
+  }
+  return undefined;
 }
 
 const SERVO_MOTOR_BY_KEY = new Map<string, ServoMotorRateRow>();
@@ -1142,6 +1283,7 @@ export function resolveOfficialRateListPricing(item: {
   modelNumber?: string;
   title?: string;
   description?: string;
+  price?: number;
 }): {
   price?: number;
   title?: string;
@@ -1149,6 +1291,7 @@ export function resolveOfficialRateListPricing(item: {
   subcategory?: string;
   features?: string[];
   servoConfigOptions?: ServoMotorConfigOption[];
+  panelPrices?: PanelPricingMap;
 } {
   const rawModel = (item.modelNumber || '').trim();
   if (!rawModel) return {};
@@ -1169,15 +1312,54 @@ export function resolveOfficialRateListPricing(item: {
   }
 
   const key = canonicalRateKey(rawModel);
+  let keyNoPanel = canonicalRateKey(stripPanelInfoFromText(rawModel));
 
-  const controllerRow = CONTROLLER_ROW_BY_KEY.get(key);
+  let controllerRow =
+    CONTROLLER_ROW_BY_KEY.get(key) || CONTROLLER_ROW_BY_KEY.get(keyNoPanel);
+
+  // If the modelNumber in Firestore has no trailing axis digit (e.g., "SZGH1000-TDB", "SZGH1000-TDC", "SZGH-1000MDB", "SZGH-1000MDC", "SZGH-1000MDCB"),
+  // resolve the axis from title/description (or price) so the exact axis rate row & panelPrices are matched.
+  if (controllerRow === undefined) {
+    const combinedText = `${rawModel} ${item.title || ''} ${item.description || ''}`;
+    const axisMatch = combinedText.match(/\b([1-8])\s*[-–]?\s*(?:ax(?:is|es)|dof)\b/i);
+    if (axisMatch) {
+      const candidateKeyWithAxis = `${keyNoPanel}${axisMatch[1]}`;
+      controllerRow = CONTROLLER_ROW_BY_KEY.get(candidateKeyWithAxis);
+      if (controllerRow) {
+        keyNoPanel = candidateKeyWithAxis;
+      }
+    }
+    if (controllerRow === undefined) {
+      const seriesRows = CONTROLLER_ROWS_BY_SERIES_KEY.get(keyNoPanel);
+      if (seriesRows && seriesRows.length > 0) {
+        if (item.price && item.price > 0) {
+          controllerRow =
+            seriesRows.find(
+              (r) =>
+                Math.abs(r.pricePKR - item.price!) <= 2000 ||
+                Math.abs(r.pricePKR + PANEL_CE_PRICE_DELTA_PKR - item.price!) <= 2000 ||
+                Math.abs(r.pricePKR - PANEL_CE_PRICE_DELTA_PKR - item.price!) <= 2000
+            ) || seriesRows[0];
+        } else {
+          controllerRow = seriesRows[0];
+        }
+        const matchedWithoutPanel = stripPanelInfoFromText(controllerRow.modelNumber);
+        keyNoPanel = canonicalRateKey(matchedWithoutPanel);
+      }
+    }
+  }
+
   if (controllerRow !== undefined) {
+    const panelPrices = PANEL_PRICES_BY_NO_PANEL_KEY.get(keyNoPanel);
+    const displayPrice =
+      panelPrices?.defaultDisplayPrice ?? panelPrices?.A ?? controllerRow.pricePKR;
     return {
-      price: controllerRow.pricePKR,
-      title: controllerRow.spec,
-      description: controllerRow.description,
+      price: displayPrice,
+      title: stripPanelInfoFromText(controllerRow.spec),
+      description: stripPanelInfoFromText(controllerRow.description),
       subcategory: controllerRow.subcategory,
       features: buildControllerFeatures(controllerRow),
+      panelPrices,
     };
   }
 
@@ -1213,3 +1395,4 @@ export function resolveOfficialRateListPricing(item: {
 
   return {};
 }
+

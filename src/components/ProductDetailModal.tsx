@@ -6,19 +6,31 @@ import {
   ShieldCheck,
   Cpu,
   Layers,
+  LayoutGrid,
   Plus,
   Minus,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
   ZoomIn,
+  AlertCircle,
+  Box,
 } from 'lucide-react';
 import {
   ProductItem,
+  SeriesModelVariant,
   CONTROLLER_IO_BOARD_OPTIONS,
+  CONTROLLER_PANEL_OPTIONS,
+  PanelOptionId,
   IOBoardOption,
   AxisVariantOption,
+  applyPanelPicturesToGallery,
+  buildPanelPricesFromBase,
+  buildPanelPricesFromCE,
   stripAxisCountFromText,
+  stripPanelInfoFromText,
+  hasPanelOptionInProduct,
+  is1500SeriesController,
   isStandaloneIOBoardProduct,
 } from '../data/products';
 
@@ -37,42 +49,125 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onClose,
   onAddToCart,
 }) => {
-  const [selectedAxisId, setSelectedAxisId] = useState<string>(
-    product?.axisVariants && product.axisVariants.length > 0
-      ? product.axisVariants[0].id
-      : product?.id || ''
-  );
+  const seriesVariants: SeriesModelVariant[] = product?.seriesVariants || [];
+  const [selectedSeriesVariantId, setSelectedSeriesVariantId] =
+    useState<string>(() => {
+      if (seriesVariants.length > 0 && product?.modelNumber) {
+        const matched = seriesVariants.find(
+          (v) =>
+            v.modelNumber.toLowerCase() === product.modelNumber.toLowerCase()
+        );
+        if (matched) return matched.id;
+      }
+      return seriesVariants[0]?.id || product?.id || '';
+    });
 
-  const activeAxisVariant: AxisVariantOption | undefined =
-    product?.axisVariants && product.axisVariants.length > 0
-      ? product.axisVariants.find((v) => v.id === selectedAxisId) ||
-        product.axisVariants[0]
+  const activeSeriesVariant: SeriesModelVariant | undefined =
+    seriesVariants.length > 0
+      ? seriesVariants.find((v) => v.id === selectedSeriesVariantId) ||
+        seriesVariants[0]
       : undefined;
 
-  const effectiveImages =
-    activeAxisVariant &&
-    activeAxisVariant.images &&
-    activeAxisVariant.images.some((u) => u && u.trim().length > 0)
-      ? activeAxisVariant.images
-      : product?.images || ['', '', '', ''];
+  const effectiveProduct: ProductItem | null = product
+    ? activeSeriesVariant
+      ? {
+          ...product,
+          modelNumber: activeSeriesVariant.modelNumber,
+          baseModelNumber: activeSeriesVariant.modelNumber,
+          title: activeSeriesVariant.title,
+          description: activeSeriesVariant.description,
+          subcategory: activeSeriesVariant.subcategory,
+          features: activeSeriesVariant.features,
+          specs: activeSeriesVariant.specs,
+          compatibility: activeSeriesVariant.compatibility,
+          price: activeSeriesVariant.price,
+          hasPanelOptions: activeSeriesVariant.hasPanelOptions,
+          rawPanelType: activeSeriesVariant.rawPanelType,
+          panelPrices: activeSeriesVariant.panelPrices,
+          hasIOBoardOption: activeSeriesVariant.hasIOBoardOption,
+          axisVariants: activeSeriesVariant.axisVariants,
+          servoConfigOptions: activeSeriesVariant.servoConfigOptions,
+          images: activeSeriesVariant.images,
+          imageLabels: activeSeriesVariant.imageLabels,
+          defaultImageIndex: activeSeriesVariant.defaultImageIndex,
+          stockCount: activeSeriesVariant.stockCount,
+          inStock: activeSeriesVariant.inStock,
+        }
+      : product
+    : null;
 
-  const effectiveImageLabels =
-    activeAxisVariant &&
-    activeAxisVariant.imageLabels &&
+  const [selectedAxisId, setSelectedAxisId] = useState<string>(
+    effectiveProduct?.axisVariants && effectiveProduct.axisVariants.length > 0
+      ? effectiveProduct.axisVariants[0].id
+      : effectiveProduct?.id || ''
+  );
+  const [selectedPanelId, setSelectedPanelId] = useState<PanelOptionId | null>(
+    null
+  );
+  const [panelSelectionError, setPanelSelectionError] =
+    useState<boolean>(false);
+
+  const activeAxisVariant: AxisVariantOption | undefined =
+    effectiveProduct?.axisVariants && effectiveProduct.axisVariants.length > 0
+      ? effectiveProduct.axisVariants.find((v) => v.id === selectedAxisId) ||
+        effectiveProduct.axisVariants[0]
+      : undefined;
+
+  const hasPanelOptions = Boolean(
+    effectiveProduct &&
+      (effectiveProduct.hasPanelOptions ||
+        hasPanelOptionInProduct(effectiveProduct))
+  );
+
+  const activeAxisHasCustomImg = Boolean(
+    activeAxisVariant?.images
+      ?.slice(0, 4)
+      .some(
+        (u) =>
+          u &&
+          u.trim().length > 0 &&
+          !u.startsWith('data:image/svg+xml')
+      )
+  );
+
+  const rawEffectiveImages =
+    activeAxisHasCustomImg && activeAxisVariant?.images
+      ? activeAxisVariant.images
+      : effectiveProduct?.images || ['', '', '', ''];
+
+  const rawEffectiveImageLabels =
+    activeAxisHasCustomImg &&
+    activeAxisVariant?.imageLabels &&
     activeAxisVariant.imageLabels.length > 0
       ? activeAxisVariant.imageLabels
-      : product?.imageLabels || [];
+      : effectiveProduct?.imageLabels || [];
+
+  const { images: effectiveImages, imageLabels: effectiveImageLabels } =
+    effectiveProduct && hasPanelOptions
+      ? applyPanelPicturesToGallery(
+          rawEffectiveImages,
+          rawEffectiveImageLabels,
+          {
+            modelNumber:
+              effectiveProduct.baseModelNumber || effectiveProduct.modelNumber,
+            baseModelNumber: effectiveProduct.baseModelNumber,
+            title: effectiveProduct.title,
+            description: effectiveProduct.description,
+            hasPanelOptions: true,
+          }
+        )
+      : { images: rawEffectiveImages, imageLabels: rawEffectiveImageLabels };
 
   const candidateDefaultIdx =
     typeof activeAxisVariant?.defaultImageIndex === 'number' &&
     activeAxisVariant.defaultImageIndex >= 0 &&
     activeAxisVariant.defaultImageIndex < effectiveImages.length
       ? activeAxisVariant.defaultImageIndex
-      : product &&
-        typeof product.defaultImageIndex === 'number' &&
-        product.defaultImageIndex >= 0 &&
-        product.defaultImageIndex < effectiveImages.length
-      ? product.defaultImageIndex
+      : effectiveProduct &&
+        typeof effectiveProduct.defaultImageIndex === 'number' &&
+        effectiveProduct.defaultImageIndex >= 0 &&
+        effectiveProduct.defaultImageIndex < effectiveImages.length
+      ? effectiveProduct.defaultImageIndex
       : 0;
 
   const firstNonEmptyIdx = effectiveImages.findIndex((u) => Boolean(u?.trim()));
@@ -90,7 +185,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   );
   const [selectedServoConfigId, setSelectedServoConfigId] = useState<
     'base' | 'brake' | 'absolute'
-  >(product?.servoConfigOptions?.[0]?.id || 'base');
+  >(effectiveProduct?.servoConfigOptions?.[0]?.id || 'base');
   const [addedFeedback, setAddedFeedback] = useState<boolean>(false);
   const [isZooming, setIsZooming] = useState<boolean>(false);
 
@@ -99,29 +194,45 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const zoomInnerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (!product) return;
+    const sv = product.seriesVariants || [];
+    const matchedSeries =
+      sv.find(
+        (v) => v.modelNumber.toLowerCase() === product.modelNumber.toLowerCase()
+      ) || sv[0];
+    setSelectedSeriesVariantId(matchedSeries ? matchedSeries.id : product.id);
+  }, [product]);
+
+  useEffect(() => {
     const initialAxis =
-      product?.axisVariants && product.axisVariants.length > 0
-        ? product.axisVariants[0]
+      effectiveProduct?.axisVariants && effectiveProduct.axisVariants.length > 0
+        ? effectiveProduct.axisVariants[0]
         : undefined;
-    setSelectedAxisId(initialAxis ? initialAxis.id : product?.id || '');
-    setSelectedServoConfigId(product?.servoConfigOptions?.[0]?.id || 'base');
+    setSelectedAxisId(
+      initialAxis ? initialAxis.id : effectiveProduct?.id || ''
+    );
+    setSelectedPanelId(null);
+    setPanelSelectionError(false);
+    setSelectedServoConfigId(
+      effectiveProduct?.servoConfigOptions?.[0]?.id || 'base'
+    );
 
     const imgs =
       initialAxis?.images &&
       initialAxis.images.some((u) => u && u.trim().length > 0)
         ? initialAxis.images
-        : product?.images || [];
+        : effectiveProduct?.images || [];
     const rawNext =
       initialAxis &&
       typeof initialAxis.defaultImageIndex === 'number' &&
       initialAxis.defaultImageIndex >= 0 &&
       initialAxis.defaultImageIndex < imgs.length
         ? initialAxis.defaultImageIndex
-        : product &&
-          typeof product.defaultImageIndex === 'number' &&
-          product.defaultImageIndex >= 0 &&
-          product.defaultImageIndex < imgs.length
-        ? product.defaultImageIndex
+        : effectiveProduct &&
+          typeof effectiveProduct.defaultImageIndex === 'number' &&
+          effectiveProduct.defaultImageIndex >= 0 &&
+          effectiveProduct.defaultImageIndex < imgs.length
+        ? effectiveProduct.defaultImageIndex
         : 0;
     const nonEmptyIdx = imgs.findIndex((u) => Boolean(u?.trim()));
     const nextDefault = imgs[rawNext]?.trim()
@@ -134,46 +245,118 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setSelectedIOBoardId(CONTROLLER_IO_BOARD_OPTIONS[0].id);
     setAddedFeedback(false);
     setIsZooming(false);
-  }, [product]);
+  }, [product, selectedSeriesVariantId]);
 
-  if (!product) return null;
+  if (!effectiveProduct) return null;
 
   const hasAxisTabs =
-    Boolean(product.axisVariants) && (product.axisVariants?.length ?? 0) > 0;
-  const servoConfigOptions = product.servoConfigOptions || [];
+    Boolean(effectiveProduct.axisVariants) &&
+    (effectiveProduct.axisVariants?.length ?? 0) > 0;
+  const is1500Series = is1500SeriesController(effectiveProduct);
+  const activePanelOption = selectedPanelId
+    ? CONTROLLER_PANEL_OPTIONS.find((p) => p.id === selectedPanelId)
+    : undefined;
+
+  const handleSelectPanel = (
+    panelOpt: (typeof CONTROLLER_PANEL_OPTIONS)[number]
+  ) => {
+    setSelectedPanelId(panelOpt.id);
+    setPanelSelectionError(false);
+    if (!is1500Series) {
+      const panelImgIdx = effectiveImageLabels.findIndex(
+        (lbl) => lbl?.toUpperCase() === panelOpt.tagLabel.toUpperCase()
+      );
+      if (panelImgIdx !== -1 && effectiveImages[panelImgIdx]?.trim()) {
+        setActiveImageIdx(panelImgIdx);
+      }
+    }
+  };
+
+  const handleThumbnailSelect = (index: number, slotLabel: string) => {
+    setActiveImageIdx(index);
+    const panelMatch = slotLabel.match(/^(A|B|C|E)-Panel$/i);
+    if (panelMatch) {
+      setSelectedPanelId(panelMatch[1].toUpperCase() as PanelOptionId);
+      setPanelSelectionError(false);
+    }
+  };
+
+  const servoConfigOptions = effectiveProduct.servoConfigOptions || [];
   const activeServoConfig =
     servoConfigOptions.length > 0
       ? servoConfigOptions.find((opt) => opt.id === selectedServoConfigId) ||
         servoConfigOptions[0]
       : undefined;
 
-  const effectiveModelNumber =
-    product.baseModelNumber || product.modelNumber;
-  const effectiveTitle = stripAxisCountFromText(
-    activeAxisVariant && activeAxisVariant.title.trim().length > 0
-      ? activeAxisVariant.title
-      : product.title
+  const effectiveModelNumber = stripPanelInfoFromText(
+    effectiveProduct.baseModelNumber || effectiveProduct.modelNumber
   );
-  const effectiveDescription = stripAxisCountFromText(
-    activeAxisVariant && activeAxisVariant.description.trim().length > 0
-      ? activeAxisVariant.description
-      : product.description
+  const effectiveTitle = stripPanelInfoFromText(
+    stripAxisCountFromText(
+      activeAxisVariant && activeAxisVariant.title.trim().length > 0
+        ? activeAxisVariant.title
+        : effectiveProduct.title
+    )
   );
+  const effectiveDescription = stripPanelInfoFromText(
+    stripAxisCountFromText(
+      activeAxisVariant && activeAxisVariant.description.trim().length > 0
+        ? activeAxisVariant.description
+        : effectiveProduct.description
+    )
+  );
+
+  const fallbackAxisOrBasePrice =
+    activeAxisVariant && activeAxisVariant.price > 0
+      ? activeAxisVariant.price
+      : effectiveProduct.price;
+
+  const activePanelPrices =
+    activeAxisVariant?.panelPrices ||
+    effectiveProduct.panelPrices ||
+    (hasPanelOptions
+      ? effectiveProduct.rawPanelType === 'CE'
+        ? buildPanelPricesFromCE(fallbackAxisOrBasePrice)
+        : buildPanelPricesFromBase(fallbackAxisOrBasePrice)
+      : undefined);
+
+  const defaultPanelDisplayPrice =
+    activePanelPrices?.defaultDisplayPrice ??
+    activePanelPrices?.A ??
+    fallbackAxisOrBasePrice;
+
+  const panelSpecificPrice = hasPanelOptions
+    ? selectedPanelId && activePanelPrices
+      ? activePanelPrices[selectedPanelId]
+      : defaultPanelDisplayPrice
+    : undefined;
+
+  const panelPriceDelta =
+    hasPanelOptions &&
+    selectedPanelId &&
+    panelSpecificPrice !== undefined &&
+    defaultPanelDisplayPrice > 0
+      ? panelSpecificPrice - defaultPanelDisplayPrice
+      : 0;
+
   const effectivePrice = activeServoConfig
     ? activeServoConfig.price
+    : panelSpecificPrice !== undefined
+    ? panelSpecificPrice
     : activeAxisVariant
     ? activeAxisVariant.price
-    : product.price;
+    : effectiveProduct.price;
   const effectiveStockCount = activeAxisVariant
     ? activeAxisVariant.stockCount
-    : product.stockCount;
+    : effectiveProduct.stockCount;
   const effectiveStockStatus = activeAxisVariant
     ? activeAxisVariant.stockStatus
-    : product.stockStatus;
+    : effectiveProduct.stockStatus;
 
   const isController =
-    (product.category === 'Controllers' || Boolean(product.hasIOBoardOption)) &&
-    !isStandaloneIOBoardProduct(product);
+    (effectiveProduct.category === 'Controllers' ||
+      Boolean(effectiveProduct.hasIOBoardOption)) &&
+    !isStandaloneIOBoardProduct(effectiveProduct);
 
   const activeIOBoard: IOBoardOption | undefined = isController
     ? CONTROLLER_IO_BOARD_OPTIONS.find((opt) => opt.id === selectedIOBoardId) ||
@@ -184,10 +367,20 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     effectivePrice + (activeIOBoard ? activeIOBoard.priceDelta : 0);
 
   const handleAdd = () => {
+    if (hasPanelOptions && !selectedPanelId) {
+      setPanelSelectionError(true);
+      return;
+    }
+    const chosenPanelLabel = activePanelOption?.label || 'A Panel';
+    const panelSuffix = hasPanelOptions ? `, ${chosenPanelLabel}` : '';
+    const panelIdSuffix = hasPanelOptions
+      ? `-panel-${selectedPanelId || 'A'}`
+      : '';
+
     const resolvedProductForCart: ProductItem = activeServoConfig
       ? {
-          ...product,
-          id: `${product.id}-${activeServoConfig.id}`,
+          ...effectiveProduct,
+          id: `${effectiveProduct.id}-${activeServoConfig.id}`,
           modelNumber: `${effectiveModelNumber} (${activeServoConfig.shortLabel})`,
           title: `${effectiveTitle || effectiveModelNumber} — ${activeServoConfig.shortLabel}`,
           description: effectiveDescription,
@@ -196,17 +389,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         }
       : activeAxisVariant
       ? {
-          ...product,
-          id: activeAxisVariant.id,
-          modelNumber: `${effectiveModelNumber} (${activeAxisVariant.axisLabel})`,
+          ...effectiveProduct,
+          id: `${activeAxisVariant.id}${panelIdSuffix}`,
+          modelNumber: `${effectiveModelNumber} (${activeAxisVariant.axisLabel}${panelSuffix})`,
           title: effectiveTitle || effectiveModelNumber,
           description: effectiveDescription,
-          price: activeAxisVariant.price,
+          price: effectivePrice,
           stockCount: activeAxisVariant.stockCount,
           stockStatus: activeAxisVariant.stockStatus,
           images: effectiveImages,
         }
-      : product;
+      : {
+          ...effectiveProduct,
+          id: `${effectiveProduct.id}${panelIdSuffix}`,
+          modelNumber: hasPanelOptions
+            ? `${effectiveModelNumber} (${chosenPanelLabel})`
+            : effectiveModelNumber,
+          title: effectiveTitle || effectiveModelNumber,
+          description: effectiveDescription,
+          price: effectivePrice,
+          images: effectiveImages,
+        };
 
     onAddToCart(resolvedProductForCart, quantity, activeIOBoard);
     setAddedFeedback(true);
@@ -283,10 +486,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <div className="flex items-center justify-between px-4 py-3.5 sm:px-6 sm:py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 shrink-0">
           <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-slate-600 dark:text-slate-400 min-w-0 truncate pr-2">
             <span className="font-semibold text-slate-900 dark:text-white shrink-0">
-              {product.category}
+              {effectiveProduct.category}
             </span>
             <span aria-hidden="true">·</span>
-            <span className="truncate hidden sm:inline">{product.subcategory}</span>
+            <span className="truncate hidden sm:inline">{effectiveProduct.subcategory}</span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
             <span className="font-mono-tabular text-[#1E2985] dark:text-emerald-400 font-semibold truncate">
               {effectiveModelNumber}
@@ -408,10 +611,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               )}
             </div>
 
-            {/* Thumbnail Gallery Selector (4 slots standard, 6 slots for A+B / C+E Panel items) */}
+            {/* Thumbnail Gallery Selector (4 slots standard, 8 slots in 2x4 grid when A/B/C/E Panel photos are included) */}
             <div
               className={`grid ${
-                effectiveImages.length > 4
+                effectiveImages.length === 6
                   ? 'grid-cols-3 sm:grid-cols-6'
                   : 'grid-cols-4'
               } gap-2`}
@@ -420,12 +623,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 const hasImg = Boolean(imgUrl && imgUrl.trim().length > 0);
                 const isActive = index === activeImageIdx && hasImg;
                 const slotLabel = effectiveImageLabels[index] || `View ${index + 1}`;
+                const isPanelTag = /^(A|B|C|E)-Panel$/i.test(slotLabel);
                 return (
                   <button
                     key={index}
                     type="button"
                     disabled={!hasImg}
-                    onClick={() => hasImg && setActiveImageIdx(index)}
+                    onClick={() => hasImg && handleThumbnailSelect(index, slotLabel)}
                     className={`flex flex-col rounded-md overflow-hidden border text-left transition-all ${
                       !hasImg
                         ? 'border-dashed border-slate-200 dark:border-slate-800 opacity-40 cursor-default bg-white dark:bg-slate-950'
@@ -434,7 +638,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         : 'border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100 bg-white dark:bg-slate-950 cursor-pointer'
                     }`}
                   >
-                    <div className="aspect-4/3 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden flex items-center justify-center">
+                    <div className="relative aspect-4/3 w-full bg-slate-100 dark:bg-slate-950 overflow-hidden flex items-center justify-center">
                       {hasImg ? (
                         <img
                           src={imgUrl}
@@ -444,6 +648,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         />
                       ) : (
                         <span className="text-[10px] text-slate-400">#{index + 1}</span>
+                      )}
+                      {hasImg && isPanelTag && (
+                        <span className="absolute bottom-0 inset-x-0 bg-[#1E2985]/90 text-white text-[9px] font-extrabold leading-tight py-0.5 text-center truncate">
+                          {slotLabel}
+                        </span>
                       )}
                     </div>
                     <span className="px-1.5 py-1 text-[10px] font-semibold text-slate-700 dark:text-slate-300 truncate w-full">
@@ -460,28 +669,37 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 Key Product Features &amp; Capabilities
               </h3>
               <ul className="space-y-2">
-                {product.features.map((feat, idx) => (
+                {effectiveProduct.features.map((feat, idx) => (
                   <li
                     key={idx}
                     className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 leading-relaxed"
                   >
                     <CheckCircle2 className="w-4 h-4 text-[#0D5C2B] dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>{feat}</span>
+                    <span>{stripPanelInfoFromText(feat)}</span>
                   </li>
                 ))}
               </ul>
             </div>
           </div>
 
-          {/* Right Column: Detailed Description, Axes Tabs, I/O Board Selector, Specs & Purchase Module (6 cols) */}
+          {/* Right Column: Detailed Description, Model Tabs, Axes Tabs, Panel Tabs, I/O Board Selector, Specs & Purchase Module (6 cols) */}
           <div className="md:col-span-6 flex flex-col justify-between gap-6">
             <div className="space-y-4">
               <div>
-                <div className="font-mono-tabular text-xs font-bold text-[#1E2985] dark:text-sky-400 flex items-center gap-2">
-                  <span>MODEL NO: {effectiveModelNumber}</span>
+                <div className="font-mono-tabular text-xs font-bold text-[#1E2985] dark:text-sky-400 flex flex-wrap items-center gap-2">
+                  <span>
+                    {product?.seriesClubName
+                      ? `${product.seriesClubName} · MODEL: ${effectiveModelNumber}`
+                      : `MODEL NO: ${effectiveModelNumber}`}
+                  </span>
                   {activeAxisVariant && (
                     <span className="px-2 py-0.5 rounded bg-[#1E2985]/10 dark:bg-emerald-500/15 text-[#1E2985] dark:text-emerald-300 text-[10px]">
                       {activeAxisVariant.axisLabel}
+                    </span>
+                  )}
+                  {hasPanelOptions && activePanelOption && (
+                    <span className="px-2 py-0.5 rounded bg-[#0068AD]/10 dark:bg-sky-500/15 text-[#0068AD] dark:text-sky-300 text-[10px]">
+                      {activePanelOption.label}
                     </span>
                   )}
                 </div>
@@ -497,7 +715,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="p-4 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="text-xs text-slate-500 dark:text-slate-400 block">
-                    Unit Price (PKR)
+                    Unit Price (PKR){hasPanelOptions && activePanelOption ? ` — ${activePanelOption.label}` : ''}
                   </span>
                   <span className="text-2xl font-extrabold font-mono-tabular text-slate-900 dark:text-white">
                     {unitPricePKR > 0
@@ -526,8 +744,48 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </p>
               </div>
 
+              {/* Series Model Selection Tabs — Clean Flat Screenshot Button Style (Clubbed Controller Series) */}
+              {seriesVariants.length > 1 && (
+                <div className="p-4 rounded-[5px] bg-slate-100/90 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-medium text-slate-900 dark:text-white">
+                    <span className="flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-[#0068AD] dark:text-sky-400" />
+                      <span>Select Model ({seriesVariants.length} in Series):</span>
+                    </span>
+                    <span className="font-mono-tabular text-[#0068AD] dark:text-sky-400 font-semibold">
+                      {activeSeriesVariant?.modelNumber}
+                    </span>
+                  </div>
+                  <div
+                    role="tablist"
+                    aria-label="Select controller model in series"
+                    className="flex flex-wrap gap-2"
+                  >
+                    {seriesVariants.map((sv) => {
+                      const isSelected = activeSeriesVariant?.id === sv.id;
+                      return (
+                        <button
+                          key={sv.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={isSelected}
+                          onClick={() => setSelectedSeriesVariantId(sv.id)}
+                          className={`py-2 px-3 rounded-[5px] text-xs font-mono-tabular font-semibold transition-colors duration-150 cursor-pointer select-none ${
+                            isSelected
+                              ? 'bg-[#0068AD] text-white border border-[#0068AD]'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-[#0068AD] hover:text-[#0068AD] dark:hover:border-sky-400 dark:hover:text-sky-400'
+                          }`}
+                        >
+                          {sv.modelButtonLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Axes Selection Tabs — Clean Flat Screenshot Button Style */}
-              {hasAxisTabs && product.axisVariants && (
+              {hasAxisTabs && effectiveProduct.axisVariants && (
                 <div className="p-4 rounded-[5px] bg-slate-100/90 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between text-xs font-medium text-slate-900 dark:text-white">
                     <span className="flex items-center gap-2">
@@ -543,7 +801,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     aria-label="Select controller axes configuration"
                     className="grid grid-cols-3 sm:grid-cols-4 gap-2.5"
                   >
-                    {product.axisVariants.map((variant) => {
+                    {effectiveProduct.axisVariants.map((variant) => {
                       const isSelected = activeAxisVariant?.id === variant.id;
                       return (
                         <button
@@ -563,6 +821,74 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Panel Selection Tabs (A Panel, B Panel, C Panel, E Panel) — Styled Identically to Axis Selection Buttons */}
+              {hasPanelOptions && (
+                <div
+                  className={`p-4 rounded-[5px] border space-y-3 transition-colors ${
+                    panelSelectionError
+                      ? 'bg-red-50/90 dark:bg-red-950/30 border-red-500 dark:border-red-500 ring-1 ring-red-500/40'
+                      : 'bg-slate-100/90 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs font-medium text-slate-900 dark:text-white">
+                    <span className="flex items-center gap-2">
+                      <LayoutGrid className="w-4 h-4 text-[#0068AD] dark:text-sky-400" />
+                      <span>Select Panel: <span className="text-red-500">*</span></span>
+                    </span>
+                    <span
+                      className={`font-mono-tabular font-semibold ${
+                        activePanelOption
+                          ? 'text-[#0068AD] dark:text-sky-400'
+                          : panelSelectionError
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                      }`}
+                    >
+                      {activePanelOption
+                        ? `${activePanelOption.label}${
+                            panelPriceDelta > 0
+                              ? ` (+PKR ${panelPriceDelta.toLocaleString()})`
+                              : panelPriceDelta < 0
+                              ? ` (-PKR ${Math.abs(panelPriceDelta).toLocaleString()})`
+                              : ''
+                          }`
+                        : 'Required — Select A, B, C or E'}
+                    </span>
+                  </div>
+                  <div
+                    role="tablist"
+                    aria-label="Select controller panel type"
+                    className="grid grid-cols-4 gap-2.5"
+                  >
+                    {CONTROLLER_PANEL_OPTIONS.map((panelOpt) => {
+                      const isActivePanel = selectedPanelId === panelOpt.id;
+                      return (
+                        <button
+                          key={panelOpt.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActivePanel}
+                          onClick={() => handleSelectPanel(panelOpt)}
+                          className={`py-2 px-3 rounded-[5px] text-xs font-medium transition-colors duration-150 cursor-pointer select-none ${
+                            isActivePanel
+                              ? 'bg-[#0068AD] text-white border border-[#0068AD]'
+                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-[#0068AD] hover:text-[#0068AD] dark:hover:border-sky-400 dark:hover:text-sky-400'
+                          }`}
+                        >
+                          {panelOpt.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {panelSelectionError && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>Please select a Panel (A, B, C, or E) before adding to cart</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -658,7 +984,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   Technical Specifications
                 </h3>
                 <div className="border border-slate-200 dark:border-slate-800 rounded-[5px] divide-y divide-slate-200 dark:divide-slate-800 text-xs">
-                  {product.specs.map((spec, idx) => (
+                  {effectiveProduct.specs.map((spec, idx) => (
                     <div
                       key={idx}
                       className="grid grid-cols-12 px-3 py-2 bg-white dark:bg-slate-900/60"
@@ -669,7 +995,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       <span className="col-span-7 font-mono-tabular text-slate-900 dark:text-slate-100 font-semibold text-right">
                         {spec.label === 'Model Number'
                           ? effectiveModelNumber
-                          : spec.value}
+                          : stripPanelInfoFromText(spec.value)}
                       </span>
                     </div>
                   ))}
@@ -736,3 +1062,4 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     </div>
   );
 };
+

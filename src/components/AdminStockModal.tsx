@@ -102,13 +102,26 @@ import {
   isSZGH1000TDBModel,
   SZGH_1000TDB_IMAGES,
   SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
+  isSZGH1000TCModel,
+  isSZGH1080TICModel,
+  isSZGH1080TDBModel,
+  isSZGH1080MDBModel,
+  isSZGH1080MDCModel,
   isSZGHCNCIO12Model,
   SZGH_CNC_IO12_IMAGES,
   SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
   hasABPanelInProduct,
   hasCEPanelInProduct,
+  hasPanelOptionInProduct,
+  is1500SeriesController,
   normalizePanelStrings,
   applyPanelPicturesToGallery,
+  PanelPriceBreakdown,
+  buildPanelPricesFromBase,
+  buildPanelPricesFromCE,
+  detectControllerSeriesClub,
+  extractBaseModelAndAxis,
+  resolveOfficialRateListPricing,
 } from '../data/products';
 import { SubmittedCustomerOrder } from './CartDrawer';
 
@@ -136,8 +149,9 @@ export interface TrackedExcelStockItem {
   description: string; // Left '' if not available in Excel
   price: string; // String so empty '' is preserved when not in Excel
   stockCount: string; // String so empty '' is preserved if not in Excel
-  images: string[]; // Left ['', '', '', ''] if not available in Excel (or 6 slots for A+B / C+E Panel items)
+  images: string[]; // Left ['', '', '', ''] if not available in Excel (or 8 slots for A/B/C/E Panel items)
   defaultImageIndex: number;
+  panelPrices?: PanelPriceBreakdown;
   extraColumns: Record<string, string>;
 }
 
@@ -353,11 +367,17 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
   /**
    * Preserves empty image tabs ('') if no image was provided for that slot.
-   * Supports 4 slots by default, and 6 slots for (A+B Panel) / (C+E Panel) items.
+   * Supports 4 slots by default (and for 1500 series), and 8 slots (4 base + 4 A/B/C/E panel images) for non-1500 panel controllers.
    */
   const buildPreservedImages = (
     rawImages: string[],
-    itemContext?: { modelNumber?: string; title?: string; description?: string }
+    itemContext?: {
+      modelNumber?: string;
+      baseModelNumber?: string;
+      title?: string;
+      description?: string;
+      hasPanelOptions?: boolean;
+    }
   ): string[] => {
     const baseFour = [
       (rawImages[0]?.trim() || '').slice(0, 215000),
@@ -365,8 +385,15 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       (rawImages[2]?.trim() || '').slice(0, 215000),
       (rawImages[3]?.trim() || '').slice(0, 215000),
     ];
-    if (itemContext && (hasABPanelInProduct(itemContext) || hasCEPanelInProduct(itemContext))) {
-      const { images: withPanels } = applyPanelPicturesToGallery(baseFour, [], itemContext);
+    if (itemContext && is1500SeriesController(itemContext)) {
+      return baseFour;
+    }
+    if (itemContext && hasPanelOptionInProduct(itemContext)) {
+      const { images: withPanels } = applyPanelPicturesToGallery(
+        baseFour,
+        [],
+        itemContext
+      );
       return [
         withPanels[0],
         withPanels[1],
@@ -374,13 +401,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         withPanels[3],
         (rawImages[4]?.trim() || withPanels[4] || '').slice(0, 215000),
         (rawImages[5]?.trim() || withPanels[5] || '').slice(0, 215000),
-      ];
-    }
-    if (rawImages.length > 4) {
-      return [
-        ...baseFour,
-        (rawImages[4]?.trim() || '').slice(0, 215000),
-        (rawImages[5]?.trim() || '').slice(0, 215000),
+        (rawImages[6]?.trim() || withPanels[6] || '').slice(0, 215000),
+        (rawImages[7]?.trim() || withPanels[7] || '').slice(0, 215000),
       ];
     }
     return baseFour;
@@ -930,13 +952,34 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     ]);
 
     const stockIdx = findColIdx([
-      (h) => h === 'stock' || h === 'qty' || h === 'quantity' || h === 'in stock' || h === 'balance',
+      (h) => h === 'stock' || h === 'qty' || h === 'quantity' || h === 'in stock' || h === 'balance' || h === 'stock qty',
       (h) => h.includes('stock') || h.includes('qty') || h.includes('quantity') || h.includes('avail') || h.includes('balance') || h.includes('pcs') || h.includes('unit'),
     ]);
 
+    const panelAIdx = findColIdx([
+      (h) => h === 'a panel price pkr' || h === 'a+b panel price pkr' || h === 'panel a price' || h === 'a panel price',
+      (h) => (h.includes('a panel') || h.includes('a+b panel') || h.includes('panel a')) && (h.includes('price') || h.includes('pkr')),
+    ]);
+    const panelBIdx = findColIdx([
+      (h) => h === 'b panel price pkr' || h === 'panel b price' || h === 'b panel price',
+      (h) => (h.includes('b panel') || h.includes('panel b')) && !h.includes('a+b') && (h.includes('price') || h.includes('pkr')),
+    ]);
+    const panelCIdx = findColIdx([
+      (h) => h === 'c panel price pkr' || h === 'c+e panel price pkr' || h === 'panel c price' || h === 'c panel price',
+      (h) => (h.includes('c panel') || h.includes('c+e panel') || h.includes('panel c')) && (h.includes('price') || h.includes('pkr')),
+    ]);
+    const panelEIdx = findColIdx([
+      (h) => h === 'e panel price pkr' || h === 'panel e price' || h === 'e panel price',
+      (h) => (h.includes('e panel') || h.includes('panel e')) && !h.includes('c+e') && (h.includes('price') || h.includes('pkr')),
+    ]);
+
     const priceIdx = findColIdx([
-      (h) => h === 'price' || h === 'unit price' || h === 'pkr' || h === 'rate',
-      (h) => h.includes('price') || h.includes('rate') || h.includes('pkr') || h.includes('cost') || h.includes('amount'),
+      (h) => h === 'price' || h === 'price pkr' || h === 'unit price' || h === 'pkr' || h === 'rate' || h === 'base price pkr',
+      (h) =>
+        (h.includes('price') || h.includes('rate') || h.includes('pkr') || h.includes('cost') || h.includes('amount')) &&
+        !h.includes('panel') &&
+        !h.includes('i/o') &&
+        !h.includes('status'),
     ]);
 
     const img1Idx = findColIdx([
@@ -955,6 +998,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         subcategoryIdx,
         descIdx,
         stockIdx,
+        panelAIdx,
+        panelBIdx,
+        panelCIdx,
+        panelEIdx,
         priceIdx,
         img1Idx,
         img2Idx,
@@ -1038,8 +1085,52 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
       const parsedStockStr =
         stockIdx !== -1 ? parseNumericString(row[stockIdx]) : '';
-      const parsedPriceStr =
+      const rawPriceStr =
         priceIdx !== -1 ? parseNumericString(row[priceIdx]) : '';
+      const rawPanelAStr =
+        panelAIdx !== -1 ? parseNumericString(row[panelAIdx]) : '';
+      const rawPanelBStr =
+        panelBIdx !== -1 ? parseNumericString(row[panelBIdx]) : '';
+      const rawPanelCStr =
+        panelCIdx !== -1 ? parseNumericString(row[panelCIdx]) : '';
+      const rawPanelEStr =
+        panelEIdx !== -1 ? parseNumericString(row[panelEIdx]) : '';
+
+      const numA = rawPanelAStr ? Number(rawPanelAStr) : 0;
+      const numB = rawPanelBStr ? Number(rawPanelBStr) : 0;
+      const numC = rawPanelCStr ? Number(rawPanelCStr) : 0;
+      const numE = rawPanelEStr ? Number(rawPanelEStr) : 0;
+      const numBase = rawPriceStr ? Number(rawPriceStr) : 0;
+
+      const hasRowPanelOption = hasPanelOptionInProduct({
+        modelNumber: effectiveModel,
+        title: derivedTitle,
+        description: rawDesc,
+      });
+
+      let computedPanelPrices: PanelPriceBreakdown | undefined;
+      const abCandidate = numA > 0 ? numA : numB > 0 ? numB : 0;
+      const ceCandidate = numC > 0 ? numC : numE > 0 ? numE : 0;
+
+      if (abCandidate > 0 && ceCandidate > 0) {
+        computedPanelPrices = {
+          A: numA > 0 ? numA : abCandidate,
+          B: numB > 0 ? numB : abCandidate,
+          C: numC > 0 ? numC : ceCandidate,
+          E: numE > 0 ? numE : ceCandidate,
+          defaultDisplayPrice: numA > 0 ? numA : abCandidate,
+        };
+      } else if (abCandidate > 0) {
+        computedPanelPrices = buildPanelPricesFromBase(abCandidate);
+      } else if (ceCandidate > 0) {
+        computedPanelPrices = buildPanelPricesFromCE(ceCandidate);
+      } else if (hasRowPanelOption && numBase > 0) {
+        computedPanelPrices = buildPanelPricesFromBase(numBase);
+      }
+
+      const parsedPriceStr = computedPanelPrices
+        ? String(computedPanelPrices.defaultDisplayPrice)
+        : rawPriceStr;
 
       const img1 = img1Idx !== -1 ? String(row[img1Idx] ?? '').trim() : '';
       const img2 = img2Idx !== -1 ? String(row[img2Idx] ?? '').trim() : '';
@@ -1071,6 +1162,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       const is880TC = isSZGH880TCModel({ modelNumber: effectiveModel });
       const is880TIC = isSZGH880TICModel({ modelNumber: effectiveModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: effectiveModel });
+      const is1080TIC = isSZGH1080TICModel({ modelNumber: effectiveModel });
+      const is1080TDB = isSZGH1080TDBModel({ modelNumber: effectiveModel });
+      const is1080MDB = isSZGH1080MDBModel({ modelNumber: effectiveModel });
+      const is1080MDC = isSZGH1080MDCModel({ modelNumber: effectiveModel });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: effectiveModel });
       const is1500MDB = isSZGH1500MDBModel({ modelNumber: effectiveModel });
       const is990MDB = isSZGH990MDBModel({ modelNumber: effectiveModel });
@@ -1083,6 +1178,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: effectiveModel });
       const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: effectiveModel });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: effectiveModel });
+      const is1000TC = isSZGH1000TCModel({ modelNumber: effectiveModel });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: effectiveModel,
         title: derivedTitle,
@@ -1096,7 +1192,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       });
       const rowBaseImages: string[] = is880MC
         ? SZGH_880MC_IMAGES
-        : is1080MC
+        : is1080MC || is1080MDB || is1080MDC
         ? SZGH_1080MC_IMAGES
         : is1080MIC
         ? SZGH_1080MIC_IMAGES
@@ -1104,7 +1200,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         ? SZGH_880TC_IMAGES
         : is880TIC
         ? SZGH_880TIC_IMAGES
-        : is1080TC
+        : is1080TC || is1080TIC || is1080TDB
         ? SZGH_1080TC_IMAGES
         : is1000MDB
         ? SZGH_1000MDB_IMAGES
@@ -1128,7 +1224,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         ? SZGH_1000MDCB_IMAGES
         : is1500MDCB
         ? SZGH_1500MDCB_IMAGES
-        : is1000TDB
+        : is1000TDB || is1000TC
         ? SZGH_1000TDB_IMAGES
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGES
@@ -1136,7 +1232,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       const { images: rowResolvedImages } = applyPanelPicturesToGallery(
         rowBaseImages,
         [],
-        normRowPanel
+        {
+          ...normRowPanel,
+          hasPanelOptions: hasRowPanelOption,
+        }
       );
 
       extracted.push({
@@ -1152,7 +1251,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         images: rowResolvedImages,
         defaultImageIndex: is880MC
           ? SZGH_880MC_DEFAULT_IMAGE_INDEX
-          : is1080MC
+          : is1080MC || is1080MDB || is1080MDC
           ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
           : is1080MIC
           ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
@@ -1160,7 +1259,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           ? SZGH_880TC_DEFAULT_IMAGE_INDEX
           : is880TIC
           ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
-          : is1080TC
+          : is1080TC || is1080TIC || is1080TDB
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB
           ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
@@ -1184,11 +1283,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
           : is1500MDCB
           ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
-          : is1000TDB
+          : is1000TDB || is1000TC
           ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
           : isCNCIO12
           ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
           : 0,
+        ...(computedPanelPrices ? { panelPrices: computedPanelPrices } : {}),
         extraColumns: extraCols,
       });
     }
@@ -1304,6 +1404,167 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'stock list');
     XLSX.writeFile(wb, 'SZGH_Pakistan_stock_list.xlsx');
+  };
+
+  /**
+   * Generates & downloads the Complete Detailed CNC Controller Series & Panel Pricing Excel Sheet (.xlsx)
+   * containing all clubbed series (1000, 1080, 1500, 990, 880), all axis variants, and A/B/C/E panel price columns.
+   * Options without official pricing have blank price cells marked "NEEDS PRICING — FILL A/B OR C/E OR PRICE PKR"
+   * so the user can fill them in and upload the sheet right back into the "3. Upload .xlsx" tab.
+   */
+  const handleDownloadControllerSeriesPricingSheet = () => {
+    const headerRow = [
+      'Series Club',
+      'Base Model',
+      'Model Number',
+      'Axis Option',
+      'Category',
+      'Subcategory',
+      'Panel Options',
+      'A Panel Price PKR',
+      'B Panel Price PKR',
+      'C Panel Price PKR',
+      'E Panel Price PKR',
+      'Price PKR',
+      'With I/O Board (+22000) PKR',
+      'Stock Qty',
+      'Pricing Status',
+      'Title',
+      'Description',
+    ];
+
+    const controllerItems = products.filter((p) => p.category === 'Controllers');
+    const allRows: (string | number)[][] = [headerRow];
+    const missingRows: (string | number)[][] = [headerRow];
+
+    const seriesOrder: Record<string, number> = {
+      'SZGH-1000 Series': 1,
+      'SZGH-1080 Series': 2,
+      'SZGH-1500 Series': 3,
+      'SZGH-990 Series': 4,
+      'SZGH-880 Series': 5,
+    };
+
+    const sortedControllers = [...controllerItems].sort((a, b) => {
+      const clubA = detectControllerSeriesClub(a)?.seriesDisplayModel || 'Other Controllers';
+      const clubB = detectControllerSeriesClub(b)?.seriesDisplayModel || 'Other Controllers';
+      const rankA = seriesOrder[clubA] || 99;
+      const rankB = seriesOrder[clubB] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.modelNumber.localeCompare(b.modelNumber);
+    });
+
+    for (const item of sortedControllers) {
+      const clubInfo = detectControllerSeriesClub(item);
+      const parsedAxis = extractBaseModelAndAxis(item);
+      const baseModel = item.baseModelNumber || parsedAxis?.baseModelDisplay || item.modelNumber;
+      const axisLabel = parsedAxis?.axisLabel || 'Standard';
+      const hasPanels = Boolean(item.hasPanelOptions || hasPanelOptionInProduct(item));
+      const panelPrices = item.panelPrices;
+      const basePrice = item.price > 0 ? item.price : 0;
+
+      const aPrice = hasPanels
+        ? panelPrices && panelPrices.A > 0
+          ? panelPrices.A
+          : basePrice > 0
+          ? basePrice
+          : ''
+        : '';
+      const bPrice = hasPanels
+        ? panelPrices && panelPrices.B > 0
+          ? panelPrices.B
+          : basePrice > 0
+          ? basePrice
+          : ''
+        : '';
+      const cPrice = hasPanels
+        ? panelPrices && panelPrices.C > 0
+          ? panelPrices.C
+          : basePrice > 0
+          ? basePrice + 20000
+          : ''
+        : '';
+      const ePrice = hasPanels
+        ? panelPrices && panelPrices.E > 0
+          ? panelPrices.E
+          : basePrice > 0
+          ? basePrice + 20000
+          : ''
+        : '';
+
+      const effectiveBasePrice =
+        typeof aPrice === 'number' && aPrice > 0
+          ? aPrice
+          : basePrice > 0
+          ? basePrice
+          : '';
+      const ioPrice =
+        typeof effectiveBasePrice === 'number' && effectiveBasePrice > 0
+          ? effectiveBasePrice + 22000
+          : '';
+      const inOfficial2026Pdf =
+        resolveOfficialRateListPricing({ modelNumber: item.modelNumber }).price !==
+        undefined;
+      const needsPricingReview = effectiveBasePrice === '' || !inOfficial2026Pdf;
+
+      const rowData: (string | number)[] = [
+        clubInfo ? clubInfo.seriesDisplayModel : 'Standalone Controller / I/O',
+        baseModel,
+        item.modelNumber,
+        axisLabel,
+        item.category,
+        item.subcategory || '',
+        hasPanels
+          ? 'A / B / C / E Panels (Mandatory Selection)'
+          : 'Fixed Standard Panel (No A/B/C/E)',
+        aPrice,
+        bPrice,
+        cPrice,
+        ePrice,
+        effectiveBasePrice,
+        ioPrice,
+        item.stockCount ?? 0,
+        needsPricingReview
+          ? 'NOT IN 2026 PDF — PLEASE FILL / CONFIRM OFFICIAL PRICE'
+          : 'OFFICIAL 2026 PDF RATE LIST',
+        item.title || '',
+        item.description || '',
+      ];
+
+      allRows.push(rowData);
+      if (needsPricingReview) {
+        missingRows.push(rowData);
+      }
+    }
+
+    const wb = XLSX.utils.book_new();
+    const wsAll = XLSX.utils.aoa_to_sheet(allRows);
+    wsAll['!cols'] = [
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 24 },
+      { wch: 36 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 24 },
+      { wch: 12 },
+      { wch: 48 },
+      { wch: 38 },
+      { wch: 60 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsAll, 'stock list');
+
+    const wsMissing = XLSX.utils.aoa_to_sheet(missingRows);
+    wsMissing['!cols'] = wsAll['!cols'];
+    XLSX.utils.book_append_sheet(wb, wsMissing, 'Missing from 2026 PDF');
+
+    XLSX.writeFile(wb, 'SZGH-Pakistan-Controller-Series-Panel-Pricing-Sheet.xlsx');
   };
 
   /**
@@ -1432,6 +1693,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           subcategory: subcatToSave.slice(0, 120),
           description: descToSave.slice(0, 1500),
           price: priceNum,
+          ...(item.panelPrices ? { panelPrices: item.panelPrices } : {}),
           stockCount: stockNum,
           stockStatus: statusToSave,
           defaultImageIndex: item.defaultImageIndex || 0,
@@ -1512,7 +1774,16 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownloadControllerSeriesPricingSheet}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-colors cursor-pointer"
+              title="Download Complete Detailed Excel Sheet (.xlsx) of all CNC Controller Series, Axes, and A/B/C/E Panel Pricings (including missing pricings to fill and re-upload)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Download Series &amp; Panel Pricing Sheet (.xlsx)</span>
+            </button>
             <a
               href="/SZGH-Pakistan-Full-Code-Backup.txt"
               download="SZGH-Pakistan-Full-Code-Backup.txt"
@@ -1954,16 +2225,25 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   <button
                     type="button"
+                    onClick={handleDownloadControllerSeriesPricingSheet}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-[#0068AD] hover:bg-[#00558F] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Complete Series &amp; Panel Pricing Sheet (.xlsx)</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleDownloadSampleStockListXlsx}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-colors cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Download Sample &quot;stock list.xlsx&quot;</span>
+                    <span>Sample &quot;stock list.xlsx&quot;</span>
                   </button>
 
                   <label className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs">
                     <Upload className="w-4 h-4" />
-                    <span>Upload .xlsx File</span>
+                    <span>Upload Filled .xlsx File</span>
                     <input
                       type="file"
                       accept=".xlsx,.xls,.csv"

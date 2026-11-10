@@ -81,6 +81,8 @@ import {
   SZGH_990TDC_IMAGE_LABELS,
   SZGH_990TDC_DEFAULT_IMAGE_INDEX,
   isSZGH1000MCModel,
+  isSZGH1000MICModel,
+  isSZGH1000TICModel,
   SZGH_1000MC_IMAGES,
   SZGH_1000MC_IMAGE_LABELS,
   SZGH_1000MC_DEFAULT_IMAGE_INDEX,
@@ -101,6 +103,12 @@ import {
   SZGH_1500MDCB_IMAGE_LABELS,
   SZGH_1500MDCB_DEFAULT_IMAGE_INDEX,
   isSZGH1000TDBModel,
+  isSZGH1000TDCModel,
+  isSZGH1000TCModel,
+  isSZGH1080TICModel,
+  isSZGH1080TDBModel,
+  isSZGH1080MDBModel,
+  isSZGH1080MDCModel,
   SZGH_1000TDB_IMAGES,
   SZGH_1000TDB_IMAGE_LABELS,
   SZGH_1000TDB_DEFAULT_IMAGE_INDEX,
@@ -110,9 +118,14 @@ import {
   SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX,
   hasABPanelInProduct,
   hasCEPanelInProduct,
+  detectRawPanelType,
+  hasPanelOptionInProduct,
   normalizePanelStrings,
   applyPanelPicturesToGallery,
+  buildPanelPricesFromBase,
+  buildPanelPricesFromCE,
   resolveOfficialRateListPricing,
+  PanelPriceBreakdown,
 } from './data/products';
 import {
   onAuthStateChanged,
@@ -309,6 +322,7 @@ export default function App() {
         category?: ProductCategory;
         subcategory?: string;
         description?: string;
+        panelPrices?: PanelPriceBreakdown;
       }
     >
   >({});
@@ -585,7 +599,18 @@ export default function App() {
                   )
                 : [];
               const normalizedTuple: string[] | undefined =
-                rawImages.length > 4
+                rawImages.length > 6
+                  ? [
+                      rawImages[0] ?? '',
+                      rawImages[1] ?? '',
+                      rawImages[2] ?? '',
+                      rawImages[3] ?? '',
+                      rawImages[4] ?? '',
+                      rawImages[5] ?? '',
+                      rawImages[6] ?? '',
+                      rawImages[7] ?? '',
+                    ]
+                  : rawImages.length > 4
                   ? [
                       rawImages[0] ?? '',
                       rawImages[1] ?? '',
@@ -611,7 +636,7 @@ export default function App() {
                   price: data.price,
                   defaultImageIndex:
                     typeof data.defaultImageIndex === 'number'
-                      ? Math.max(0, Math.min(5, Math.round(data.defaultImageIndex)))
+                      ? Math.max(0, Math.min(7, Math.round(data.defaultImageIndex)))
                       : undefined,
                   images: normalizedTuple,
                   modelNumber:
@@ -633,6 +658,24 @@ export default function App() {
                   description:
                     typeof data.description === 'string'
                       ? data.description
+                      : undefined,
+                  panelPrices:
+                    data.panelPrices &&
+                    typeof data.panelPrices === 'object' &&
+                    typeof data.panelPrices.A === 'number' &&
+                    typeof data.panelPrices.B === 'number' &&
+                    typeof data.panelPrices.C === 'number' &&
+                    typeof data.panelPrices.E === 'number'
+                      ? {
+                          A: data.panelPrices.A,
+                          B: data.panelPrices.B,
+                          C: data.panelPrices.C,
+                          E: data.panelPrices.E,
+                          defaultDisplayPrice:
+                            typeof data.panelPrices.defaultDisplayPrice === 'number'
+                              ? data.panelPrices.defaultDisplayPrice
+                              : data.panelPrices.A,
+                        }
                       : undefined,
                 },
               }));
@@ -672,7 +715,10 @@ export default function App() {
       if (!override) {
         const normPanel = normalizePanelStrings(item);
         const { images: panelImgs, imageLabels: panelLabels } =
-          applyPanelPicturesToGallery(item.images, item.imageLabels, normPanel);
+          applyPanelPicturesToGallery(item.images, item.imageLabels, {
+            ...normPanel,
+            hasPanelOptions: item.hasPanelOptions,
+          });
         return {
           ...item,
           modelNumber: normPanel.modelNumber,
@@ -718,6 +764,10 @@ export default function App() {
       const is880TC = isSZGH880TCModel({ modelNumber: resolvedModel });
       const is880TIC = isSZGH880TICModel({ modelNumber: resolvedModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: resolvedModel });
+      const is1080TIC = isSZGH1080TICModel({ modelNumber: resolvedModel });
+      const is1080TDB = isSZGH1080TDBModel({ modelNumber: resolvedModel });
+      const is1080MDB = isSZGH1080MDBModel({ modelNumber: resolvedModel });
+      const is1080MDC = isSZGH1080MDCModel({ modelNumber: resolvedModel });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: resolvedModel });
       const is1500MDB = isSZGH1500MDBModel({ modelNumber: resolvedModel });
       const is990MDB = isSZGH990MDBModel({ modelNumber: resolvedModel });
@@ -725,16 +775,31 @@ export default function App() {
       const is990TDB = isSZGH990TDBModel({ modelNumber: resolvedModel });
       const is990TDC = isSZGH990TDCModel({ modelNumber: resolvedModel });
       const is1000MC = isSZGH1000MCModel({ modelNumber: resolvedModel });
+      const is1000MIC = isSZGH1000MICModel({ modelNumber: resolvedModel });
+      const is1000TC = isSZGH1000TCModel({ modelNumber: resolvedModel });
+      const is1000TIC = isSZGH1000TICModel({ modelNumber: resolvedModel });
       const is1000MDC = isSZGH1000MDCModel({ modelNumber: resolvedModel });
       const is1500MDC = isSZGH1500MDCModel({ modelNumber: resolvedModel });
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: resolvedModel });
       const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: resolvedModel });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: resolvedModel });
+      const is1000TDC = isSZGH1000TDCModel({ modelNumber: resolvedModel });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: resolvedModel,
         title: effectiveTitle,
         description: effectiveDesc,
       });
+
+      const hasCustomBaseFour = Boolean(
+        override.images
+          ?.slice(0, 4)
+          .some(
+            (u) =>
+              u &&
+              u.trim().length > 0 &&
+              !u.startsWith('data:image/svg+xml')
+          )
+      );
 
       const baseFourImages: string[] = is880MC
         ? SZGH_880MC_IMAGES
@@ -746,8 +811,14 @@ export default function App() {
         ? SZGH_880TC_IMAGES
         : is880TIC
         ? SZGH_880TIC_IMAGES
-        : is1080TC
-        ? SZGH_1080TC_IMAGES
+        : is1080TC || is1080TIC || is1080TDB
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1080TC_IMAGES
+        : is1080MDB || is1080MDC
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1080MC_IMAGES
         : is1000MDB
         ? SZGH_1000MDB_IMAGES
         : is1500MDB
@@ -762,6 +833,14 @@ export default function App() {
         ? SZGH_990TDC_IMAGES
         : is1000MC
         ? SZGH_1000MC_IMAGES
+        : is1000MIC
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000MC_IMAGES
+        : is1000TC || is1000TIC
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000TDB_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
         : is1500MDC
@@ -772,6 +851,10 @@ export default function App() {
         ? SZGH_1500MDCB_IMAGES
         : is1000TDB
         ? SZGH_1000TDB_IMAGES
+        : is1000TDC
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000TDB_IMAGES
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGES
         : hasAnyCustomImage && override.images
@@ -780,7 +863,7 @@ export default function App() {
 
       const baseFourLabels: string[] = is880MC
         ? SZGH_880MC_IMAGE_LABELS
-        : is1080MC
+        : is1080MC || is1080MDB || is1080MDC
         ? SZGH_1080MC_IMAGE_LABELS
         : is1080MIC
         ? SZGH_1080MIC_IMAGE_LABELS
@@ -788,7 +871,7 @@ export default function App() {
         ? SZGH_880TC_IMAGE_LABELS
         : is880TIC
         ? SZGH_880TIC_IMAGE_LABELS
-        : is1080TC
+        : is1080TC || is1080TIC || is1080TDB
         ? SZGH_1080TC_IMAGE_LABELS
         : is1000MDB
         ? SZGH_1000MDB_IMAGE_LABELS
@@ -802,7 +885,7 @@ export default function App() {
         ? SZGH_990TDB_IMAGE_LABELS
         : is990TDC
         ? SZGH_990TDC_IMAGE_LABELS
-        : is1000MC
+        : is1000MC || is1000MIC
         ? SZGH_1000MC_IMAGE_LABELS
         : is1000MDC
         ? SZGH_1000MDC_IMAGE_LABELS
@@ -812,23 +895,41 @@ export default function App() {
         ? SZGH_1000MDCB_IMAGE_LABELS
         : is1500MDCB
         ? SZGH_1500MDCB_IMAGE_LABELS
-        : is1000TDB
+        : is1000TDB || is1000TDC || is1000TC || is1000TIC
         ? SZGH_1000TDB_IMAGE_LABELS
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGE_LABELS
         : item.imageLabels;
+
+      const rawPanelType = detectRawPanelType({
+        modelNumber: override.modelNumber || item.modelNumber,
+        title: rawEffectiveTitle,
+        description: rawEffectiveDesc,
+        rawPanelType: item.rawPanelType,
+      });
+
+      const hasPanel = Boolean(
+        item.hasPanelOptions ||
+          hasPanelOptionInProduct({
+            modelNumber: override.modelNumber || item.modelNumber,
+            title: rawEffectiveTitle,
+            description: rawEffectiveDesc,
+          })
+      );
 
       const { images: resolvedImages, imageLabels: resolvedLabels } =
         applyPanelPicturesToGallery(baseFourImages, baseFourLabels, {
           modelNumber: resolvedModel,
           title: effectiveTitle,
           description: effectiveDesc,
+          hasPanelOptions: hasPanel,
         });
 
       const ratePricing = resolveOfficialRateListPricing({
         modelNumber: resolvedModel,
         title: effectiveTitle,
         description: effectiveDesc,
+        price: override.price,
       });
 
       const finalDesc = ratePricing.description || effectiveDesc;
@@ -838,11 +939,33 @@ export default function App() {
         (override.subcategory !== undefined
           ? override.subcategory
           : item.subcategory);
+      const rawPanelPrices =
+        override.panelPrices || ratePricing.panelPrices || item.panelPrices;
+      const fallbackPrice =
+        override.price > 0
+          ? override.price
+          : ratePricing.price !== undefined
+          ? ratePricing.price
+          : override.price;
+      const finalPanelPrices =
+        rawPanelPrices ||
+        (hasPanel
+          ? rawPanelType === 'CE'
+            ? buildPanelPricesFromCE(fallbackPrice)
+            : buildPanelPricesFromBase(fallbackPrice)
+          : undefined);
+      const resolvedBasePrice =
+        finalPanelPrices?.defaultDisplayPrice ??
+        finalPanelPrices?.A ??
+        fallbackPrice;
 
       return {
         ...item,
         modelNumber: resolvedModel,
         title: finalTitle,
+        hasPanelOptions: hasPanel,
+        rawPanelType,
+        ...(finalPanelPrices ? { panelPrices: finalPanelPrices } : {}),
         category: override.category || item.category,
         subcategory: finalSubcat,
         description: finalDesc,
@@ -850,13 +973,13 @@ export default function App() {
         stockCount: override.stockCount,
         stockStatus: override.stockStatus,
         inStock: override.stockCount > 0,
-        price: ratePricing.price !== undefined ? ratePricing.price : override.price,
+        price: resolvedBasePrice,
         servoConfigOptions:
           ratePricing.servoConfigOptions || item.servoConfigOptions,
         hasIOBoardOption: isIOBoard ? false : item.hasIOBoardOption,
         defaultImageIndex: is880MC
           ? SZGH_880MC_DEFAULT_IMAGE_INDEX
-          : is1080MC
+          : is1080MC || is1080MDB || is1080MDC
           ? SZGH_1080MC_DEFAULT_IMAGE_INDEX
           : is1080MIC
           ? SZGH_1080MIC_DEFAULT_IMAGE_INDEX
@@ -864,7 +987,7 @@ export default function App() {
           ? SZGH_880TC_DEFAULT_IMAGE_INDEX
           : is880TIC
           ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
-          : is1080TC
+          : is1080TC || is1080TIC || is1080TDB
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB
           ? SZGH_1000MDB_DEFAULT_IMAGE_INDEX
@@ -878,7 +1001,7 @@ export default function App() {
           ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
           : is990TDC
           ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
-          : is1000MC
+          : is1000MC || is1000MIC
           ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
           : is1000MDC
           ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
@@ -888,7 +1011,7 @@ export default function App() {
           ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
           : is1500MDCB
           ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
-          : is1000TDB
+          : is1000TDB || is1000TDC || is1000TC || is1000TIC
           ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
           : isCNCIO12
           ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
@@ -909,6 +1032,11 @@ export default function App() {
       const subcat = override.subcategory ?? '';
       const rawDesc = override.description ?? '';
       const rawTtl = deriveTitleFromDescription(rawDesc, override.title);
+      const rawPanelType = detectRawPanelType({
+        modelNumber: override.modelNumber,
+        title: rawTtl,
+        description: rawDesc,
+      });
       const normPanel = normalizePanelStrings({
         modelNumber: override.modelNumber,
         title: rawTtl,
@@ -940,16 +1068,30 @@ export default function App() {
       const is990TDB = isSZGH990TDBModel({ modelNumber: normalizedModel });
       const is990TDC = isSZGH990TDCModel({ modelNumber: normalizedModel });
       const is1000MC = isSZGH1000MCModel({ modelNumber: normalizedModel });
+      const is1000MIC = isSZGH1000MICModel({ modelNumber: normalizedModel });
+      const is1000TIC = isSZGH1000TICModel({ modelNumber: normalizedModel });
       const is1000MDC = isSZGH1000MDCModel({ modelNumber: normalizedModel });
       const is1500MDC = isSZGH1500MDCModel({ modelNumber: normalizedModel });
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: normalizedModel });
       const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: normalizedModel });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: normalizedModel });
+      const is1000TDC = isSZGH1000TDCModel({ modelNumber: normalizedModel });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: normalizedModel,
         title: ttl,
         description: desc,
       });
+
+      const hasCustomBaseFour = Boolean(
+        override.images
+          ?.slice(0, 4)
+          .some(
+            (u) =>
+              u &&
+              u.trim().length > 0 &&
+              !u.startsWith('data:image/svg+xml')
+          )
+      );
 
       const baseFourImages: string[] = is880MC
         ? SZGH_880MC_IMAGES
@@ -977,6 +1119,14 @@ export default function App() {
         ? SZGH_990TDC_IMAGES
         : is1000MC
         ? SZGH_1000MC_IMAGES
+        : is1000MIC
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000MC_IMAGES
+        : is1000TIC
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000TDB_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
         : is1500MDC
@@ -987,6 +1137,10 @@ export default function App() {
         ? SZGH_1500MDCB_IMAGES
         : is1000TDB
         ? SZGH_1000TDB_IMAGES
+        : is1000TDC
+        ? hasCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000TDB_IMAGES
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGES
         : override.images || ['', '', '', ''];
@@ -1015,7 +1169,7 @@ export default function App() {
         ? SZGH_990TDB_IMAGE_LABELS
         : is990TDC
         ? SZGH_990TDC_IMAGE_LABELS
-        : is1000MC
+        : is1000MC || is1000MIC
         ? SZGH_1000MC_IMAGE_LABELS
         : is1000MDC
         ? SZGH_1000MDC_IMAGE_LABELS
@@ -1025,7 +1179,7 @@ export default function App() {
         ? SZGH_1000MDCB_IMAGE_LABELS
         : is1500MDCB
         ? SZGH_1500MDCB_IMAGE_LABELS
-        : is1000TDB
+        : is1000TDB || is1000TDC || is1000TIC
         ? SZGH_1000TDB_IMAGE_LABELS
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGE_LABELS
@@ -1036,20 +1190,44 @@ export default function App() {
             'Picture #4 View',
           ];
 
+      const hasCustomPanel = hasPanelOptionInProduct({
+        modelNumber: override.modelNumber,
+        title: rawTtl,
+        description: rawDesc,
+      });
+
       const { images: resolvedImages, imageLabels: resolvedLabels } =
         applyPanelPicturesToGallery(baseFourImages, baseFourLabels, {
           modelNumber: normalizedModel,
           title: ttl,
           description: desc,
+          hasPanelOptions: hasCustomPanel,
         });
 
       const ratePricing = resolveOfficialRateListPricing({
         modelNumber: normalizedModel,
         title: ttl,
         description: desc,
+        price: override.price,
       });
+      const fallbackCustomPrice =
+        override.price > 0
+          ? override.price
+          : ratePricing.price !== undefined
+          ? ratePricing.price
+          : override.price;
+      const finalCustomPanelPrices =
+        override.panelPrices ||
+        ratePricing.panelPrices ||
+        (hasCustomPanel
+          ? rawPanelType === 'CE'
+            ? buildPanelPricesFromCE(fallbackCustomPrice)
+            : buildPanelPricesFromBase(fallbackCustomPrice)
+          : undefined);
       const finalCustomPrice =
-        ratePricing.price !== undefined ? ratePricing.price : override.price;
+        finalCustomPanelPrices?.defaultDisplayPrice ??
+        finalCustomPanelPrices?.A ??
+        fallbackCustomPrice;
       const finalCustomDesc = ratePricing.description || desc;
       const finalCustomTitle = ratePricing.title || ttl;
       const finalCustomSubcat = ratePricing.subcategory || subcat;
@@ -1058,6 +1236,9 @@ export default function App() {
         id: customId,
         modelNumber: normalizedModel,
         title: finalCustomTitle,
+        hasPanelOptions: hasCustomPanel,
+        rawPanelType,
+        panelPrices: finalCustomPanelPrices,
         category: cat,
         subcategory: finalCustomSubcat,
         description: finalCustomDesc,
@@ -1102,7 +1283,7 @@ export default function App() {
           ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
           : is990TDC
           ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
-          : is1000MC
+          : is1000MC || is1000MIC
           ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
           : is1000MDC
           ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
@@ -1112,7 +1293,7 @@ export default function App() {
           ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
           : is1500MDCB
           ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
-          : is1000TDB
+          : is1000TDB || is1000TDC || is1000TIC
           ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
           : isCNCIO12
           ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
@@ -1171,6 +1352,12 @@ export default function App() {
     const hasCustom1000MC = customProducts.some((p) =>
       isSZGH1000MCModel({ modelNumber: p.modelNumber })
     );
+    const hasCustom1000MIC = customProducts.some((p) =>
+      isSZGH1000MICModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom1000TIC = customProducts.some((p) =>
+      isSZGH1000TICModel({ modelNumber: p.modelNumber })
+    );
     const hasCustom1000MDC = customProducts.some((p) =>
       isSZGH1000MDCModel({ modelNumber: p.modelNumber })
     );
@@ -1186,6 +1373,9 @@ export default function App() {
     const hasCustom1000TDB = customProducts.some((p) =>
       isSZGH1000TDBModel({ modelNumber: p.modelNumber })
     );
+    const hasCustom1000TDC = customProducts.some((p) =>
+      isSZGH1000TDCModel({ modelNumber: p.modelNumber })
+    );
     const hasCustomCNCIO12 = customProducts.some((p) =>
       isSZGHCNCIO12Model({
         modelNumber: p.modelNumber,
@@ -1194,15 +1384,18 @@ export default function App() {
       })
     );
     const filteredBuiltIn = mergedBuiltIn.filter((p) => {
-      if (hasCustom880MC && p.id.startsWith('prod-cnc-880mc-')) return false;
-      if (hasCustom1080MC && p.id.startsWith('prod-cnc-1080mc-')) return false;
-      if (hasCustom1080MIC && p.id.startsWith('prod-cnc-1080mic-')) return false;
-      if (hasCustom880TC && p.id.startsWith('prod-cnc-880tc-')) return false;
-      if (hasCustom880TIC && p.id.startsWith('prod-cnc-880tic-')) return false;
-      if (hasCustom1080TC && p.id.startsWith('prod-cnc-1080tc-')) return false;
+      if (hasCustom880MC && (p.id.startsWith('prod-cnc-880mc-') || isSZGH880MCModel(p))) return false;
+      if (hasCustom1080MC && (p.id.startsWith('prod-cnc-1080mc-') || isSZGH1080MCModel(p))) return false;
+      if (hasCustom1080MIC && (p.id.startsWith('prod-cnc-1080mic-') || isSZGH1080MICModel(p))) return false;
+      if (hasCustom880TC && (p.id.startsWith('prod-cnc-880tc-') || isSZGH880TCModel(p))) return false;
+      if (hasCustom880TIC && (p.id.startsWith('prod-cnc-880tic-') || isSZGH880TICModel(p))) return false;
+      if (hasCustom1080TC && (p.id.startsWith('prod-cnc-1080tc-') || isSZGH1080TCModel(p))) return false;
       if (
         hasCustom1000MDB &&
-        (p.id === 'prod-cnc-1000mdb' || p.id.startsWith('prod-cnc-1000mdb-'))
+        (p.id === 'prod-cnc-1000mdb' ||
+          p.id.startsWith('prod-cnc-1000mdb-') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1000mdb-') ||
+          isSZGH1000MDBModel(p))
       ) {
         return false;
       }
@@ -1210,43 +1403,59 @@ export default function App() {
         hasCustom1500MDB &&
         (p.id === 'prod-cnc-1500mdb' ||
           p.id.startsWith('prod-cnc-1500mdb-') ||
-          p.id.startsWith('prod-cnc-szgh-cnc1500mdb-'))
+          p.id.startsWith('prod-cnc-szgh-cnc1500mdb-') ||
+          isSZGH1500MDBModel(p))
       ) {
         return false;
       }
       if (
         hasCustom990MDB &&
-        (p.id === 'prod-cnc-990mdb' || p.id.startsWith('prod-cnc-990mdb-'))
+        (p.id === 'prod-cnc-990mdb' ||
+          p.id.startsWith('prod-cnc-990mdb-') ||
+          isSZGH990MDBModel(p))
       ) {
         return false;
       }
       if (
         hasCustom990MDC &&
-        (p.id === 'prod-cnc-990mdc' || p.id.startsWith('prod-cnc-990mdc-'))
+        (p.id === 'prod-cnc-990mdc' ||
+          p.id.startsWith('prod-cnc-990mdc-') ||
+          isSZGH990MDCModel(p))
       ) {
         return false;
       }
       if (
         hasCustom990TDB &&
-        (p.id === 'prod-cnc-990tdb' || p.id.startsWith('prod-cnc-990tdb-'))
+        (p.id === 'prod-cnc-990tdb' ||
+          p.id.startsWith('prod-cnc-990tdb-') ||
+          isSZGH990TDBModel(p))
       ) {
         return false;
       }
       if (
         hasCustom990TDC &&
-        (p.id === 'prod-cnc-990tdc' || p.id.startsWith('prod-cnc-990tdc-'))
+        (p.id === 'prod-cnc-990tdc' ||
+          p.id.startsWith('prod-cnc-990tdc-') ||
+          isSZGH990TDCModel(p))
       ) {
         return false;
       }
       if (
         hasCustom1000MC &&
-        (p.id === 'prod-cnc-1000mc' || p.id.startsWith('prod-cnc-1000mc-'))
+        (p.id === 'prod-cnc-1000mc' ||
+          p.id.startsWith('prod-cnc-1000mc-') ||
+          isSZGH1000MCModel(p))
       ) {
         return false;
       }
+      if (hasCustom1000MIC && isSZGH1000MICModel(p)) return false;
+      if (hasCustom1000TIC && isSZGH1000TICModel(p)) return false;
       if (
         hasCustom1000MDC &&
-        (p.id === 'prod-cnc-1000mdc' || p.id.startsWith('prod-cnc-1000mdc-'))
+        (p.id === 'prod-cnc-1000mdc' ||
+          p.id.startsWith('prod-cnc-1000mdc-') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1000mdc-') ||
+          isSZGH1000MDCModel(p))
       ) {
         return false;
       }
@@ -1254,13 +1463,17 @@ export default function App() {
         hasCustom1500MDC &&
         (p.id === 'prod-cnc-1500mdc' ||
           p.id.startsWith('prod-cnc-1500mdc-') ||
-          p.id.startsWith('prod-cnc-szgh-cnc1500mdc-'))
+          p.id.startsWith('prod-cnc-szgh-cnc1500mdc-') ||
+          isSZGH1500MDCModel(p))
       ) {
         return false;
       }
       if (
         hasCustom1000MDCB &&
-        (p.id === 'prod-cnc-1000mdcb' || p.id.startsWith('prod-cnc-1000mdcb-'))
+        (p.id === 'prod-cnc-1000mdcb' ||
+          p.id.startsWith('prod-cnc-1000mdcb-') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1000mdcb-') ||
+          isSZGH1000MDCBModel(p))
       ) {
         return false;
       }
@@ -1268,13 +1481,25 @@ export default function App() {
         hasCustom1500MDCB &&
         (p.id === 'prod-cnc-1500mdcb' ||
           p.id.startsWith('prod-cnc-1500mdcb-') ||
-          p.id.startsWith('prod-cnc-szgh-cnc1500mdcb-'))
+          p.id.startsWith('prod-cnc-szgh-cnc1500mdcb-') ||
+          isSZGH1500MDCBModel(p))
       ) {
         return false;
       }
       if (
         hasCustom1000TDB &&
-        (p.id === 'prod-cnc-1000tdb' || p.id.startsWith('prod-cnc-1000tdb-'))
+        (p.id === 'prod-cnc-1000tdb' ||
+          p.id.startsWith('prod-cnc-1000tdb-') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1000tdb-') ||
+          isSZGH1000TDBModel(p))
+      ) {
+        return false;
+      }
+      if (
+        hasCustom1000TDC &&
+        (p.id.startsWith('prod-cnc-1000tdc') ||
+          p.id.startsWith('prod-cnc-szgh-cnc1000tdc-') ||
+          isSZGH1000TDCModel(p))
       ) {
         return false;
       }
@@ -1299,6 +1524,7 @@ export default function App() {
       });
       const hasABPanel = hasABPanelInProduct(override);
       const hasCEPanel = hasCEPanelInProduct(override);
+      const hasPanelOption = hasPanelOptionInProduct(override);
 
       const is880MC = isSZGH880MCModel({ modelNumber: override.modelNumber });
       const is1080MC = isSZGH1080MCModel({ modelNumber: override.modelNumber });
@@ -1313,11 +1539,14 @@ export default function App() {
       const is990TDB = isSZGH990TDBModel({ modelNumber: override.modelNumber });
       const is990TDC = isSZGH990TDCModel({ modelNumber: override.modelNumber });
       const is1000MC = isSZGH1000MCModel({ modelNumber: override.modelNumber });
+      const is1000MIC = isSZGH1000MICModel({ modelNumber: override.modelNumber });
+      const is1000TIC = isSZGH1000TICModel({ modelNumber: override.modelNumber });
       const is1000MDC = isSZGH1000MDCModel({ modelNumber: override.modelNumber });
       const is1500MDC = isSZGH1500MDCModel({ modelNumber: override.modelNumber });
       const is1000MDCB = isSZGH1000MDCBModel({ modelNumber: override.modelNumber });
       const is1500MDCB = isSZGH1500MDCBModel({ modelNumber: override.modelNumber });
       const is1000TDB = isSZGH1000TDBModel({ modelNumber: override.modelNumber });
+      const is1000TDC = isSZGH1000TDCModel({ modelNumber: override.modelNumber });
       const isCNCIO12 = isSZGHCNCIO12Model({
         modelNumber: override.modelNumber,
         title: override.title,
@@ -1337,17 +1566,32 @@ export default function App() {
         !is990TDB &&
         !is990TDC &&
         !is1000MC &&
+        !is1000MIC &&
+        !is1000TIC &&
         !is1000MDC &&
         !is1500MDC &&
         !is1000MDCB &&
         !is1500MDCB &&
         !is1000TDB &&
+        !is1000TDC &&
         !isCNCIO12 &&
         !hasABPanel &&
-        !hasCEPanel
+        !hasCEPanel &&
+        !hasPanelOption
       ) {
         continue;
       }
+
+      const hasOverrideCustomBaseFour = Boolean(
+        override.images
+          ?.slice(0, 4)
+          .some(
+            (u) =>
+              u &&
+              u.trim().length > 0 &&
+              !u.startsWith('data:image/svg+xml')
+          )
+      );
 
       const baseTargetImages: string[] = is880MC
         ? SZGH_880MC_IMAGES
@@ -1375,6 +1619,14 @@ export default function App() {
         ? SZGH_990TDC_IMAGES
         : is1000MC
         ? SZGH_1000MC_IMAGES
+        : is1000MIC
+        ? hasOverrideCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000MC_IMAGES
+        : is1000TIC
+        ? hasOverrideCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000TDB_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
         : is1500MDC
@@ -1385,6 +1637,10 @@ export default function App() {
         ? SZGH_1500MDCB_IMAGES
         : is1000TDB
         ? SZGH_1000TDB_IMAGES
+        : is1000TDC
+        ? hasOverrideCustomBaseFour && override.images
+          ? override.images.slice(0, 4)
+          : SZGH_1000TDB_IMAGES
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGES
         : override.images || ['', '', '', ''];
@@ -1392,7 +1648,10 @@ export default function App() {
       const { images: targetImages } = applyPanelPicturesToGallery(
         baseTargetImages,
         [],
-        normPanel
+        {
+          ...normPanel,
+          hasPanelOptions: hasPanelOption,
+        }
       );
 
       const targetDefaultIdx = is880MC
@@ -1419,7 +1678,7 @@ export default function App() {
         ? SZGH_990TDB_DEFAULT_IMAGE_INDEX
         : is990TDC
         ? SZGH_990TDC_DEFAULT_IMAGE_INDEX
-        : is1000MC
+        : is1000MC || is1000MIC
         ? SZGH_1000MC_DEFAULT_IMAGE_INDEX
         : is1000MDC
         ? SZGH_1000MDC_DEFAULT_IMAGE_INDEX
@@ -1429,7 +1688,7 @@ export default function App() {
         ? SZGH_1000MDCB_DEFAULT_IMAGE_INDEX
         : is1500MDCB
         ? SZGH_1500MDCB_DEFAULT_IMAGE_INDEX
-        : is1000TDB
+        : is1000TDB || is1000TDC || is1000TIC
         ? SZGH_1000TDB_DEFAULT_IMAGE_INDEX
         : isCNCIO12
         ? SZGH_CNC_IO12_DEFAULT_IMAGE_INDEX
@@ -1439,6 +1698,7 @@ export default function App() {
         modelNumber: normPanel.modelNumber,
         title: normPanel.title,
         description: normPanel.description,
+        price: override.price,
       });
       const targetDesc = ratePricing.description || normPanel.description;
       const targetTitle = ratePricing.title || normPanel.title;
@@ -1448,14 +1708,16 @@ export default function App() {
       const imagesMatch =
         override.images?.length === targetImages.length &&
         targetImages.every((img, idx) => override.images?.[idx] === img);
+      const modelMatches = override.modelNumber === normPanel.modelNumber;
       const descMatches =
-        (!hasABPanel && !hasCEPanel && !ratePricing.description) ||
+        (!hasABPanel && !hasCEPanel && !hasPanelOption && !ratePricing.description) ||
         override.description === targetDesc;
       const subcatMatches =
         !ratePricing.subcategory || override.subcategory === targetSubcat;
       const alreadySynced =
         override.defaultImageIndex === targetDefaultIdx &&
         imagesMatch &&
+        modelMatches &&
         descMatches &&
         subcatMatches &&
         priceMatches;
@@ -1472,7 +1734,7 @@ export default function App() {
           ...(ratePricing.title
             ? { title: targetTitle.slice(0, 200) }
             : {}),
-          ...(hasABPanel || hasCEPanel || ratePricing.description
+          ...(hasABPanel || hasCEPanel || hasPanelOption || ratePricing.description
             ? {
                 modelNumber: normPanel.modelNumber.slice(0, 120),
                 description: targetDesc.slice(0, 1500),

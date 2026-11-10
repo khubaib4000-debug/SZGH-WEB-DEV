@@ -96,10 +96,10 @@ service cloud.firestore {
         data.stockStatus in ['In Stock', 'Low Stock', 'Pre-Order'] &&
         data.defaultImageIndex is int &&
         data.defaultImageIndex >= 0 &&
-        data.defaultImageIndex <= 5 &&
+        data.defaultImageIndex <= 7 &&
         data.images is list &&
         data.images.size() >= 1 &&
-        data.images.size() <= 6 &&
+        data.images.size() <= 8 &&
         data.images[0] is string &&
         data.images[0].size() >= 0 &&
         data.images[0].size() <= 250000 &&

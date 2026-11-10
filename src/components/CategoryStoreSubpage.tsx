@@ -139,12 +139,29 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
     return OFFICIAL_SUBCATEGORY_GROUPS.filter((g) => g.category === category);
   }, [category]);
 
-  // Count how many merged products belong to each subcategory
+  // Count how many merged products belong to each subcategory (including seriesVariants)
   const subcategoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const item of products) {
-      const resolved = resolveOfficialSubcategory(item);
-      counts[resolved] = (counts[resolved] || 0) + 1;
+      if (item.seriesVariants && item.seriesVariants.length > 0) {
+        const distinctSubcats = new Set(
+          item.seriesVariants.map((sv) =>
+            resolveOfficialSubcategory({
+              ...item,
+              subcategory: sv.subcategory,
+              modelNumber: sv.modelNumber,
+              title: sv.title,
+              description: sv.description,
+            })
+          )
+        );
+        for (const sub of distinctSubcats) {
+          counts[sub] = (counts[sub] || 0) + 1;
+        }
+      } else {
+        const resolved = resolveOfficialSubcategory(item);
+        counts[resolved] = (counts[resolved] || 0) + 1;
+      }
     }
     return counts;
   }, [products]);
@@ -165,16 +182,32 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
         if (!matchesCat) return false;
 
         const itemSubcat = resolveOfficialSubcategory(item);
+        const seriesSubcats =
+          item.seriesVariants && item.seriesVariants.length > 0
+            ? item.seriesVariants.map((sv) =>
+                resolveOfficialSubcategory({
+                  ...item,
+                  subcategory: sv.subcategory,
+                  modelNumber: sv.modelNumber,
+                  title: sv.title,
+                  description: sv.description,
+                })
+              )
+            : [itemSubcat];
 
-        // If a specific subcategory is selected, match it
+        // If a specific subcategory is selected, match it against the item or any of its seriesVariants
         if (activeSubcat) {
-          if (itemSubcat.toLowerCase() !== activeSubcat.toLowerCase()) {
+          const matchesSubcat = seriesSubcats.some(
+            (s) => s.toLowerCase() === activeSubcat.toLowerCase()
+          );
+          if (!matchesSubcat) {
             return false;
           }
         } else if (activeGroupObj) {
-          // If a parent group (like "Spindle Servo Motors and Drivers" or "Stepper Motors and Drivers") is selected
-          const inGroup = activeGroupObj.subcategories.some(
-            (s) => s.toLowerCase() === itemSubcat.toLowerCase()
+          const inGroup = seriesSubcats.some((itemSub) =>
+            activeGroupObj.subcategories.some(
+              (s) => s.toLowerCase() === itemSub.toLowerCase()
+            )
           );
           if (!inGroup) return false;
         }
@@ -186,13 +219,27 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
             v.axisLabel.toLowerCase().includes(q) ||
             v.title.toLowerCase().includes(q)
         );
+        const seriesMatches = item.seriesVariants?.some(
+          (sv) =>
+            sv.modelNumber.toLowerCase().includes(q) ||
+            sv.modelButtonLabel.toLowerCase().includes(q) ||
+            sv.title.toLowerCase().includes(q) ||
+            sv.description.toLowerCase().includes(q) ||
+            sv.axisVariants?.some(
+              (av) =>
+                av.modelNumber.toLowerCase().includes(q) ||
+                av.axisLabel.toLowerCase().includes(q)
+            )
+        );
         return (
           item.modelNumber.toLowerCase().includes(q) ||
           (item.baseModelNumber || '').toLowerCase().includes(q) ||
+          (item.seriesClubName || '').toLowerCase().includes(q) ||
           item.title.toLowerCase().includes(q) ||
           item.description.toLowerCase().includes(q) ||
           itemSubcat.toLowerCase().includes(q) ||
-          Boolean(axisMatches)
+          Boolean(axisMatches) ||
+          Boolean(seriesMatches)
         );
       })
       .sort((a, b) => {
@@ -631,6 +678,7 @@ export const CategoryStoreSubpage: React.FC<CategoryStoreSubpageProps> = ({
                       product={product}
                       onAddToCart={onAddToCart}
                       onSelectProduct={onSelectProduct}
+                      activeSubcategory={activeSubcat}
                     />
                   ))}
                 </div>
