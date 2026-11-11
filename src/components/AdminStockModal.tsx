@@ -839,20 +839,16 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   };
 
   /**
-   * Parses a worksheet (preferring "stock list") and extracts all product rows,
+   * Parses a single worksheet into TrackedExcelStockItem[] rows,
    * leaving any missing fields/tabs strictly empty ('').
    */
-  const parseSheetIntoTrackedItems = (
+  const extractTrackedItemsFromSingleSheet = (
     workbook: XLSX.WorkBook,
     sheetName: string
-  ) => {
+  ): TrackedExcelStockItem[] => {
     const worksheet = workbook.Sheets[sheetName];
     if (!worksheet) {
-      setStatusBanner({
-        type: 'error',
-        message: `Sheet "${sheetName}" could not be found in the uploaded file.`,
-      });
-      return;
+      return [];
     }
 
     const rows2D = XLSX.utils.sheet_to_json< unknown[] >(worksheet, {
@@ -862,12 +858,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     });
 
     if (!rows2D || rows2D.length === 0) {
-      setTrackedExcelItems([]);
-      setStatusBanner({
-        type: 'error',
-        message: `Sheet "${sheetName}" is empty.`,
-      });
-      return;
+      return [];
     }
 
     // Find the header row (scans first 15 rows for column names like Model, Item, Code, Stock, Qty, Price, Description, etc.)
@@ -1293,6 +1284,65 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       });
     }
 
+    return extracted;
+  };
+
+  /**
+   * Parses either a single worksheet or ALL category sheets ('__ALL_SHEETS__')
+   * and updates trackedExcelItems.
+   */
+  const parseSheetIntoTrackedItems = (
+    workbook: XLSX.WorkBook,
+    sheetName: string
+  ) => {
+    if (sheetName === '__ALL_SHEETS__') {
+      const sheetsToParse = workbook.SheetNames.filter(
+        (name) => !name.toLowerCase().includes('missing from 2026')
+      );
+      const combined: TrackedExcelStockItem[] = [];
+      const seenKeys = new Set<string>();
+
+      for (const sName of sheetsToParse) {
+        const sheetItems = extractTrackedItemsFromSingleSheet(workbook, sName);
+        for (const item of sheetItems) {
+          const key = `${item.modelNumber.trim().toUpperCase()}__${item.category}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          combined.push({
+            ...item,
+            rowNumber: combined.length + 1,
+          });
+        }
+      }
+
+      setTrackedExcelItems(combined);
+      const matchedCount = combined.filter((i) => i.matchedProductId !== null).length;
+      const newCount = combined.length - matchedCount;
+      setStatusBanner({
+        type: 'success',
+        message: `Fetched ${combined.length} total item(s) across ${sheetsToParse.length} sheet(s) (${matchedCount} matched existing catalog items, ${newCount} new items).`,
+      });
+      return;
+    }
+
+    if (!workbook.Sheets[sheetName]) {
+      setStatusBanner({
+        type: 'error',
+        message: `Sheet "${sheetName}" could not be found in the uploaded file.`,
+      });
+      return;
+    }
+
+    const extracted = extractTrackedItemsFromSingleSheet(workbook, sheetName);
+    if (extracted.length === 0) {
+      setTrackedExcelItems([]);
+      setStatusBanner({
+        type: 'error',
+        message: `Sheet "${sheetName}" is empty.`,
+      });
+      return;
+    }
+
     setTrackedExcelItems(extracted);
 
     const matchedCount = extracted.filter((i) => i.matchedProductId !== null).length;
@@ -1319,7 +1369,11 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       setWorkbookCache(workbook);
       setExcelSheetNames(workbook.SheetNames);
 
-      // Look specifically for sheet named "stock list" (case-insensitive), fallback to partial match or first sheet
+      // If the workbook has multiple category sheets (e.g., Controllers, Servo Motors & Drives, CNC Machines, Industrial Robots),
+      // default to '__ALL_SHEETS__' so all categories are loaded in one go!
+      const hasCategorySheets = workbook.SheetNames.some((n) =>
+        /controllers|servo|motors|machines|robots/i.test(n)
+      );
       const exactStockListSheet = workbook.SheetNames.find(
         (name) => name.trim().toLowerCase() === 'stock list'
       );
@@ -1329,7 +1383,9 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           name.trim().toLowerCase().includes('stock')
       );
       const chosenSheet =
-        exactStockListSheet || partialStockListSheet || workbook.SheetNames[0];
+        hasCategorySheets && workbook.SheetNames.length > 1
+          ? '__ALL_SHEETS__'
+          : exactStockListSheet || partialStockListSheet || workbook.SheetNames[0];
 
       setSelectedSheetName(chosenSheet);
       parseSheetIntoTrackedItems(workbook, chosenSheet);
@@ -1407,13 +1463,21 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   };
 
   /**
-   * Generates & downloads the Complete Detailed CNC Controller Series & Panel Pricing Excel Sheet (.xlsx)
-   * containing all clubbed series (1000, 1080, 1500, 990, 880), all axis variants, and A/B/C/E panel price columns.
-   * Options without official pricing have blank price cells marked "NEEDS PRICING — FILL A/B OR C/E OR PRICE PKR"
-   * so the user can fill them in and upload the sheet right back into the "3. Upload .xlsx" tab.
+   * Generates & downloads the Complete Detailed Catalog & Pricing Excel Workbook (.xlsx)
+   * with separate sheets for each category so the admin can download all items in one go:
+   * 1. "Controllers" — All CNC Controllers clubbed in a single sheet (1000, 1080, 1500, 990, 880 Series + I/O Boards) with A/B/C/E Panel Prices
+   * 2. "Servo Motors & Drives" — All AC Servo Motors (Base / Brake / Absolute prices), Digital Servo Drivers, Spindle Motors/Drivers, and Stepper Kits
+   * 3. "CNC Machines" — All CNC Turning Centers, CNC Milling Machines & Vertical Machining Centers (VMCs)
+   * 4. "Industrial Robots" — All 6-Axis Welding, Pick-and-Place / Machine Tending & Spraying/Grinding Robots
+   * 5. "Missing from 2026 PDF" — Quick-filter sheet for any controller options needing pricing review
    */
   const handleDownloadControllerSeriesPricingSheet = () => {
-    const headerRow = [
+    const wb = XLSX.utils.book_new();
+
+    // =========================================================================
+    // SHEET 1: CONTROLLERS (All Controller Series Clubbed in Single Sheet)
+    // =========================================================================
+    const controllerHeaderRow = [
       'Series Club',
       'Base Model',
       'Model Number',
@@ -1434,8 +1498,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     ];
 
     const controllerItems = products.filter((p) => p.category === 'Controllers');
-    const allRows: (string | number)[][] = [headerRow];
-    const missingRows: (string | number)[][] = [headerRow];
+    const controllerRows: (string | number)[][] = [controllerHeaderRow];
+    const missingRows: (string | number)[][] = [controllerHeaderRow];
 
     const seriesOrder: Record<string, number> = {
       'SZGH-1000 Series': 1,
@@ -1531,21 +1595,20 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         item.description || '',
       ];
 
-      allRows.push(rowData);
+      controllerRows.push(rowData);
       if (needsPricingReview) {
         missingRows.push(rowData);
       }
     }
 
-    const wb = XLSX.utils.book_new();
-    const wsAll = XLSX.utils.aoa_to_sheet(allRows);
-    wsAll['!cols'] = [
+    const wsControllers = XLSX.utils.aoa_to_sheet(controllerRows);
+    wsControllers['!cols'] = [
       { wch: 20 },
       { wch: 18 },
       { wch: 22 },
       { wch: 12 },
       { wch: 14 },
-      { wch: 24 },
+      { wch: 28 },
       { wch: 36 },
       { wch: 18 },
       { wch: 18 },
@@ -1558,10 +1621,177 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       { wch: 38 },
       { wch: 60 },
     ];
-    XLSX.utils.book_append_sheet(wb, wsAll, 'stock list');
+    XLSX.utils.book_append_sheet(wb, wsControllers, 'Controllers');
 
+    // =========================================================================
+    // SHEET 2: SERVO MOTORS & DRIVES (All Motors, Drivers, Spindle & Stepper)
+    // =========================================================================
+    const motorHeaderRow = [
+      'Subcategory Group',
+      'Model Number',
+      'Category',
+      'Subcategory',
+      'Price PKR',
+      'With Brake Price PKR',
+      'Absolute Encoder Price PKR',
+      'Stock Qty',
+      'Pricing Status',
+      'Title',
+      'Description',
+    ];
+    const motorItems = products.filter((p) => p.category === 'Motors');
+    const motorSubcatOrder: Record<string, number> = {
+      'Servo motor': 1,
+      'Servo Driver': 2,
+      'Spindle servo motor': 3,
+      'Spindle servo driver': 4,
+      'Closed Loop Stepper Motors and Drivers': 5,
+      'Two-phase stepper motor and driver': 6,
+      'Three-phase stepper motors and drivers': 7,
+    };
+    const sortedMotors = [...motorItems].sort((a, b) => {
+      const rankA = motorSubcatOrder[a.subcategory || ''] || 99;
+      const rankB = motorSubcatOrder[b.subcategory || ''] || 99;
+      if (rankA !== rankB) return rankA - rankB;
+      return a.modelNumber.localeCompare(b.modelNumber);
+    });
+
+    const motorRows: (string | number)[][] = [motorHeaderRow];
+    for (const item of sortedMotors) {
+      const servoOpts = item.servoConfigOptions || [];
+      const baseOpt = servoOpts.find((o) => o.id === 'base');
+      const brakeOpt = servoOpts.find((o) => o.id === 'brake');
+      const absOpt = servoOpts.find((o) => o.id === 'absolute');
+      const basePrice = baseOpt ? baseOpt.price : item.price > 0 ? item.price : '';
+      const brakePrice = brakeOpt ? brakeOpt.price : '';
+      const absPrice = absOpt ? absOpt.price : '';
+      const subcatGroup =
+        item.subcategory === 'Servo motor' || item.subcategory === 'Servo Driver'
+          ? 'Servo Motors and Drives'
+          : item.subcategory?.toLowerCase().includes('spindle')
+          ? 'Spindle Servo Motors and Drivers'
+          : 'Stepper Motors and Drivers';
+      const in2026RateList =
+        resolveOfficialRateListPricing({ modelNumber: item.modelNumber }).price !==
+        undefined;
+
+      motorRows.push([
+        subcatGroup,
+        item.modelNumber,
+        item.category,
+        item.subcategory || '',
+        basePrice,
+        brakePrice,
+        absPrice,
+        item.stockCount ?? 0,
+        in2026RateList ? 'OFFICIAL 2026 PDF RATE LIST' : 'CATALOG STANDARD PRICE',
+        item.title || '',
+        item.description || '',
+      ]);
+    }
+
+    const wsMotors = XLSX.utils.aoa_to_sheet(motorRows);
+    wsMotors['!cols'] = [
+      { wch: 30 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 34 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 26 },
+      { wch: 12 },
+      { wch: 30 },
+      { wch: 42 },
+      { wch: 65 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsMotors, 'Servo Motors & Drives');
+
+    // =========================================================================
+    // SHEET 3: CNC MACHINES (Lathes, Milling Machines & VMCs)
+    // =========================================================================
+    const machineHeaderRow = [
+      'Subcategory Group',
+      'Model Number',
+      'Category',
+      'Subcategory',
+      'Price PKR',
+      'USD Estimate',
+      'Stock Qty',
+      'Warranty',
+      'Title',
+      'Description',
+    ];
+    const machineItems = products.filter((p) => p.category === 'Machines');
+    const machineRows: (string | number)[][] = [machineHeaderRow];
+    for (const item of machineItems) {
+      machineRows.push([
+        'CNC Machine',
+        item.modelNumber,
+        item.category,
+        item.subcategory || '',
+        item.price > 0 ? item.price : '',
+        item.usdEstimate ?? '',
+        item.stockCount ?? 0,
+        item.warranty || '1 Year Official Warranty',
+        item.title || '',
+        item.description || '',
+      ]);
+    }
+    const wsMachines = XLSX.utils.aoa_to_sheet(machineRows);
+    wsMachines['!cols'] = [
+      { wch: 20 },
+      { wch: 24 },
+      { wch: 14 },
+      { wch: 26 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 24 },
+      { wch: 45 },
+      { wch: 65 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsMachines, 'CNC Machines');
+
+    // =========================================================================
+    // SHEET 4: INDUSTRIAL ROBOTS (Welding, Handling & Spraying/Grinding Robots)
+    // =========================================================================
+    const robotHeaderRow = [
+      'Subcategory Group',
+      'Model Number',
+      'Category',
+      'Subcategory',
+      'Price PKR',
+      'USD Estimate',
+      'Stock Qty',
+      'Warranty',
+      'Title',
+      'Description',
+    ];
+    const robotItems = products.filter((p) => p.category === 'Robots');
+    const robotRows: (string | number)[][] = [robotHeaderRow];
+    for (const item of robotItems) {
+      robotRows.push([
+        'Industrial Robots',
+        item.modelNumber,
+        item.category,
+        item.subcategory || '',
+        item.price > 0 ? item.price : '',
+        item.usdEstimate ?? '',
+        item.stockCount ?? 0,
+        item.warranty || '1 Year Official Warranty',
+        item.title || '',
+        item.description || '',
+      ]);
+    }
+    const wsRobots = XLSX.utils.aoa_to_sheet(robotRows);
+    wsRobots['!cols'] = wsMachines['!cols'];
+    XLSX.utils.book_append_sheet(wb, wsRobots, 'Industrial Robots');
+
+    // =========================================================================
+    // SHEET 5: MISSING FROM 2026 PDF (Controllers Needing Price Confirmation)
+    // =========================================================================
     const wsMissing = XLSX.utils.aoa_to_sheet(missingRows);
-    wsMissing['!cols'] = wsAll['!cols'];
+    wsMissing['!cols'] = wsControllers['!cols'];
     XLSX.utils.book_append_sheet(wb, wsMissing, 'Missing from 2026 PDF');
 
     XLSX.writeFile(wb, 'SZGH-Pakistan-Controller-Series-Panel-Pricing-Sheet.xlsx');
@@ -2229,7 +2459,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-[#0068AD] hover:bg-[#00558F] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Download Complete Series &amp; Panel Pricing Sheet (.xlsx)</span>
+                    <span>Download Complete Catalog Pricing Sheet — All Categories (.xlsx)</span>
                   </button>
 
                   <button
@@ -2276,6 +2506,11 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                         }}
                         className="px-2.5 py-1 rounded bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
                       >
+                        {excelSheetNames.length > 1 && (
+                          <option value="__ALL_SHEETS__">
+                            ★ ALL CATEGORY SHEETS (Controllers + Motors + Machines + Robots)
+                          </option>
+                        )}
                         {excelSheetNames.map((sName) => (
                           <option key={sName} value={sName}>
                             {sName}

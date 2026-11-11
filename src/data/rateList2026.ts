@@ -1122,7 +1122,7 @@ export function buildPanelPricesFromCE(cePrice: number): PanelPricingMap {
     B: ab,
     C: p,
     E: p,
-    defaultDisplayPrice: p,
+    defaultDisplayPrice: ab,
   };
 }
 
@@ -1218,20 +1218,11 @@ for (const row of CONTROLLER_RATE_LIST_2026) {
 
 for (const [keyNoPanel, pair] of RAW_PANEL_PAIR_BY_KEY.entries()) {
   let prices: PanelPricingMap;
-  if (pair.abPrice !== undefined && pair.cePrice !== undefined) {
-    // Master PDF Rate List has both (A+B Panel) and (C+E Panel) prices
-    prices = {
-      A: pair.abPrice,
-      B: pair.abPrice,
-      C: pair.cePrice,
-      E: pair.cePrice,
-      defaultDisplayPrice: pair.abPrice,
-    };
-  } else if (pair.abPrice !== undefined) {
-    // Only A+B (or base) Panel price given -> add +20,000 when C or E is selected
+  if (pair.abPrice !== undefined) {
+    // Panel A = Panel B = abPrice; Panel C = Panel E = abPrice + 20,000
     prices = buildPanelPricesFromBase(pair.abPrice);
   } else if (pair.cePrice !== undefined) {
-    // Only C+E (or C) Panel price given -> reduce by 20,000 when A or B is selected
+    // Only C+E (or C) Panel price given -> reduce by 20,000 when A or B is selected (C = E = A + 20,000)
     prices = buildPanelPricesFromCE(pair.cePrice);
   } else {
     continue;

@@ -257,7 +257,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       ? activeAxis.price
       : effectiveProduct.price;
 
-  const activePanelPrices =
+  const rawActivePanelPrices =
     activeAxis?.panelPrices ||
     effectiveProduct.panelPrices ||
     (hasPanelOptions
@@ -266,9 +266,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         : buildPanelPricesFromBase(fallbackAxisOrBasePrice)
       : undefined);
 
+  const activePanelPrices =
+    rawActivePanelPrices && rawActivePanelPrices.A > 0
+      ? buildPanelPricesFromBase(rawActivePanelPrices.A)
+      : rawActivePanelPrices;
+
   const defaultPanelDisplayPrice =
-    activePanelPrices?.defaultDisplayPrice ??
     activePanelPrices?.A ??
+    activePanelPrices?.defaultDisplayPrice ??
     fallbackAxisOrBasePrice;
 
   const panelSpecificPrice = hasPanelOptions
@@ -653,8 +658,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                     ? `${activePanelOption.label}${
                         panelPriceDelta > 0
                           ? ` (+PKR ${panelPriceDelta.toLocaleString()})`
-                          : panelPriceDelta < 0
-                          ? ` (-PKR ${Math.abs(panelPriceDelta).toLocaleString()})`
                           : ''
                       }`
                     : 'Required'}

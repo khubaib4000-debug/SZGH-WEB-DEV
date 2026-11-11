@@ -663,19 +663,8 @@ export default function App() {
                     data.panelPrices &&
                     typeof data.panelPrices === 'object' &&
                     typeof data.panelPrices.A === 'number' &&
-                    typeof data.panelPrices.B === 'number' &&
-                    typeof data.panelPrices.C === 'number' &&
-                    typeof data.panelPrices.E === 'number'
-                      ? {
-                          A: data.panelPrices.A,
-                          B: data.panelPrices.B,
-                          C: data.panelPrices.C,
-                          E: data.panelPrices.E,
-                          defaultDisplayPrice:
-                            typeof data.panelPrices.defaultDisplayPrice === 'number'
-                              ? data.panelPrices.defaultDisplayPrice
-                              : data.panelPrices.A,
-                        }
+                    data.panelPrices.A > 0
+                      ? buildPanelPricesFromBase(data.panelPrices.A)
                       : undefined,
                 },
               }));
@@ -831,16 +820,10 @@ export default function App() {
         ? SZGH_990TDB_IMAGES
         : is990TDC
         ? SZGH_990TDC_IMAGES
-        : is1000MC
+        : is1000MC || is1000MIC
         ? SZGH_1000MC_IMAGES
-        : is1000MIC
-        ? hasCustomBaseFour && override.images
-          ? override.images.slice(0, 4)
-          : SZGH_1000MC_IMAGES
-        : is1000TC || is1000TIC
-        ? hasCustomBaseFour && override.images
-          ? override.images.slice(0, 4)
-          : SZGH_1000TDB_IMAGES
+        : is1000TC || is1000TIC || is1000TDB || is1000TDC
+        ? SZGH_1000TDB_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
         : is1500MDC
@@ -849,12 +832,6 @@ export default function App() {
         ? SZGH_1000MDCB_IMAGES
         : is1500MDCB
         ? SZGH_1500MDCB_IMAGES
-        : is1000TDB
-        ? SZGH_1000TDB_IMAGES
-        : is1000TDC
-        ? hasCustomBaseFour && override.images
-          ? override.images.slice(0, 4)
-          : SZGH_1000TDB_IMAGES
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGES
         : hasAnyCustomImage && override.images
@@ -1117,16 +1094,10 @@ export default function App() {
         ? SZGH_990TDB_IMAGES
         : is990TDC
         ? SZGH_990TDC_IMAGES
-        : is1000MC
+        : is1000MC || is1000MIC
         ? SZGH_1000MC_IMAGES
-        : is1000MIC
-        ? hasCustomBaseFour && override.images
-          ? override.images.slice(0, 4)
-          : SZGH_1000MC_IMAGES
-        : is1000TIC
-        ? hasCustomBaseFour && override.images
-          ? override.images.slice(0, 4)
-          : SZGH_1000TDB_IMAGES
+        : is1000TIC || is1000TDB || is1000TDC
+        ? SZGH_1000TDB_IMAGES
         : is1000MDC
         ? SZGH_1000MDC_IMAGES
         : is1500MDC
@@ -1135,12 +1106,6 @@ export default function App() {
         ? SZGH_1000MDCB_IMAGES
         : is1500MDCB
         ? SZGH_1500MDCB_IMAGES
-        : is1000TDB
-        ? SZGH_1000TDB_IMAGES
-        : is1000TDC
-        ? hasCustomBaseFour && override.images
-          ? override.images.slice(0, 4)
-          : SZGH_1000TDB_IMAGES
         : isCNCIO12
         ? SZGH_CNC_IO12_IMAGES
         : override.images || ['', '', '', ''];

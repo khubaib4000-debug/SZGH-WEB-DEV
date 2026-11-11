@@ -4803,16 +4803,10 @@ export function mergeProductsByModelOnly(
       ? SZGH_990TDB_IMAGES
       : is990TDC
       ? SZGH_990TDC_IMAGES
-      : is1000MC
+      : is1000MC || is1000MIC
       ? SZGH_1000MC_IMAGES
-      : is1000MIC
-      ? rawHasCustomBaseFour
-        ? rawProduct.images.slice(0, 4)
-        : SZGH_1000MC_IMAGES
-      : is1000TC || is1000TIC
-      ? rawHasCustomBaseFour
-        ? rawProduct.images.slice(0, 4)
-        : SZGH_1000TDB_IMAGES
+      : is1000TC || is1000TIC || is1000TDB || is1000TDC
+      ? SZGH_1000TDB_IMAGES
       : is1000MDC
       ? SZGH_1000MDC_IMAGES
       : is1500MDC
@@ -4821,12 +4815,6 @@ export function mergeProductsByModelOnly(
       ? SZGH_1000MDCB_IMAGES
       : is1500MDCB
       ? SZGH_1500MDCB_IMAGES
-      : is1000TDB
-      ? SZGH_1000TDB_IMAGES
-      : is1000TDC
-      ? rawHasCustomBaseFour
-        ? rawProduct.images.slice(0, 4)
-        : SZGH_1000TDB_IMAGES
       : isCNCIO12
       ? SZGH_CNC_IO12_IMAGES
       : rawProduct.images;
@@ -5016,51 +5004,24 @@ export function mergeProductsByModelOnly(
     hasPanels?: boolean
   ): PanelPricingMap | undefined => {
     if (!hasPanels) return first.panelPrices || secondPanelPrices;
-    // If either has authoritative panelPrices where C !== A + 20000 and A !== C - 20000 (from Master PDF Rate List), keep it
-    if (
-      first.panelPrices &&
-      first.panelPrices.A > 0 &&
-      first.panelPrices.C > 0 &&
-      first.panelPrices.C - first.panelPrices.A !== PANEL_CE_PRICE_DELTA_PKR
-    ) {
-      return first.panelPrices;
+    // Always enforce Panel A = Panel B, and Panel C = Panel E = Panel A + 20,000
+    if (first.panelPrices && first.panelPrices.A > 0) {
+      return buildPanelPricesFromBase(first.panelPrices.A);
     }
-    if (
-      secondPanelPrices &&
-      secondPanelPrices.A > 0 &&
-      secondPanelPrices.C > 0 &&
-      secondPanelPrices.C - secondPanelPrices.A !== PANEL_CE_PRICE_DELTA_PKR
-    ) {
-      return secondPanelPrices;
+    if (secondPanelPrices && secondPanelPrices.A > 0) {
+      return buildPanelPricesFromBase(secondPanelPrices.A);
     }
-    // If one entry is explicitly AB and the other is explicitly CE with positive prices, use exact A+B and C+E prices
-    if (
-      first.rawPanelType === 'AB' &&
-      secondPanelType === 'CE' &&
-      first.price > 0 &&
-      secondPrice > 0
-    ) {
-      return {
-        A: first.price,
-        B: first.price,
-        C: secondPrice,
-        E: secondPrice,
-        defaultDisplayPrice: first.price,
-      };
+    if (first.rawPanelType === 'AB' && first.price > 0) {
+      return buildPanelPricesFromBase(first.price);
     }
-    if (
-      first.rawPanelType === 'CE' &&
-      secondPanelType === 'AB' &&
-      first.price > 0 &&
-      secondPrice > 0
-    ) {
-      return {
-        A: secondPrice,
-        B: secondPrice,
-        C: first.price,
-        E: first.price,
-        defaultDisplayPrice: secondPrice,
-      };
+    if (secondPanelType === 'AB' && secondPrice > 0) {
+      return buildPanelPricesFromBase(secondPrice);
+    }
+    if (first.rawPanelType === 'CE' && first.price > 0) {
+      return buildPanelPricesFromCE(first.price);
+    }
+    if (secondPanelType === 'CE' && secondPrice > 0) {
+      return buildPanelPricesFromCE(secondPrice);
     }
     return first.panelPrices || secondPanelPrices;
   };

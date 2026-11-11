@@ -311,7 +311,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       ? activeAxisVariant.price
       : effectiveProduct.price;
 
-  const activePanelPrices =
+  const rawActivePanelPrices =
     activeAxisVariant?.panelPrices ||
     effectiveProduct.panelPrices ||
     (hasPanelOptions
@@ -320,9 +320,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         : buildPanelPricesFromBase(fallbackAxisOrBasePrice)
       : undefined);
 
+  const activePanelPrices =
+    rawActivePanelPrices && rawActivePanelPrices.A > 0
+      ? buildPanelPricesFromBase(rawActivePanelPrices.A)
+      : rawActivePanelPrices;
+
   const defaultPanelDisplayPrice =
-    activePanelPrices?.defaultDisplayPrice ??
     activePanelPrices?.A ??
+    activePanelPrices?.defaultDisplayPrice ??
     fallbackAxisOrBasePrice;
 
   const panelSpecificPrice = hasPanelOptions
@@ -851,8 +856,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         ? `${activePanelOption.label}${
                             panelPriceDelta > 0
                               ? ` (+PKR ${panelPriceDelta.toLocaleString()})`
-                              : panelPriceDelta < 0
-                              ? ` (-PKR ${Math.abs(panelPriceDelta).toLocaleString()})`
                               : ''
                           }`
                         : 'Required — Select A, B, C or E'}
