@@ -66,6 +66,12 @@ import {
   isSZGH880TICModel,
   SZGH_880TIC_IMAGES,
   SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+  isSZGH880VTCModel,
+  SZGH_880VTC_IMAGES,
+  SZGH_880VTC_DEFAULT_IMAGE_INDEX,
+  isSZGH880VMCModel,
+  SZGH_880VMC_IMAGES,
+  SZGH_880VMC_DEFAULT_IMAGE_INDEX,
   isSZGH1000MDBModel,
   SZGH_1000MDB_IMAGES,
   SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
@@ -680,6 +686,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     const is1080MIC = isSZGH1080MICModel({ modelNumber: trimmedModel });
     const is880TC = isSZGH880TCModel({ modelNumber: trimmedModel });
     const is880TIC = isSZGH880TICModel({ modelNumber: trimmedModel });
+    const is880VTC = isSZGH880VTCModel({ modelNumber: trimmedModel });
+    const is880VMC = isSZGH880VMCModel({ modelNumber: trimmedModel });
     const is1080TC = isSZGH1080TCModel({ modelNumber: trimmedModel });
     const is1000MDB = isSZGH1000MDBModel({ modelNumber: trimmedModel });
     const is1500MDB = isSZGH1500MDBModel({ modelNumber: trimmedModel });
@@ -713,6 +721,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       ? SZGH_880TC_IMAGES
       : is880TIC
       ? SZGH_880TIC_IMAGES
+      : is880VTC
+      ? SZGH_880VTC_IMAGES
+      : is880VMC
+      ? SZGH_880VMC_IMAGES
       : is1080TC
       ? SZGH_1080TC_IMAGES
       : is1000MDB
@@ -758,6 +770,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       ? SZGH_880TC_DEFAULT_IMAGE_INDEX
       : is880TIC
       ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+      : is880VTC
+      ? SZGH_880VTC_DEFAULT_IMAGE_INDEX
+      : is880VMC
+      ? SZGH_880VMC_DEFAULT_IMAGE_INDEX
       : is1080TC
       ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
       : is1000MDB
@@ -1296,6 +1312,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       const is1080MIC = isSZGH1080MICModel({ modelNumber: effectiveModel });
       const is880TC = isSZGH880TCModel({ modelNumber: effectiveModel });
       const is880TIC = isSZGH880TICModel({ modelNumber: effectiveModel });
+      const is880VTC = isSZGH880VTCModel({ modelNumber: effectiveModel });
+      const is880VMC = isSZGH880VMCModel({ modelNumber: effectiveModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: effectiveModel });
       const is1080TIC = isSZGH1080TICModel({ modelNumber: effectiveModel });
       const is1080TDB = isSZGH1080TDBModel({ modelNumber: effectiveModel });
@@ -1335,6 +1353,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         ? SZGH_880TC_IMAGES
         : is880TIC
         ? SZGH_880TIC_IMAGES
+        : is880VTC
+        ? SZGH_880VTC_IMAGES
+        : is880VMC
+        ? SZGH_880VMC_IMAGES
         : is1080TC || is1080TIC || is1080TDB
         ? SZGH_1080TC_IMAGES
         : is1000MDB
@@ -1394,6 +1416,10 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           ? SZGH_880TC_DEFAULT_IMAGE_INDEX
           : is880TIC
           ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+          : is880VTC
+          ? SZGH_880VTC_DEFAULT_IMAGE_INDEX
+          : is880VMC
+          ? SZGH_880VMC_DEFAULT_IMAGE_INDEX
           : is1080TC || is1080TIC || is1080TDB
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB

@@ -41,6 +41,14 @@ import {
   SZGH_880TIC_DEFAULT_IMAGE_INDEX,
 } from './szgh880ticImages';
 import {
+  SZGH_880VTC_IMAGES,
+  SZGH_880VTC_IMAGE_LABELS,
+  SZGH_880VTC_DEFAULT_IMAGE_INDEX,
+  SZGH_880VMC_IMAGES,
+  SZGH_880VMC_IMAGE_LABELS,
+  SZGH_880VMC_DEFAULT_IMAGE_INDEX,
+} from './szgh880vtcImages';
+import {
   SZGH_1000MDB_IMAGES,
   SZGH_1000MDB_IMAGE_LABELS,
   SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
@@ -137,6 +145,12 @@ export {
   SZGH_880TIC_IMAGES,
   SZGH_880TIC_IMAGE_LABELS,
   SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+  SZGH_880VTC_IMAGES,
+  SZGH_880VTC_IMAGE_LABELS,
+  SZGH_880VTC_DEFAULT_IMAGE_INDEX,
+  SZGH_880VMC_IMAGES,
+  SZGH_880VMC_IMAGE_LABELS,
+  SZGH_880VMC_DEFAULT_IMAGE_INDEX,
   SZGH_1000MDB_IMAGES,
   SZGH_1000MDB_IMAGE_LABELS,
   SZGH_1000MDB_DEFAULT_IMAGE_INDEX,
@@ -3162,6 +3176,10 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       ? SZGH_1080MIC_IMAGES
       : /1080MC/i.test(cleanModel)
       ? SZGH_1080MC_IMAGES
+      : /880VMC/i.test(cleanModel)
+      ? SZGH_880VMC_IMAGES
+      : /880VTC/i.test(cleanModel)
+      ? SZGH_880VTC_IMAGES
       : /880MC/i.test(cleanModel)
       ? SZGH_880MC_IMAGES
       : /1080TC/i.test(cleanModel)
@@ -3209,6 +3227,10 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       ? SZGH_1080MIC_IMAGE_LABELS
       : /1080MC/i.test(cleanModel)
       ? SZGH_1080MC_IMAGE_LABELS
+      : /880VMC/i.test(cleanModel)
+      ? SZGH_880VMC_IMAGE_LABELS
+      : /880VTC/i.test(cleanModel)
+      ? SZGH_880VTC_IMAGE_LABELS
       : /880MC/i.test(cleanModel)
       ? SZGH_880MC_IMAGE_LABELS
       : /1080TC/i.test(cleanModel)
@@ -4107,7 +4129,7 @@ export function extractBaseModelAndAxis(product: ProductItem): {
     if (
       trailingDigitMatch &&
       (product.category === 'Controllers' ||
-        /tc|mc|mic|tic|tdb|mdb|tdc|mdc|tdi|mdi|cnc/i.test(trailingDigitMatch[1]) ||
+        /vtc|vmc|tc|mc|mic|tic|tdb|mdb|tdc|mdc|tdi|mdi|cnc/i.test(trailingDigitMatch[1]) ||
         /\bax(?:is|es)\b/i.test(combinedText))
     ) {
       const suffixTag = trailingDigitMatch[3] ? trailingDigitMatch[3].trim() : '';
@@ -4116,10 +4138,10 @@ export function extractBaseModelAndAxis(product: ProductItem): {
     }
   }
 
-  // 3. Check if axis number is embedded right before TC/MC/MIC/TIC/TD/MD (e.g., SZGH-880-2TC, SZGH-1080-3MIC)
+  // 3. Check if axis number is embedded right before TC/MC/MIC/TIC/VTC/VMC/TD/MD (e.g., SZGH-880-2TC, SZGH-1080-3MIC)
   if (axisCount === null) {
     const midDigitMatch = modelWithoutPanel.match(
-      /^([A-Za-z0-9_\-]+?)[-_]?([1-8])(TC|MC|MIC|TIC|TDb|MDb|TDc|MDc|MDcb|TDcb|TDi|MDi)$/i
+      /^([A-Za-z0-9_\-]+?)[-_]?([1-8])(VTC|VMC|TC|MC|MIC|TIC|TDb|MDb|TDc|MDc|MDcb|TDcb|TDi|MDi)$/i
     );
     if (midDigitMatch) {
       baseModelCore = `${midDigitMatch[1]}-${midDigitMatch[3]}`;
@@ -4233,6 +4255,36 @@ export function isSZGH880TICModel(item: {
 }): boolean {
   const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
   return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?880[-\s]*(?:[1-8][-\s]*)?TIC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-880VTC models (e.g. SZGH-880VTC, 880VTC, SZGH-880VTC-2..6)
+ * so the 4 official SZGH-880VTC logo-watermarked pictures (with 1.jpg at index 0 as default)
+ * are applied exclusively to SZGH-880VTC models.
+ */
+export function isSZGH880VTCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?880[-\s]*(?:[1-8][-\s]*)?VTC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
+    checkStr
+  );
+}
+
+/**
+ * Strictly identifies ONLY SZGH-880VMC models (e.g. SZGH-880VMC, 880VMC, SZGH-880VMC-2..6)
+ * so the 4 official SZGH-880VMC logo-watermarked pictures (with 1.jpg at index 0 as default)
+ * are applied exclusively to SZGH-880VMC models.
+ */
+export function isSZGH880VMCModel(item: {
+  modelNumber?: string;
+  baseModelNumber?: string;
+}): boolean {
+  const checkStr = `${item.modelNumber || ''} ${item.baseModelNumber || ''}`.toUpperCase();
+  return /(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?(?:CNC[-\s]*)?880[-\s]*(?:[1-8][-\s]*)?VMC[A-Z]?(?:$|[^A-Z0-9]|[-_/\s]*[1-8])/i.test(
     checkStr
   );
 }
@@ -4640,6 +4692,14 @@ export function mergeProductsByModelOnly(
       modelNumber: normalizedModel,
       baseModelNumber: baseModelDisplay,
     });
+    const is880VTC = isSZGH880VTCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
+    const is880VMC = isSZGH880VMCModel({
+      modelNumber: normalizedModel,
+      baseModelNumber: baseModelDisplay,
+    });
     const is1080TC = isSZGH1080TCModel({
       modelNumber: normalizedModel,
       baseModelNumber: baseModelDisplay,
@@ -4748,6 +4808,10 @@ export function mergeProductsByModelOnly(
       ? SZGH_880TC_IMAGES
       : is880TIC
       ? SZGH_880TIC_IMAGES
+      : is880VTC
+      ? SZGH_880VTC_IMAGES
+      : is880VMC
+      ? SZGH_880VMC_IMAGES
       : is1080TC
       ? SZGH_1080TC_IMAGES
       : is1080TIC || is1080TDB
@@ -4792,6 +4856,10 @@ export function mergeProductsByModelOnly(
       ? SZGH_880TC_IMAGE_LABELS
       : is880TIC
       ? SZGH_880TIC_IMAGE_LABELS
+      : is880VTC
+      ? SZGH_880VTC_IMAGE_LABELS
+      : is880VMC
+      ? SZGH_880VMC_IMAGE_LABELS
       : is1080TC || is1080TIC || is1080TDB
       ? SZGH_1080TC_IMAGE_LABELS
       : is1000MDB
@@ -4900,6 +4968,10 @@ export function mergeProductsByModelOnly(
         ? SZGH_880TC_DEFAULT_IMAGE_INDEX
         : is880TIC
         ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+        : is880VTC
+        ? SZGH_880VTC_DEFAULT_IMAGE_INDEX
+        : is880VMC
+        ? SZGH_880VMC_DEFAULT_IMAGE_INDEX
         : is1080TC || is1080TIC || is1080TDB
         ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
         : is1000MDB
@@ -5450,11 +5522,16 @@ export function clubProductsBySeries(
   >();
   const standaloneItems: ProductItem[] = [];
 
+  const standalone880VerticalItems: ProductItem[] = [];
+
   for (const item of modelMergedItems) {
     const club = detectControllerSeriesClub(item);
     if (!club) {
       standaloneItems.push(item);
       continue;
+    }
+    if (isSZGH880VTCModel(item) || isSZGH880VMCModel(item)) {
+      standalone880VerticalItems.push(item);
     }
     const existing = seriesMap.get(club.seriesKey);
     if (existing) {
@@ -5500,6 +5577,8 @@ export function clubProductsBySeries(
       '880TC',
       '880TIC',
       '880MC',
+      '880VTC',
+      '880VMC',
     ];
     const idx = order.indexOf(upper);
     return idx !== -1 ? idx : 99;
@@ -5588,7 +5667,12 @@ export function clubProductsBySeries(
     }
   }
 
-  return [...clubbedControllers, ...standaloneItems, ...clubbedRobots];
+  return [
+    ...clubbedControllers,
+    ...standalone880VerticalItems,
+    ...standaloneItems,
+    ...clubbedRobots,
+  ];
 }
 
 export function mergeProductsByModelAndAxes(

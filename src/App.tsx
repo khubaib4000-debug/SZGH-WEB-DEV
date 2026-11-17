@@ -56,6 +56,14 @@ import {
   SZGH_880TIC_IMAGES,
   SZGH_880TIC_IMAGE_LABELS,
   SZGH_880TIC_DEFAULT_IMAGE_INDEX,
+  isSZGH880VTCModel,
+  SZGH_880VTC_IMAGES,
+  SZGH_880VTC_IMAGE_LABELS,
+  SZGH_880VTC_DEFAULT_IMAGE_INDEX,
+  isSZGH880VMCModel,
+  SZGH_880VMC_IMAGES,
+  SZGH_880VMC_IMAGE_LABELS,
+  SZGH_880VMC_DEFAULT_IMAGE_INDEX,
   isSZGH1000MDBModel,
   SZGH_1000MDB_IMAGES,
   SZGH_1000MDB_IMAGE_LABELS,
@@ -841,6 +849,8 @@ export default function App() {
       const is1080MIC = isSZGH1080MICModel({ modelNumber: resolvedModel });
       const is880TC = isSZGH880TCModel({ modelNumber: resolvedModel });
       const is880TIC = isSZGH880TICModel({ modelNumber: resolvedModel });
+      const is880VTC = isSZGH880VTCModel({ modelNumber: resolvedModel });
+      const is880VMC = isSZGH880VMCModel({ modelNumber: resolvedModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: resolvedModel });
       const is1080TIC = isSZGH1080TICModel({ modelNumber: resolvedModel });
       const is1080TDB = isSZGH1080TDBModel({ modelNumber: resolvedModel });
@@ -889,6 +899,10 @@ export default function App() {
         ? SZGH_880TC_IMAGES
         : is880TIC
         ? SZGH_880TIC_IMAGES
+        : is880VTC
+        ? SZGH_880VTC_IMAGES
+        : is880VMC
+        ? SZGH_880VMC_IMAGES
         : is1080TC || is1080TIC || is1080TDB
         ? hasCustomBaseFour && override.images
           ? override.images.slice(0, 4)
@@ -937,6 +951,10 @@ export default function App() {
         ? SZGH_880TC_IMAGE_LABELS
         : is880TIC
         ? SZGH_880TIC_IMAGE_LABELS
+        : is880VTC
+        ? SZGH_880VTC_IMAGE_LABELS
+        : is880VMC
+        ? SZGH_880VMC_IMAGE_LABELS
         : is1080TC || is1080TIC || is1080TDB
         ? SZGH_1080TC_IMAGE_LABELS
         : is1000MDB
@@ -1054,6 +1072,10 @@ export default function App() {
           ? SZGH_880TC_DEFAULT_IMAGE_INDEX
           : is880TIC
           ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+          : is880VTC
+          ? SZGH_880VTC_DEFAULT_IMAGE_INDEX
+          : is880VMC
+          ? SZGH_880VMC_DEFAULT_IMAGE_INDEX
           : is1080TC || is1080TIC || is1080TDB
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB
@@ -1127,6 +1149,8 @@ export default function App() {
       const is1080MIC = isSZGH1080MICModel({ modelNumber: normalizedModel });
       const is880TC = isSZGH880TCModel({ modelNumber: normalizedModel });
       const is880TIC = isSZGH880TICModel({ modelNumber: normalizedModel });
+      const is880VTC = isSZGH880VTCModel({ modelNumber: normalizedModel });
+      const is880VMC = isSZGH880VMCModel({ modelNumber: normalizedModel });
       const is1080TC = isSZGH1080TCModel({ modelNumber: normalizedModel });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: normalizedModel });
       const is1500MDB = isSZGH1500MDBModel({ modelNumber: normalizedModel });
@@ -1170,6 +1194,10 @@ export default function App() {
         ? SZGH_880TC_IMAGES
         : is880TIC
         ? SZGH_880TIC_IMAGES
+        : is880VTC
+        ? SZGH_880VTC_IMAGES
+        : is880VMC
+        ? SZGH_880VMC_IMAGES
         : is1080TC
         ? SZGH_1080TC_IMAGES
         : is1000MDB
@@ -1210,6 +1238,10 @@ export default function App() {
         ? SZGH_880TC_IMAGE_LABELS
         : is880TIC
         ? SZGH_880TIC_IMAGE_LABELS
+        : is880VTC
+        ? SZGH_880VTC_IMAGE_LABELS
+        : is880VMC
+        ? SZGH_880VMC_IMAGE_LABELS
         : is1080TC
         ? SZGH_1080TC_IMAGE_LABELS
         : is1000MDB
@@ -1324,6 +1356,10 @@ export default function App() {
           ? SZGH_880TC_DEFAULT_IMAGE_INDEX
           : is880TIC
           ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+          : is880VTC
+          ? SZGH_880VTC_DEFAULT_IMAGE_INDEX
+          : is880VMC
+          ? SZGH_880VMC_DEFAULT_IMAGE_INDEX
           : is1080TC
           ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
           : is1000MDB
@@ -1382,6 +1418,12 @@ export default function App() {
     );
     const hasCustom880TIC = customProducts.some((p) =>
       isSZGH880TICModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom880VTC = customProducts.some((p) =>
+      isSZGH880VTCModel({ modelNumber: p.modelNumber })
+    );
+    const hasCustom880VMC = customProducts.some((p) =>
+      isSZGH880VMCModel({ modelNumber: p.modelNumber })
     );
     const hasCustom1080TC = customProducts.some((p) =>
       isSZGH1080TCModel({ modelNumber: p.modelNumber })
@@ -1444,6 +1486,8 @@ export default function App() {
       if (hasCustom1080MIC && (p.id.startsWith('prod-cnc-1080mic-') || isSZGH1080MICModel(p))) return false;
       if (hasCustom880TC && (p.id.startsWith('prod-cnc-880tc-') || isSZGH880TCModel(p))) return false;
       if (hasCustom880TIC && (p.id.startsWith('prod-cnc-880tic-') || isSZGH880TICModel(p))) return false;
+      if (hasCustom880VTC && (p.id.startsWith('prod-cnc-szgh-880vtc-') || isSZGH880VTCModel(p))) return false;
+      if (hasCustom880VMC && (p.id.startsWith('prod-cnc-szgh-880vmc-') || isSZGH880VMCModel(p))) return false;
       if (hasCustom1080TC && (p.id.startsWith('prod-cnc-1080tc-') || isSZGH1080TCModel(p))) return false;
       if (
         hasCustom1000MDB &&
@@ -1586,6 +1630,8 @@ export default function App() {
       const is1080MIC = isSZGH1080MICModel({ modelNumber: override.modelNumber });
       const is880TC = isSZGH880TCModel({ modelNumber: override.modelNumber });
       const is880TIC = isSZGH880TICModel({ modelNumber: override.modelNumber });
+      const is880VTC = isSZGH880VTCModel({ modelNumber: override.modelNumber });
+      const is880VMC = isSZGH880VMCModel({ modelNumber: override.modelNumber });
       const is1080TC = isSZGH1080TCModel({ modelNumber: override.modelNumber });
       const is1000MDB = isSZGH1000MDBModel({ modelNumber: override.modelNumber });
       const is1500MDB = isSZGH1500MDBModel({ modelNumber: override.modelNumber });
@@ -1613,6 +1659,8 @@ export default function App() {
         !is1080MIC &&
         !is880TC &&
         !is880TIC &&
+        !is880VTC &&
+        !is880VMC &&
         !is1080TC &&
         !is1000MDB &&
         !is1500MDB &&
@@ -1658,6 +1706,10 @@ export default function App() {
         ? SZGH_880TC_IMAGES
         : is880TIC
         ? SZGH_880TIC_IMAGES
+        : is880VTC
+        ? SZGH_880VTC_IMAGES
+        : is880VMC
+        ? SZGH_880VMC_IMAGES
         : is1080TC
         ? SZGH_1080TC_IMAGES
         : is1000MDB
@@ -1719,6 +1771,10 @@ export default function App() {
         ? SZGH_880TC_DEFAULT_IMAGE_INDEX
         : is880TIC
         ? SZGH_880TIC_DEFAULT_IMAGE_INDEX
+        : is880VTC
+        ? SZGH_880VTC_DEFAULT_IMAGE_INDEX
+        : is880VMC
+        ? SZGH_880VMC_DEFAULT_IMAGE_INDEX
         : is1080TC
         ? SZGH_1080TC_DEFAULT_IMAGE_INDEX
         : is1000MDB

@@ -21,7 +21,7 @@ import {
 } from '../data/products';
 import { ProductCard } from './ProductCard';
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 8;
 
 interface CategoryStoreSubpageProps {
   category: ProductCategory | 'All';

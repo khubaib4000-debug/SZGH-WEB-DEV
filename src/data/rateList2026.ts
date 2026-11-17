@@ -298,6 +298,110 @@ export const CONTROLLER_RATE_LIST_2026: ControllerRateRow[] = [
     subcategory: 'Drilling and milling machine CNC controller',
   },
 
+  // 880VTC Series (Vertical Type CNC 2..6 Axis Lathe Controller, 8 inch display, without I/O Board)
+  {
+    modelNumber: 'SZGH-880VTC-2',
+    spec: 'Vertical Type CNC 2-axis Lathe Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 2 axis lathe controller , 8 inch display, without I/O Board',
+    pricePKR: 137574,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Lathe controller',
+  },
+  {
+    modelNumber: 'SZGH-880VTC-3',
+    spec: 'Vertical Type CNC 3-axis Lathe Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 3 axis lathe controller , 8 inch display, without I/O Board',
+    pricePKR: 159040,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Lathe controller',
+  },
+  {
+    modelNumber: 'SZGH-880VTC-4',
+    spec: 'Vertical Type CNC 4-axis Lathe Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 4 axis lathe controller , 8 inch display, without I/O Board',
+    pricePKR: 173761,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Lathe controller',
+  },
+  {
+    modelNumber: 'SZGH-880VTC-5',
+    spec: 'Vertical Type CNC 5-axis Lathe Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 5 axis lathe controller , 8 inch display, without I/O Board',
+    pricePKR: 188482,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Lathe controller',
+  },
+  {
+    modelNumber: 'SZGH-880VTC-6',
+    spec: 'Vertical Type CNC 6-axis Lathe Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 6 axis lathe controller , 8 inch display, without I/O Board',
+    pricePKR: 201130,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Lathe controller',
+  },
+
+  // 880VMC Series (Vertical Type CNC 2..6 Axis Milling Controller, 8 inch display, without I/O Board)
+  {
+    modelNumber: 'SZGH-880VMC-2',
+    spec: 'Vertical Type CNC 2-axis Milling Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 2 axis milling controller , 8 inch display, without I/O Board',
+    pricePKR: 150221,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Drilling and milling machine CNC controller',
+  },
+  {
+    modelNumber: 'SZGH-880VMC-3',
+    spec: 'Vertical Type CNC 3-axis Milling Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 3 axis milling controller 8 inch display,without I/O Board',
+    pricePKR: 164942,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Drilling and milling machine CNC controller',
+  },
+  {
+    modelNumber: 'SZGH-880VMC-4',
+    spec: 'Vertical Type CNC 4-axis Milling Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 4 axis milling controller 8 inch display, without I/O Board',
+    pricePKR: 180085,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Drilling and milling machine CNC controller',
+  },
+  {
+    modelNumber: 'SZGH-880VMC-5',
+    spec: 'Vertical Type CNC 5-axis Milling Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 5 axis milling controller 8 inch display, without I/O Board',
+    pricePKR: 194806,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Drilling and milling machine CNC controller',
+  },
+  {
+    modelNumber: 'SZGH-880VMC-6',
+    spec: 'Vertical Type CNC 6-axis Milling Controller (8 inch display, without I/O Board)',
+    description:
+      'vertical type CNC 6 axis milling controller 8 inch display, without I/O Board',
+    pricePKR: 207032,
+    isAbsolute: true,
+    supportsATC: true,
+    subcategory: 'Drilling and milling machine CNC controller',
+  },
+
   // 1080MC Series (10.4-inch display with I/O — Absolute & ATC Supported)
   {
     modelNumber: 'SZGH-1080MC-3',
