@@ -81,6 +81,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           specs: activeSeriesVariant.specs,
           compatibility: activeSeriesVariant.compatibility,
           price: activeSeriesVariant.price,
+          exwRmb: activeSeriesVariant.exwRmb,
+          packedWeightKg: activeSeriesVariant.packedWeightKg,
+          woodenBoxDimensions: activeSeriesVariant.woodenBoxDimensions,
+          bodyWeightKg: activeSeriesVariant.bodyWeightKg,
+          cabinetWeightKg: activeSeriesVariant.cabinetWeightKg,
           hasPanelOptions: activeSeriesVariant.hasPanelOptions,
           rawPanelType: activeSeriesVariant.rawPanelType,
           panelPrices: activeSeriesVariant.panelPrices,
@@ -291,19 +296,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const effectiveModelNumber = stripPanelInfoFromText(
     effectiveProduct.baseModelNumber || effectiveProduct.modelNumber
   );
+  const rawTitle =
+    activeAxisVariant && activeAxisVariant.title.trim().length > 0
+      ? activeAxisVariant.title
+      : effectiveProduct.title;
+  const rawDescription =
+    activeAxisVariant && activeAxisVariant.description.trim().length > 0
+      ? activeAxisVariant.description
+      : effectiveProduct.description;
   const effectiveTitle = stripPanelInfoFromText(
-    stripAxisCountFromText(
-      activeAxisVariant && activeAxisVariant.title.trim().length > 0
-        ? activeAxisVariant.title
-        : effectiveProduct.title
-    )
+    effectiveProduct.category === 'Controllers'
+      ? stripAxisCountFromText(rawTitle)
+      : rawTitle
   );
   const effectiveDescription = stripPanelInfoFromText(
-    stripAxisCountFromText(
-      activeAxisVariant && activeAxisVariant.description.trim().length > 0
-        ? activeAxisVariant.description
-        : effectiveProduct.description
-    )
+    effectiveProduct.category === 'Controllers'
+      ? stripAxisCountFromText(rawDescription)
+      : rawDescription
   );
 
   const fallbackAxisOrBasePrice =

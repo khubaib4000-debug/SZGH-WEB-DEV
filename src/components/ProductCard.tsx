@@ -91,6 +91,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         specs: activeSeriesVariant.specs,
         compatibility: activeSeriesVariant.compatibility,
         price: activeSeriesVariant.price,
+        exwRmb: activeSeriesVariant.exwRmb,
+        packedWeightKg: activeSeriesVariant.packedWeightKg,
+        woodenBoxDimensions: activeSeriesVariant.woodenBoxDimensions,
+        bodyWeightKg: activeSeriesVariant.bodyWeightKg,
+        cabinetWeightKg: activeSeriesVariant.cabinetWeightKg,
         hasPanelOptions: activeSeriesVariant.hasPanelOptions,
         rawPanelType: activeSeriesVariant.rawPanelType,
         panelPrices: activeSeriesVariant.panelPrices,
@@ -306,13 +311,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const displayStockStatus =
     (activeAxis ? activeAxis.stockStatus : effectiveProduct.stockStatus) ||
     (displayStockCount > 0 ? 'In Stock' : 'Pre-Order');
+  const rawTitle = activeAxis?.title || effectiveProduct.title || '';
+  const rawDescription =
+    activeAxis?.description || effectiveProduct.description || '';
   const displayTitle = stripPanelInfoFromText(
-    stripAxisCountFromText(activeAxis?.title || effectiveProduct.title || '')
+    effectiveProduct.category === 'Controllers'
+      ? stripAxisCountFromText(rawTitle)
+      : rawTitle
   );
   const displayDescription = stripPanelInfoFromText(
-    stripAxisCountFromText(
-      activeAxis?.description || effectiveProduct.description || ''
-    )
+    effectiveProduct.category === 'Controllers'
+      ? stripAxisCountFromText(rawDescription)
+      : rawDescription
   );
   const displayModelHeader = stripPanelInfoFromText(
     effectiveProduct.baseModelNumber || effectiveProduct.modelNumber

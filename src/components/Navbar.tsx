@@ -322,7 +322,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="relative flex items-center justify-center gap-1.5 h-8 w-8 sm:h-10 sm:w-auto sm:px-3 rounded-md border border-emerald-300/60 bg-emerald-50 text-[#0D5C2B] hover:bg-emerald-100 text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Package className="w-4 h-4 text-[#0D5C2B] shrink-0" />
-                <span className="hidden lg:inline">Stock &amp; Orders Admin</span>
+                <span className="hidden lg:inline">Admin</span>
                 {ordersCount > 0 && (
                   <span className="hidden sm:inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[11px] font-mono-tabular font-extrabold bg-[#0D5C2B] text-white">
                     {ordersCount}

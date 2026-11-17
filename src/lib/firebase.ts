@@ -1,10 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import {
-  getFirestore,
-  doc,
-  getDocFromServer,
-} from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
@@ -40,11 +36,38 @@ export interface FirestoreErrorInfo {
   };
 }
 
+let quotaWarningLogged = false;
+export let isFirestoreQuotaExceeded = false;
+
+export function isQuotaExceededFirestoreError(error: unknown): boolean {
+  const msg =
+    error instanceof Error ? error.message : String(error ?? '');
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : '';
+  return (
+    code === 'resource-exhausted' ||
+    /quota limit exceeded|quota exceeded|resource-exhausted/i.test(msg)
+  );
+}
+
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
   path: string | null
-): never {
+): void {
+  if (isQuotaExceededFirestoreError(error)) {
+    isFirestoreQuotaExceeded = true;
+    if (!quotaWarningLogged) {
+      quotaWarningLogged = true;
+      console.warn(
+        'Firestore daily free read quota reached; using built-in catalog and local state until quota resets.'
+      );
+    }
+    return;
+  }
+
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -63,21 +86,8 @@ export function handleFirestoreError(
     path,
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
-
-// Validate connection to Firestore on boot
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'inventory', 'connection_check'));
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes('the client is offline')
-    ) {
-      console.error('Please check your Firebase configuration.');
-    }
+  if (operationType !== OperationType.GET) {
+    throw new Error(JSON.stringify(errInfo));
   }
 }
 
-testConnection();

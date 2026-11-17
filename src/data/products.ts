@@ -191,6 +191,12 @@ import {
   CONTROLLER_RATE_LIST_2026,
   SERVO_MOTOR_RATE_LIST_2026,
   SERVO_DRIVER_RATE_LIST_2026,
+  INDUSTRIAL_ROBOT_RATE_LIST_2026,
+  IndustrialRobotRateRow,
+  DEFAULT_RMB_TO_PKR_RATE,
+  DEFAULT_FREIGHT_RATE_PER_KG,
+  DEFAULT_RETAIL_MARKUP,
+  calculateRobotRetailPriceBreakdown,
   OFFICIAL_IO_BOARD_PRICE_PKR,
   PANEL_CE_PRICE_DELTA_PKR,
   PanelPricingMap,
@@ -204,12 +210,17 @@ import {
   stripPanelInfoFromText,
 } from './rateList2026';
 
-export type { PanelPricingMap, ServoMotorConfigOption };
+export type { PanelPricingMap, ServoMotorConfigOption, IndustrialRobotRateRow };
 export type PanelPriceBreakdown = PanelPricingMap;
 export {
   CONTROLLER_RATE_LIST_2026,
   SERVO_MOTOR_RATE_LIST_2026,
   SERVO_DRIVER_RATE_LIST_2026,
+  INDUSTRIAL_ROBOT_RATE_LIST_2026,
+  DEFAULT_RMB_TO_PKR_RATE,
+  DEFAULT_FREIGHT_RATE_PER_KG,
+  DEFAULT_RETAIL_MARKUP,
+  calculateRobotRetailPriceBreakdown,
   OFFICIAL_IO_BOARD_PRICE_PKR,
   PANEL_CE_PRICE_DELTA_PKR,
   buildControllerFeatures,
@@ -284,8 +295,8 @@ export interface AxisVariantOption {
 
 export interface SeriesModelVariant {
   id: string;
-  modelButtonLabel: string; // Short clean button label, e.g. '1000TDb', '1000MC', '1080TC', '1080MDb'
-  modelNumber: string; // Full base model number, e.g. 'SZGH-CNC1000TDb', 'SZGH-1000MC'
+  modelButtonLabel: string; // Short clean button label, e.g. '1000TDb', '1000MC', 'T1500-B-6'
+  modelNumber: string; // Full base model number, e.g. 'SZGH-CNC1000TDb', 'SZGH-T1500-B-6'
   title: string;
   description: string;
   subcategory: string;
@@ -293,6 +304,11 @@ export interface SeriesModelVariant {
   specs: ProductSpec[];
   compatibility: string[];
   price: number;
+  exwRmb?: number | null;
+  packedWeightKg?: number | null;
+  woodenBoxDimensions?: string;
+  bodyWeightKg?: number | null;
+  cabinetWeightKg?: number | null;
   hasPanelOptions?: boolean;
   rawPanelType?: 'AB' | 'CE' | 'NONE';
   panelPrices?: PanelPricingMap;
@@ -318,6 +334,16 @@ export interface ProductItem {
   rawPanelType?: 'AB' | 'CE' | 'NONE';
   panelPrices?: PanelPricingMap;
   servoConfigOptions?: ServoMotorConfigOption[];
+  baseDealerPricePKR?: number;
+  brakePricePKR?: number;
+  brakeDealerPricePKR?: number;
+  absolutePricePKR?: number;
+  absoluteDealerPricePKR?: number;
+  exwRmb?: number | null;
+  packedWeightKg?: number | null;
+  woodenBoxDimensions?: string;
+  bodyWeightKg?: number | null;
+  cabinetWeightKg?: number | null;
   category: ProductCategory;
   subcategory: string;
   description: string;
@@ -561,6 +587,11 @@ export const OFFICIAL_SUBCATEGORY_GROUPS: SubcategoryGroup[] = [
     groupTitle: 'Industrial Robots',
     category: 'Robots',
     subcategories: [
+      'General Robot',
+      'Handling Robot',
+      'Welding Robot',
+      'Spraying Robot',
+      'Grinding Robot',
       'Robotic Welding Cell',
       'Pick-and-Place & Machine Tending',
       'Spraying & Grinding Robot',
@@ -583,8 +614,9 @@ export function resolveOfficialSubcategory(item: {
   title?: string;
   description?: string;
 }): string {
-  // Prefer authoritative subcategory from Controller Rate List-1 when matched
+  // Prefer authoritative subcategory from Controller / Robot Rate List when matched
   const rateMatched = resolveOfficialRateListPricing({
+    category: item.category,
     modelNumber: item.modelNumber,
     title: item.title,
     description: item.description,
@@ -2659,95 +2691,6 @@ const RAW_PRODUCTS_DATABASE: ProductItem[] = [
   //            'Two-phase stepper motor and driver', 'Three-phase stepper motors and drivers'
   // ==========================================================================
   {
-    id: 'prod-servo-13200cc',
-    title: '2.0kW High-Torque AC Servo Motor & Matched Digital Drive Kit',
-    modelNumber: 'SZGH-13200CC + SD2026',
-    category: 'Motors',
-    subcategory: 'Servo motor',
-    description:
-      'Complete 130mm flange 2.0kW industrial AC servo motor paired with the SZGH-SD2026 digital servo amplifier and 5m shielded power & encoder cables.',
-    features: [
-      '9.55 N·m continuous rated torque with 300% (28.6 N·m) peak overload capacity for heavy cutting feeds',
-      'High-resolution 2500-PPR incremental or 23-bit absolute optical encoder feedback',
-      'IP65 sealed motor housing with high-coercivity NdFeB permanent magnet rotor',
-      'Supplied as a complete plug-and-play kit: Motor + SD2026 Drive + 5m Power Cable + 5m Encoder Cable',
-    ],
-    price: 135000,
-    usdEstimate: 485,
-    inStock: true,
-    stockCount: 32,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: false,
-    images: [
-      HERO_SHOWCASE_PHOTOS.motors,
-      ...createIndustrialProductGallery(
-        'SZGH-13200CC + SD2026',
-        'Motors',
-        '#0284c7',
-        '130 × 130 mm Flange / 22mm Shaft',
-        '2.0 kW / 9.55 N·m Rated / 2000 RPM'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Servo Motor & Drive Kit',
-      '130mm NEMA Flange CAD',
-      'CN1/CN2 Drive Pinout',
-      'Ballscrew Direct-Coupling',
-    ],
-    specs: [
-      { label: 'Rated Output Power', value: '2.0 kW (2000W Continuous)' },
-      { label: 'Rated / Peak Torque', value: '9.55 N·m Continuous / 28.6 N·m Peak (300%)' },
-      { label: 'Rated / Max Speed', value: '2000 RPM / 3000 RPM' },
-      { label: 'Flange Frame Size', value: '130 × 130 mm (Shaft Dia: 22mm with Keyway)' },
-      { label: 'Supply Voltage', value: '3-Phase / Single-Phase 220VAC 50/60Hz' },
-      { label: 'Included Accessories', value: 'SD2026 Drive + 5m Power Cable + 5m Encoder Cable' },
-    ],
-    compatibility: ['Ballscrew Feed Axes', 'Heavy Duty Gantry Routers', 'Automated Indexing Tables'],
-  },
-  {
-    id: 'prod-servo-driver-sd2026',
-    title: 'SZGH-SD2026 Digital AC Servo Driver (Position / Speed / Torque)',
-    modelNumber: 'SZGH-SD2026',
-    category: 'Motors',
-    subcategory: 'Servo Driver',
-    description:
-      'High-response digital AC servo driver supporting pulse/direction, analog voltage, and RS485 Modbus communication for 1.0kW to 2.6kW AC servo motors.',
-    features: [
-      'Triple-loop DSP vector control (Position, Speed, and Current/Torque modes) with online auto-tuning',
-      'Supports 2500-PPR incremental and 17-bit/23-bit absolute optical encoders',
-      'Built-in regenerative braking circuit, over-current, over-voltage, and encoder fault protection',
-      'Direct plug-and-play CN1/CN2 interface with all SZGH CNC controllers',
-    ],
-    price: 62000,
-    usdEstimate: 223,
-    inStock: true,
-    stockCount: 28,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: false,
-    images: [
-      HERO_SHOWCASE_PHOTOS.motors,
-      ...createIndustrialProductGallery(
-        'SZGH-SD2026',
-        'Motors',
-        '#2563eb',
-        '185 × 85 × 170 mm',
-        '220VAC / 2.6kW Digital Servo Driver'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'SZGH-SD2026 Servo Driver',
-      'Cabinet Mounting Footprint',
-      'CN1 & CN2 Terminal Wiring',
-      'Multi-Axis Drive Bank',
-    ],
-    specs: [
-      { label: 'Matched Motor Power', value: '1.0 kW – 2.6 kW AC Servo Motors' },
-      { label: 'Control Modes', value: 'Position (Pulse/Dir), Speed, Torque & Modbus' },
-      { label: 'Power Supply', value: 'Single/Three-Phase 220VAC 50/60Hz' },
-    ],
-    compatibility: ['SZGH 110mm & 130mm AC Servo Motors', 'CNC Lathe & VMC Feed Axes'],
-  },
-  {
     id: 'prod-spindle-55kw',
     title: '5.5kW / 7.5kW Asynchronous Servo Spindle Motor',
     modelNumber: 'SZGH-08-2-5.5/7.5KW',
@@ -3104,101 +3047,6 @@ const RAW_PRODUCTS_DATABASE: ProductItem[] = [
     ],
     compatibility: ['Hydraulic Fittings & Valves', 'Automotive Shafts & Flanges', 'Medical Implant Turning'],
   },
-
-  // ==========================================================================
-  // CATEGORY 4: INDUSTRIAL ROBOTS
-  // ==========================================================================
-  {
-    id: 'prod-robot-h1400',
-    title: 'Industrial MIG/MAG & TIG Arc Welding Robot System',
-    modelNumber: 'SZGH-H1400-B-6',
-    category: 'Robots',
-    subcategory: 'Robotic Welding Cell',
-    description:
-      'Turnkey articulated industrial welding robot with 1400mm reach and ±0.05mm repeatability. Includes teach pendant, control cabinet, anti-collision torch, and 350A pulse welder.',
-    features: [
-      '1400mm spherical reach with hollow-wrist torch routing for zero cable snagging inside fixtures',
-      'Built-in linear, circular, and pendulum weave welding macros with arc voltage tracking',
-      'Includes 350A digital synergic pulse MIG/MAG welding power source, wire feeder, and torch cleaner',
-      'Ergonomic 8-inch color touch teach pendant with multi-program storage and safety deadman switch',
-    ],
-    price: 2450000,
-    usdEstimate: 8800,
-    inStock: true,
-    stockCount: 4,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: false,
-    images: [
-      HERO_SHOWCASE_PHOTOS.robots,
-      ...createIndustrialProductGallery(
-        'SZGH-H1400-B-6',
-        'Robots',
-        '#16a34a',
-        '1400 mm Reach / 6 kg Wrist Payload',
-        '380VAC 3-Phase / ±0.05 mm Repeatability'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      'Industrial Robot & Teach Pendant',
-      '1400mm Work Envelope CAD',
-      'Welding Power Source Interface',
-      'Dual-Station Welding Cell',
-    ],
-    specs: [
-      { label: 'Maximum Working Reach', value: '1400 mm Spherical Envelope' },
-      { label: 'Position Repeatability', value: '±0.05 mm' },
-      { label: 'Wrist Payload', value: '6 kg (Supports Water-Cooled Torch & Wire Feeder)' },
-      { label: 'Welding Functions', value: 'Linear/Circular Weave, Arc Tracking, Touch Sensing' },
-      { label: 'Cabinet Power Input', value: '3-Phase 380VAC, 4.5 kVA Average Consumption' },
-    ],
-    compatibility: ['Automotive Chassis & Exhausts', 'Agricultural Tractor Implements', 'Steel Furniture & Transformers'],
-  },
-  {
-    id: 'prod-robot-p1850',
-    title: 'Heavy-Duty CNC Machine Tending & Material Handling Robot',
-    modelNumber: 'SZGH-P1850-B-6 (20KG)',
-    category: 'Robots',
-    subcategory: 'Pick-and-Place & Machine Tending',
-    description:
-      'Long-reach 1850mm industrial handling robot with 20kg payload capacity, purpose-built for loading/unloading CNC lathes, VMCs, stamping presses, and palletizing.',
-    features: [
-      '20kg high-inertia wrist payload supports dual pneumatic grippers for simultaneous raw/finished part swap',
-      'IP67 sealed wrist and forearm resistant to high-pressure CNC cutting coolant and metal swarf',
-      'Direct PLC handshake integration with SZGH CNC Lathe & Milling controllers for unmanned lights-out production',
-      'Floor, inverted wall, or linear track mounting options for tending up to 4 CNC machines',
-    ],
-    price: 2980000,
-    usdEstimate: 10700,
-    inStock: true,
-    stockCount: 3,
-    warranty: '1 Year Official Warranty',
-    hasIOBoardOption: false,
-    images: [
-      HERO_SHOWCASE_PHOTOS.robots,
-      ...createIndustrialProductGallery(
-        'SZGH-P1850-B-6',
-        'Robots',
-        '#2563eb',
-        '1850 mm Reach / 20 kg Payload',
-        'IP67 Coolant-Proof Wrist / ±0.06 mm'
-      ).slice(1),
-    ] as [string, string, string, string],
-    imageLabels: [
-      '1850mm Handling Robot Lineup',
-      'Reach & Payload Envelope',
-      'Pneumatic Gripper & CNC Handshake',
-      'Multi-Machine Tending Cell',
-    ],
-    specs: [
-      { label: 'Rated Wrist Payload', value: '20 kg High-Inertia Capacity' },
-      { label: 'Maximum Horizontal Reach', value: '1850 mm' },
-      { label: 'Position Repeatability', value: '±0.06 mm' },
-      { label: 'Wrist Ingress Protection', value: 'IP67 (Coolant & Cutting Emulsion Resistant)' },
-      { label: 'Pneumatic & I/O Routing', value: 'Internal Double Solenoid Valve + 16 I/O Signals' },
-      { label: 'Mounting Options', value: 'Floor, Inverted Ceiling, or Linear Rail' },
-    ],
-    compatibility: ['Automated CNC Lathe Loading', 'Forging & Stamping Press Lines', 'End-of-Line Palletizing'],
-  },
 ];
 
 function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] {
@@ -3454,7 +3302,7 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       modelNumber: row.modelNumber,
       category: 'Motors',
       subcategory: 'Servo motor',
-      description: `Industrial SZGH AC Servo Motor ${row.modelNumber} (${row.spec}). Available in Base Motor (PKR ${row.basePricePKR.toLocaleString()}), With Brake (PKR ${row.brakePricePKR.toLocaleString()}), and Absolute Encoder (PKR ${row.absolutePricePKR.toLocaleString()}) configurations.`,
+      description: row.spec,
       features: [
         `Specification: ${row.spec} high-torque industrial AC servo motor`,
         `Selectable configurations: Base Motor (PKR ${row.basePricePKR.toLocaleString()}), With 24VDC Holding Brake (PKR ${row.brakePricePKR.toLocaleString()}), or Multi-Turn Absolute Encoder (PKR ${row.absolutePricePKR.toLocaleString()})`,
@@ -3462,6 +3310,11 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
         'Direct plug-and-play compatibility with SZGH-E7 series digital servo drivers and CNC controllers',
       ],
       price: row.basePricePKR,
+      baseDealerPricePKR: row.baseDealerPricePKR,
+      brakePricePKR: row.brakePricePKR,
+      brakeDealerPricePKR: row.brakeDealerPricePKR,
+      absolutePricePKR: row.absolutePricePKR,
+      absoluteDealerPricePKR: row.absoluteDealerPricePKR,
       servoConfigOptions: configOptions,
       usdEstimate: Math.max(1, Math.round(row.basePricePKR / 278)),
       inStock: true,
@@ -3488,8 +3341,11 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
         { label: 'Model Number', value: row.modelNumber },
         { label: 'Motor Specification', value: row.spec },
         { label: 'Base Retail Price', value: `PKR ${row.basePricePKR.toLocaleString()}` },
-        { label: 'With Brake Price', value: `PKR ${row.brakePricePKR.toLocaleString()}` },
-        { label: 'Absolute Encoder Price', value: `PKR ${row.absolutePricePKR.toLocaleString()}` },
+        { label: 'Base Dealer Price', value: `PKR ${row.baseDealerPricePKR.toLocaleString()}` },
+        { label: 'Brake Retail Price', value: `PKR ${row.brakePricePKR.toLocaleString()}` },
+        { label: 'Brake Dealer Pakistan', value: `PKR ${row.brakeDealerPricePKR.toLocaleString()}` },
+        { label: 'Absolute Retail Pakistan', value: `PKR ${row.absolutePricePKR.toLocaleString()}` },
+        { label: 'Absolute Dealer Pakistan', value: `PKR ${row.absoluteDealerPricePKR.toLocaleString()}` },
         { label: 'Protection Class', value: 'IP65 Industrial Sealed Housing' },
       ],
       compatibility: ['CNC Lathe & VMC Feed Axes', 'Industrial Robots', 'SZGH-E7 Digital Servo Drivers'],
@@ -3506,7 +3362,7 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       modelNumber: row.modelNumber,
       category: 'Motors',
       subcategory: 'Servo Driver',
-      description: `Official ${row.modelNumber} digital AC ${row.spec}. Engineered for high-response position, speed, and torque control across SZGH AC servo motors.`,
+      description: row.spec,
       features: [
         `Driver Specification: ${row.spec}`,
         isEtherCAT
@@ -3518,6 +3374,7 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
         'Direct plug-and-play CN1/CN2 interface with all SZGH CNC lathe, milling, and robot controllers',
       ],
       price: row.basePricePKR,
+      baseDealerPricePKR: row.baseDealerPricePKR,
       usdEstimate: Math.max(1, Math.round(row.basePricePKR / 278)),
       inStock: true,
       stockCount: 18,
@@ -3542,10 +3399,104 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       specs: [
         { label: 'Model Number', value: row.modelNumber },
         { label: 'Driver Specification', value: row.spec },
+        { label: 'Base Retail Price', value: `PKR ${row.basePricePKR.toLocaleString()}` },
+        { label: 'Base Dealer Price', value: `PKR ${row.baseDealerPricePKR.toLocaleString()}` },
         { label: 'Control Architecture', value: isEtherCAT ? 'EtherCAT Bus + Absolute' : isAbsolute ? 'Absolute Servo Driver' : 'Pulse/Dir + Analog + Modbus' },
         { label: 'Warranty', value: '1 Year Official SZGH Pakistan Warranty' },
       ],
       compatibility: ['SZGH AC Servo Motors', 'CNC Lathe & Milling Controllers', 'Industrial Automation Cabinets'],
+    };
+  });
+
+  // Add all 64 Industrial Robots from "Industrial robot dealer price list-11-11-2026" + "Size & Weights" (一体机机器人)
+  const robotItems: ProductItem[] = INDUSTRIAL_ROBOT_RATE_LIST_2026.map((row, idx) => {
+    const breakdown = calculateRobotRetailPriceBreakdown(
+      row.exwRmb,
+      row.packedWeightKg,
+      DEFAULT_RMB_TO_PKR_RATE,
+      DEFAULT_FREIGHT_RATE_PER_KG,
+      DEFAULT_RETAIL_MARKUP
+    );
+    const retailPrice = breakdown.retailPricePkr;
+    const accentColor =
+      row.seriesKey === 'ROBOT_SERIES_H'
+        ? '#16a34a'
+        : row.seriesKey === 'ROBOT_SERIES_P'
+        ? '#9333ea'
+        : row.seriesKey === 'ROBOT_SERIES_S'
+        ? '#0284c7'
+        : row.seriesKey === 'ROBOT_SERIES_B'
+        ? '#d97706'
+        : '#2563eb';
+
+    return {
+      id: `rate-robot-${idx + 1}`,
+      title: `${row.modelNumber} — ${row.spec} (${row.robotTypeLabel})`,
+      modelNumber: row.modelNumber,
+      baseModelNumber: row.modelNumber,
+      category: 'Robots',
+      subcategory: row.subcategory,
+      description: row.description,
+      features: [
+        `${row.spec} (${row.seriesClubName} — ${row.robotTypeLabel})`,
+        'Includes Complete Robot Control System, Servo Motors, Precision Reducers, All-in-One Control Cabinet, Teach Pendant & Cables',
+        row.packedWeightKg !== null && row.packedWeightKg > 0
+          ? `Packed Wooden Box Weight (Control Cabinet + Robot + Wooden Box): ${row.packedWeightKg} KG${
+              row.woodenBoxDimensions ? ` (${row.woodenBoxDimensions})` : ''
+            }`
+          : 'Export-grade fumigated wooden box packaging for Robot Body & All-in-One Control Cabinet',
+        '1 Year Official SZGH Pakistan Warranty & Technical Commissioning Support',
+      ],
+      price: retailPrice,
+      exwRmb: row.exwRmb,
+      packedWeightKg: row.packedWeightKg,
+      woodenBoxDimensions: row.woodenBoxDimensions,
+      bodyWeightKg: row.bodyWeightKg,
+      cabinetWeightKg: row.cabinetWeightKg,
+      usdEstimate: retailPrice > 0 ? Math.max(1, Math.round(retailPrice / 278)) : 0,
+      inStock: true,
+      stockCount: 4,
+      warranty: '1 Year Official Warranty',
+      hasIOBoardOption: false,
+      images: [
+        HERO_SHOWCASE_PHOTOS.robots,
+        ...createIndustrialProductGallery(
+          row.modelNumber,
+          'Robots',
+          accentColor,
+          row.spec,
+          row.woodenBoxDimensions
+            ? `Wooden Box: ${row.woodenBoxDimensions}`
+            : 'All-in-One Control Cabinet + Teach Pendant'
+        ).slice(1),
+      ],
+      imageLabels: [
+        `${row.modelNumber} Industrial Robot`,
+        'Work Envelope & Payload Spec',
+        'All-in-One Control Cabinet & Pendant',
+        'Automated Production Cell',
+      ],
+      specs: [
+        { label: 'Robot Model Number', value: row.modelNumber },
+        { label: 'Series Classification', value: `${row.seriesClubName} (${row.robotTypeLabel})` },
+        { label: 'Reach & Payload Specification', value: row.spec },
+        {
+          label: 'Control Cabinet + Robot + Wooden Box (KG)',
+          value:
+            row.packedWeightKg !== null && row.packedWeightKg > 0
+              ? `${row.packedWeightKg} KG`
+              : 'Pending in Size & Weights Sheet (Fill in Admin Excel)',
+        },
+        ...(row.woodenBoxDimensions
+          ? [{ label: 'Wooden Box Dimensions (L×W×H)', value: row.woodenBoxDimensions }]
+          : []),
+        { label: 'Warranty', value: '1 Year Official SZGH Pakistan Warranty' },
+      ],
+      compatibility: [
+        'Automated CNC Machine Tending',
+        'Industrial Welding & Fabrication Lines',
+        'Palletizing, Stamping, Spraying & Assembly Cells',
+      ],
     };
   });
 
@@ -3554,6 +3505,7 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
     ...additionalControllers,
     ...servoMotorItems,
     ...servoDriverItems,
+    ...robotItems,
   ];
 }
 
@@ -4113,6 +4065,17 @@ export function extractBaseModelAndAxis(product: ProductItem): {
     return {
       baseModelDisplay: rawModel,
       baseModelKey: `Motors::${motorKey}`,
+      axisCount: null,
+      axisLabel: null,
+    };
+  }
+
+  // Industrial Robots should never have axis variants extracted (each robot model is a distinct model in its series)
+  if (product.category === 'Robots') {
+    const robotKey = rawModel.toUpperCase().replace(/[\s_]+/g, '-');
+    return {
+      baseModelDisplay: rawModel,
+      baseModelKey: `Robots::${robotKey}`,
       axisCount: null,
       axisLabel: null,
     };
@@ -4913,8 +4876,14 @@ export function mergeProductsByModelOnly(
         modelNumber: normalizedModel,
       }),
       hasIOBoardOption: isIOBoardItem ? false : rawProduct.hasIOBoardOption,
-      title: stripAxisCountFromText(normalizedPanel.title),
-      description: stripAxisCountFromText(normalizedPanel.description),
+      title:
+        rawProduct.category === 'Controllers'
+          ? stripAxisCountFromText(normalizedPanel.title)
+          : normalizedPanel.title,
+      description:
+        rawProduct.category === 'Controllers'
+          ? stripAxisCountFromText(normalizedPanel.description)
+          : normalizedPanel.description,
       specs: (rawProduct.specs || []).map((s) => ({
         label: s.label,
         value: stripPanelInfoFromText(s.value),
@@ -5326,25 +5295,38 @@ export function mergeProductsByModelOnly(
 }
 
 /**
- * Extracts a short, clean button label for a controller model inside a clubbed series card
- * (e.g. "SZGH-CNC1000TDb" -> "1000TDb", "SZGH-1080MIC" -> "1080MIC", "SZGH-CNC1500MDcb" -> "1500MDcb").
+ * Extracts a short, clean button label for a controller or robot model inside a clubbed series card
+ * (e.g. "SZGH-CNC1000TDb" -> "1000TDb", "SZGH-1080MIC" -> "1080MIC", "SZGH-T1500-B-6" -> "T1500-B-6").
  */
 export function formatShortControllerModelButtonLabel(modelNumber: string): string {
-  return (modelNumber || '')
+  const withoutBrand = (modelNumber || '')
     .trim()
     .replace(/^(?:SZGH|SGZH)[-\s]*(?:CNC[-\s]*)?/i, '')
     .replace(/^GH[-\s]*(?:CNC[-\s]*)?/i, '')
-    .replace(/^CNC[-\s]*/i, '')
-    .replace(/[-\s_]+/g, '');
+    .replace(/^CNC[-\s]*/i, '');
+
+  // Keep hyphens for Industrial Robot model codes (e.g. T1500-B-6, P1850-B-6, H1400-B-6)
+  if (/^[TSPBH][0-9]{3,4}[-\s]/i.test(withoutBrand)) {
+    return withoutBrand.replace(/\s+/g, '');
+  }
+
+  return withoutBrand.replace(/[-\s_]+/g, '');
 }
 
 /**
- * Determines which CNC Controller Series club a product belongs to:
+ * Determines which CNC Controller Series or Industrial Robot Series club a product belongs to:
+ * Controllers:
  * - SZGH-1000 Series (1000TDb, 1000TDc, 1000TC, 1000TIC, 1000MDb, 1000MDc, 1000MDcb, 1000MDcb(H), 1000MC, 1000MIC, 1000G)
  * - SZGH-1080 Series (1080TC, 1080Tic/1080TIC, 1080TDb, 1080MC, 1080MIC, 1080MDb, 1080MDc)
  * - SZGH-1500 Series (1500TDb, 1500TDc, 1500MDb, 1500MDc, 1500MDcb)
  * - SZGH-990 Series  (990TDb, 990TDc, 990MDb, 990MDc)
  * - SZGH-880 Series  (880TC, 880TIC, 880MC)
+ * Industrial Robots:
+ * - SZGH-T Series (General Purpose 6-Axis Industrial Robots)
+ * - SZGH-P Series (Handling, Palletizing & Stamping 4/6-Axis Industrial Robots)
+ * - SZGH-H Series (Arc Welding & Laser Welding 6-Axis Industrial Robots)
+ * - SZGH-S Series (Spraying & Painting 6-Axis Industrial Robots)
+ * - SZGH-B Series (Grinding & Polishing 6-Axis Industrial Robots)
  */
 export function detectControllerSeriesClub(item: ProductItem): {
   seriesKey: string;
@@ -5352,10 +5334,54 @@ export function detectControllerSeriesClub(item: ProductItem): {
   seriesTitle: string;
   sortOrder: number;
 } | null {
+  const check = `${item.baseModelNumber || ''} ${item.modelNumber || ''}`.toUpperCase();
+
+  if (item.category === 'Robots') {
+    if (/(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?T[0-9]{3,4}/i.test(check)) {
+      return {
+        seriesKey: 'ROBOT_SERIES_T',
+        seriesDisplayModel: 'SZGH-T Series',
+        seriesTitle: 'SZGH-T Series General Purpose 6-Axis Industrial Robots',
+        sortOrder: 101,
+      };
+    }
+    if (/(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?P[0-9]{3,4}/i.test(check)) {
+      return {
+        seriesKey: 'ROBOT_SERIES_P',
+        seriesDisplayModel: 'SZGH-P Series',
+        seriesTitle: 'SZGH-P Series Handling, Palletizing & Stamping Industrial Robots',
+        sortOrder: 102,
+      };
+    }
+    if (/(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?H[0-9]{3,4}/i.test(check)) {
+      return {
+        seriesKey: 'ROBOT_SERIES_H',
+        seriesDisplayModel: 'SZGH-H Series',
+        seriesTitle: 'SZGH-H Series Industrial Arc Welding & Laser Welding Robots',
+        sortOrder: 103,
+      };
+    }
+    if (/(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?S[0-9]{3,4}/i.test(check)) {
+      return {
+        seriesKey: 'ROBOT_SERIES_S',
+        seriesDisplayModel: 'SZGH-S Series',
+        seriesTitle: 'SZGH-S Series Industrial Spraying & Painting Robots',
+        sortOrder: 104,
+      };
+    }
+    if (/(?:^|[^A-Z0-9])(?:SZGH[-\s]*)?B[0-9]{3,4}/i.test(check)) {
+      return {
+        seriesKey: 'ROBOT_SERIES_B',
+        seriesDisplayModel: 'SZGH-B Series',
+        seriesTitle: 'SZGH-B Series Industrial Grinding & Polishing Robots',
+        sortOrder: 105,
+      };
+    }
+    return null;
+  }
+
   if (item.category !== 'Controllers') return null;
   if (isStandaloneIOBoardProduct(item)) return null;
-
-  const check = `${item.baseModelNumber || ''} ${item.modelNumber || ''}`.toUpperCase();
 
   if (/(?:^|[^0-9])1000(?:[A-Z\-_]|$)/i.test(check)) {
     return {
@@ -5407,9 +5433,10 @@ export function detectControllerSeriesClub(item: ProductItem): {
 
 /**
  * Clubs each CNC Controller Series (SZGH-1000 Series, SZGH-1080 Series, SZGH-1500 Series,
- * SZGH-990 Series, SZGH-880 Series) into 1 unified product listing per series with
- * selectable Model Variant buttons (`seriesVariants`), Axis buttons (`axisVariants`),
- * Panel buttons (`A, B, C, E`), and I/O Board options without damaging any existing structure.
+ * SZGH-990 Series, SZGH-880 Series) and Industrial Robot Series (SZGH-T, SZGH-P, SZGH-H,
+ * SZGH-S, SZGH-B) into 1 unified product listing per series with selectable Model Variant
+ * buttons (`seriesVariants`), Axis buttons (`axisVariants`), Panel buttons (`A, B, C, E`),
+ * and I/O Board options without damaging any existing structure.
  */
 export function clubProductsBySeries(
   modelMergedItems: ProductItem[]
@@ -5479,23 +5506,32 @@ export function clubProductsBySeries(
   };
 
   const clubbedControllers: ProductItem[] = [];
+  const clubbedRobots: ProductItem[] = [];
   const sortedClubs = Array.from(seriesMap.values()).sort(
     (a, b) => a.meta.sortOrder - b.meta.sortOrder
   );
 
   for (const { meta, models } of sortedClubs) {
-    const sortedModels = [...models].sort((a, b) => {
-      const rankA = getModelVariantRank(
-        formatShortControllerModelButtonLabel(a.baseModelNumber || a.modelNumber)
-      );
-      const rankB = getModelVariantRank(
-        formatShortControllerModelButtonLabel(b.baseModelNumber || b.modelNumber)
-      );
-      if (rankA !== rankB) return rankA - rankB;
-      return (a.baseModelNumber || a.modelNumber).localeCompare(
-        b.baseModelNumber || b.modelNumber
-      );
-    });
+    const isRobotSeries = meta.seriesKey.startsWith('ROBOT_');
+    const sortedModels = isRobotSeries
+      ? [...models].sort((a, b) => {
+          const aHasPrice = a.price > 0 ? 0 : 1;
+          const bHasPrice = b.price > 0 ? 0 : 1;
+          if (aHasPrice !== bHasPrice) return aHasPrice - bHasPrice;
+          return 0;
+        })
+      : [...models].sort((a, b) => {
+          const rankA = getModelVariantRank(
+            formatShortControllerModelButtonLabel(a.baseModelNumber || a.modelNumber)
+          );
+          const rankB = getModelVariantRank(
+            formatShortControllerModelButtonLabel(b.baseModelNumber || b.modelNumber)
+          );
+          if (rankA !== rankB) return rankA - rankB;
+          return (a.baseModelNumber || a.modelNumber).localeCompare(
+            b.baseModelNumber || b.modelNumber
+          );
+        });
 
     const seriesVariants: SeriesModelVariant[] = sortedModels.map((m) => ({
       id: m.id,
@@ -5510,6 +5546,11 @@ export function clubProductsBySeries(
       specs: m.specs,
       compatibility: m.compatibility,
       price: m.price,
+      exwRmb: m.exwRmb,
+      packedWeightKg: m.packedWeightKg,
+      woodenBoxDimensions: m.woodenBoxDimensions,
+      bodyWeightKg: m.bodyWeightKg,
+      cabinetWeightKg: m.cabinetWeightKg,
       hasPanelOptions: m.hasPanelOptions,
       rawPanelType: m.rawPanelType,
       panelPrices: m.panelPrices,
@@ -5529,7 +5570,7 @@ export function clubProductsBySeries(
       0
     );
 
-    clubbedControllers.push({
+    const clubbedItem: ProductItem = {
       ...primary,
       id: `series-club-${meta.seriesKey.toLowerCase()}`,
       seriesClubName: meta.seriesDisplayModel,
@@ -5538,10 +5579,16 @@ export function clubProductsBySeries(
       title: primary.title || meta.seriesTitle,
       seriesVariants,
       inStock: totalSeriesStock > 0,
-    });
+    };
+
+    if (isRobotSeries) {
+      clubbedRobots.push(clubbedItem);
+    } else {
+      clubbedControllers.push(clubbedItem);
+    }
   }
 
-  return [...clubbedControllers, ...standaloneItems];
+  return [...clubbedControllers, ...standaloneItems, ...clubbedRobots];
 }
 
 export function mergeProductsByModelAndAxes(

@@ -122,6 +122,12 @@ import {
   detectControllerSeriesClub,
   extractBaseModelAndAxis,
   resolveOfficialRateListPricing,
+  SERVO_MOTOR_RATE_LIST_2026,
+  SERVO_DRIVER_RATE_LIST_2026,
+  DEFAULT_RMB_TO_PKR_RATE,
+  DEFAULT_FREIGHT_RATE_PER_KG,
+  DEFAULT_RETAIL_MARKUP,
+  calculateRobotRetailPriceBreakdown,
 } from '../data/products';
 import { SubmittedCustomerOrder } from './CartDrawer';
 
@@ -136,6 +142,12 @@ interface AdminStockModalProps {
   onUpdateOrderStatus?: (
     orderId: string,
     newStatus: SubmittedCustomerOrder['orderStatus']
+  ) => void;
+  rmbExchangeRate?: number;
+  freightRatePerKg?: number;
+  onUpdateRobotRates?: (
+    rmbExchangeRate: number,
+    freightRatePerKg: number
   ) => void;
 }
 
@@ -260,8 +272,13 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   customProductIds,
   orders = [],
   onUpdateOrderStatus,
+  rmbExchangeRate = DEFAULT_RMB_TO_PKR_RATE,
+  freightRatePerKg = DEFAULT_FREIGHT_RATE_PER_KG,
+  onUpdateRobotRates,
 }) => {
   const [activeTab, setActiveTab] = useState<'manage' | 'create' | 'excel' | 'orders'>('manage');
+  const [draftRmbRate, setDraftRmbRate] = useState<string>(String(rmbExchangeRate));
+  const [draftFreightRate, setDraftFreightRate] = useState<string>(String(freightRatePerKg));
   const [searchQuery, setSearchQuery] = useState('');
   const [stepAmount, setStepAmount] = useState<number>(1);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -839,12 +856,60 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   };
 
   /**
+   * Extracts updated RMB Exchange Rate and Freight Rate per KG from the
+   * "Exchange & Freight Rates" tab if present in an uploaded workbook.
+   */
+  const extractRatesFromWorkbook = (
+    workbook: XLSX.WorkBook
+  ): { rmbRate: number; freightRate: number; foundSheet: boolean } => {
+    let rmbRate = Number(draftRmbRate) > 0 ? Number(draftRmbRate) : rmbExchangeRate;
+    let freightRate =
+      Number(draftFreightRate) >= 0 ? Number(draftFreightRate) : freightRatePerKg;
+    const rateSheetName = workbook.SheetNames.find((n) =>
+      /exchange.*rate|freight.*rate/i.test(n.trim())
+    );
+    if (!rateSheetName || !workbook.Sheets[rateSheetName]) {
+      return { rmbRate, freightRate, foundSheet: false };
+    }
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[rateSheetName], {
+      header: 1,
+      defval: '',
+      blankrows: false,
+    });
+    for (const row of rows) {
+      const cells = (row || []).map((c) => String(c ?? '').trim());
+      const joined = cells.join(' ').toLowerCase();
+      if (joined.includes('rmb') || joined.includes('exchange rate')) {
+        for (let i = 1; i < cells.length; i++) {
+          const num = Number(cells[i].replace(/[^0-9.]+/g, ''));
+          if (!isNaN(num) && num > 0 && num < 5000) {
+            rmbRate = num;
+            break;
+          }
+        }
+      }
+      if (joined.includes('freight') || joined.includes('pkr/kg') || joined.includes('per kg')) {
+        for (let i = 1; i < cells.length; i++) {
+          const num = Number(cells[i].replace(/[^0-9.]+/g, ''));
+          if (!isNaN(num) && num > 0 && num < 100000) {
+            freightRate = num;
+            break;
+          }
+        }
+      }
+    }
+    return { rmbRate, freightRate, foundSheet: true };
+  };
+
+  /**
    * Parses a single worksheet into TrackedExcelStockItem[] rows,
    * leaving any missing fields/tabs strictly empty ('').
    */
   const extractTrackedItemsFromSingleSheet = (
     workbook: XLSX.WorkBook,
-    sheetName: string
+    sheetName: string,
+    overrideRmbRate?: number,
+    overrideFreightRate?: number
   ): TrackedExcelStockItem[] => {
     const worksheet = workbook.Sheets[sheetName];
     if (!worksheet) {
@@ -964,13 +1029,45 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       (h) => (h.includes('e panel') || h.includes('panel e')) && !h.includes('c+e') && (h.includes('price') || h.includes('pkr')),
     ]);
 
+    const exwRmbIdx = findColIdx([
+      (h) => h.includes('exw') && h.includes('rmb'),
+      (h) => h === 'exw rmb' || h === 'exw (rmb)' || h === 'exw price (rmb)',
+    ]);
+    const packedWeightIdx = findColIdx([
+      (h) => h.includes('control cabinet') && h.includes('wooden box'),
+      (h) => h.includes('wooden box') && h.includes('kg'),
+      (h) => h.includes('packed weight') || (h.includes('weight') && h.includes('kg')),
+    ]);
+    const rowRmbRateIdx = findColIdx([
+      (h) => h.includes('exchange rate'),
+    ]);
+    const rowFreightRateIdx = findColIdx([
+      (h) => h.includes('freight rate'),
+    ]);
+
     const priceIdx = findColIdx([
-      (h) => h === 'price' || h === 'price pkr' || h === 'unit price' || h === 'pkr' || h === 'rate' || h === 'base price pkr',
+      (h) =>
+        h === 'price' ||
+        h === 'price pkr' ||
+        h === 'base retail price (pkr)' ||
+        h === 'base retail price pkr' ||
+        h === 'retail price pkr' ||
+        h === 'retail price' ||
+        h === 'unit price' ||
+        h === 'pkr' ||
+        h === 'rate' ||
+        h === 'base price pkr',
       (h) =>
         (h.includes('price') || h.includes('rate') || h.includes('pkr') || h.includes('cost') || h.includes('amount')) &&
         !h.includes('panel') &&
         !h.includes('i/o') &&
-        !h.includes('status'),
+        !h.includes('status') &&
+        !h.includes('exw') &&
+        !h.includes('freight') &&
+        !h.includes('exchange') &&
+        !h.includes('dealer') &&
+        !h.includes('brake') &&
+        !h.includes('absolute'),
     ]);
 
     const img1Idx = findColIdx([
@@ -1119,8 +1216,55 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         computedPanelPrices = buildPanelPricesFromBase(numBase);
       }
 
+      const parseFloatNumber = (val: unknown): number | null => {
+        if (val === null || val === undefined || String(val).trim() === '') {
+          return null;
+        }
+        const cleaned = String(val).replace(/[^0-9.-]+/g, '');
+        if (!cleaned || isNaN(Number(cleaned))) return null;
+        return Number(cleaned);
+      };
+
+      const parsedExwRmb =
+        exwRmbIdx !== -1 ? parseFloatNumber(row[exwRmbIdx]) : null;
+      const parsedWeightKg =
+        packedWeightIdx !== -1 ? parseFloatNumber(row[packedWeightIdx]) : null;
+      const parsedRowRmbRate =
+        rowRmbRateIdx !== -1 ? parseFloatNumber(row[rowRmbRateIdx]) : null;
+      const parsedRowFreightRate =
+        rowFreightRateIdx !== -1 ? parseFloatNumber(row[rowFreightRateIdx]) : null;
+
+      const effectiveRmbRateForRow =
+        parsedRowRmbRate && parsedRowRmbRate > 0
+          ? parsedRowRmbRate
+          : overrideRmbRate && overrideRmbRate > 0
+          ? overrideRmbRate
+          : rmbExchangeRate;
+      const effectiveFreightRateForRow =
+        parsedRowFreightRate !== null && parsedRowFreightRate >= 0
+          ? parsedRowFreightRate
+          : overrideFreightRate !== undefined && overrideFreightRate >= 0
+          ? overrideFreightRate
+          : freightRatePerKg;
+
+      const robotCalculatedBreakdown =
+        parsedExwRmb !== null &&
+        parsedExwRmb > 0 &&
+        parsedWeightKg !== null &&
+        parsedWeightKg > 0
+          ? calculateRobotRetailPriceBreakdown(
+              parsedExwRmb,
+              parsedWeightKg,
+              effectiveRmbRateForRow,
+              effectiveFreightRateForRow,
+              DEFAULT_RETAIL_MARKUP
+            )
+          : null;
+
       const parsedPriceStr = computedPanelPrices
         ? String(computedPanelPrices.defaultDisplayPrice)
+        : robotCalculatedBreakdown?.retailPricePkr
+        ? String(robotCalculatedBreakdown.retailPricePkr)
         : rawPriceStr;
 
       const img1 = img1Idx !== -1 ? String(row[img1Idx] ?? '').trim() : '';
@@ -1289,21 +1433,37 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
   /**
    * Parses either a single worksheet or ALL category sheets ('__ALL_SHEETS__')
-   * and updates trackedExcelItems.
+   * and updates trackedExcelItems. Also reads 'Exchange & Freight Rates' sheet if present.
    */
   const parseSheetIntoTrackedItems = (
     workbook: XLSX.WorkBook,
     sheetName: string
   ) => {
+    const { rmbRate, freightRate, foundSheet } = extractRatesFromWorkbook(workbook);
+    if (foundSheet) {
+      setDraftRmbRate(String(rmbRate));
+      setDraftFreightRate(String(freightRate));
+      if (onUpdateRobotRates) {
+        onUpdateRobotRates(rmbRate, freightRate);
+      }
+    }
+
     if (sheetName === '__ALL_SHEETS__') {
       const sheetsToParse = workbook.SheetNames.filter(
-        (name) => !name.toLowerCase().includes('missing from 2026')
+        (name) =>
+          !name.toLowerCase().includes('missing from 2026') &&
+          !/exchange.*rate|freight.*rate/i.test(name.trim())
       );
       const combined: TrackedExcelStockItem[] = [];
       const seenKeys = new Set<string>();
 
       for (const sName of sheetsToParse) {
-        const sheetItems = extractTrackedItemsFromSingleSheet(workbook, sName);
+        const sheetItems = extractTrackedItemsFromSingleSheet(
+          workbook,
+          sName,
+          rmbRate,
+          freightRate
+        );
         for (const item of sheetItems) {
           const key = `${item.modelNumber.trim().toUpperCase()}__${item.category}`;
           if (seenKeys.has(key)) continue;
@@ -1320,7 +1480,15 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       const newCount = combined.length - matchedCount;
       setStatusBanner({
         type: 'success',
-        message: `Fetched ${combined.length} total item(s) across ${sheetsToParse.length} sheet(s) (${matchedCount} matched existing catalog items, ${newCount} new items).`,
+        message: `Fetched ${combined.length} total item(s) across ${sheetsToParse.length} sheet(s) (${matchedCount} matched existing catalog items, ${newCount} new items). Active Robot Exchange Rate = ${rmbRate} PKR/RMB, Freight Rate = ${freightRate} PKR/KG.`,
+      });
+      return;
+    }
+
+    if (/exchange.*rate|freight.*rate/i.test(sheetName.trim())) {
+      setStatusBanner({
+        type: 'success',
+        message: `Updated Exchange Rate (${rmbRate} PKR/RMB) & Freight Rate (${freightRate} PKR/KG) from sheet "${sheetName}". Switch to "Industrial Robots" or "★ ALL CATEGORY SHEETS" to view and sync recalculated robot prices.`,
       });
       return;
     }
@@ -1333,7 +1501,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       return;
     }
 
-    const extracted = extractTrackedItemsFromSingleSheet(workbook, sheetName);
+    const extracted = extractTrackedItemsFromSingleSheet(
+      workbook,
+      sheetName,
+      rmbRate,
+      freightRate
+    );
     if (extracted.length === 0) {
       setTrackedExcelItems([]);
       setStatusBanner({
@@ -1465,17 +1638,16 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   /**
    * Generates & downloads the Complete Detailed Catalog & Pricing Excel Workbook (.xlsx)
    * with separate sheets for each category so the admin can download all items in one go:
-   * 1. "Controllers" — All CNC Controllers clubbed in a single sheet (1000, 1080, 1500, 990, 880 Series + I/O Boards) with A/B/C/E Panel Prices
+   * 1. "Controllers" — All CNC Controllers (including items missing from 2026 PDF) merged in a single sheet
    * 2. "Servo Motors & Drives" — All AC Servo Motors (Base / Brake / Absolute prices), Digital Servo Drivers, Spindle Motors/Drivers, and Stepper Kits
    * 3. "CNC Machines" — All CNC Turning Centers, CNC Milling Machines & Vertical Machining Centers (VMCs)
    * 4. "Industrial Robots" — All 6-Axis Welding, Pick-and-Place / Machine Tending & Spraying/Grinding Robots
-   * 5. "Missing from 2026 PDF" — Quick-filter sheet for any controller options needing pricing review
    */
   const handleDownloadControllerSeriesPricingSheet = () => {
     const wb = XLSX.utils.book_new();
 
     // =========================================================================
-    // SHEET 1: CONTROLLERS (All Controller Series Clubbed in Single Sheet)
+    // SHEET 1: CONTROLLERS (All Controller Series + Missing from 2026 PDF Merged in Single Sheet)
     // =========================================================================
     const controllerHeaderRow = [
       'Series Club',
@@ -1499,7 +1671,6 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
     const controllerItems = products.filter((p) => p.category === 'Controllers');
     const controllerRows: (string | number)[][] = [controllerHeaderRow];
-    const missingRows: (string | number)[][] = [controllerHeaderRow];
 
     const seriesOrder: Record<string, number> = {
       'SZGH-1000 Series': 1,
@@ -1596,9 +1767,6 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       ];
 
       controllerRows.push(rowData);
-      if (needsPricingReview) {
-        missingRows.push(rowData);
-      }
     }
 
     const wsControllers = XLSX.utils.aoa_to_sheet(controllerRows);
@@ -1629,15 +1797,18 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     const motorHeaderRow = [
       'Subcategory Group',
       'Model Number',
+      'Description',
       'Category',
       'Subcategory',
-      'Price PKR',
-      'With Brake Price PKR',
-      'Absolute Encoder Price PKR',
+      'Base Retail Price (PKR)',
+      'Base Dealer Price (PKR)',
+      'Brake Retail Price (PKR)',
+      'Brake Dealer Pakistan (PKR)',
+      'Absolute Retail Pakistan (PKR)',
+      'Absolute Dealer Pakistan (PKR)',
       'Stock Qty',
       'Pricing Status',
       'Title',
-      'Description',
     ];
     const motorItems = products.filter((p) => p.category === 'Motors');
     const motorSubcatOrder: Record<string, number> = {
@@ -1649,44 +1820,75 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       'Two-phase stepper motor and driver': 6,
       'Three-phase stepper motors and drivers': 7,
     };
+    const servoPdfOrderMap = new Map<string, number>();
+    SERVO_MOTOR_RATE_LIST_2026.forEach((r, idx) => {
+      servoPdfOrderMap.set(r.modelNumber.trim().toUpperCase(), idx + 1);
+    });
+    SERVO_DRIVER_RATE_LIST_2026.forEach((r, idx) => {
+      servoPdfOrderMap.set(r.modelNumber.trim().toUpperCase(), 1000 + idx + 1);
+    });
+
     const sortedMotors = [...motorItems].sort((a, b) => {
       const rankA = motorSubcatOrder[a.subcategory || ''] || 99;
       const rankB = motorSubcatOrder[b.subcategory || ''] || 99;
       if (rankA !== rankB) return rankA - rankB;
+      const pdfIdxA = servoPdfOrderMap.get(a.modelNumber.trim().toUpperCase());
+      const pdfIdxB = servoPdfOrderMap.get(b.modelNumber.trim().toUpperCase());
+      if (pdfIdxA !== undefined && pdfIdxB !== undefined) {
+        return pdfIdxA - pdfIdxB;
+      }
+      if (pdfIdxA !== undefined) return -1;
+      if (pdfIdxB !== undefined) return 1;
       return a.modelNumber.localeCompare(b.modelNumber);
     });
 
     const motorRows: (string | number)[][] = [motorHeaderRow];
     for (const item of sortedMotors) {
-      const servoOpts = item.servoConfigOptions || [];
+      const resolvedServo = resolveOfficialRateListPricing({
+        modelNumber: item.modelNumber,
+      });
+      const servoOpts = item.servoConfigOptions || resolvedServo.servoConfigOptions || [];
       const baseOpt = servoOpts.find((o) => o.id === 'base');
       const brakeOpt = servoOpts.find((o) => o.id === 'brake');
       const absOpt = servoOpts.find((o) => o.id === 'absolute');
-      const basePrice = baseOpt ? baseOpt.price : item.price > 0 ? item.price : '';
-      const brakePrice = brakeOpt ? brakeOpt.price : '';
-      const absPrice = absOpt ? absOpt.price : '';
+      const basePrice = baseOpt
+        ? baseOpt.price
+        : item.price > 0
+        ? item.price
+        : resolvedServo.price ?? '';
+      const baseDealerPrice =
+        item.baseDealerPricePKR ?? resolvedServo.baseDealerPricePKR ?? '';
+      const brakePrice =
+        brakeOpt?.price ?? item.brakePricePKR ?? resolvedServo.brakePricePKR ?? '';
+      const brakeDealerPrice =
+        item.brakeDealerPricePKR ?? resolvedServo.brakeDealerPricePKR ?? '';
+      const absPrice =
+        absOpt?.price ?? item.absolutePricePKR ?? resolvedServo.absolutePricePKR ?? '';
+      const absDealerPrice =
+        item.absoluteDealerPricePKR ?? resolvedServo.absoluteDealerPricePKR ?? '';
       const subcatGroup =
         item.subcategory === 'Servo motor' || item.subcategory === 'Servo Driver'
           ? 'Servo Motors and Drives'
           : item.subcategory?.toLowerCase().includes('spindle')
           ? 'Spindle Servo Motors and Drivers'
           : 'Stepper Motors and Drivers';
-      const in2026RateList =
-        resolveOfficialRateListPricing({ modelNumber: item.modelNumber }).price !==
-        undefined;
+      const in2026RateList = resolvedServo.price !== undefined;
 
       motorRows.push([
         subcatGroup,
         item.modelNumber,
+        resolvedServo.description || item.description || '',
         item.category,
         item.subcategory || '',
         basePrice,
+        baseDealerPrice,
         brakePrice,
+        brakeDealerPrice,
         absPrice,
+        absDealerPrice,
         item.stockCount ?? 0,
-        in2026RateList ? 'OFFICIAL 2026 PDF RATE LIST' : 'CATALOG STANDARD PRICE',
+        in2026RateList ? 'SERVO MOTOR DRIVE RATE LIST' : 'CATALOG STANDARD PRICE',
         item.title || '',
-        item.description || '',
       ]);
     }
 
@@ -1694,15 +1896,18 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     wsMotors['!cols'] = [
       { wch: 30 },
       { wch: 24 },
+      { wch: 48 },
       { wch: 14 },
       { wch: 34 },
-      { wch: 16 },
-      { wch: 22 },
+      { wch: 24 },
+      { wch: 24 },
+      { wch: 24 },
       { wch: 26 },
+      { wch: 28 },
+      { wch: 28 },
       { wch: 12 },
       { wch: 30 },
-      { wch: 42 },
-      { wch: 65 },
+      { wch: 48 },
     ];
     XLSX.utils.book_append_sheet(wb, wsMotors, 'Servo Motors & Drives');
 
@@ -1753,46 +1958,135 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     XLSX.utils.book_append_sheet(wb, wsMachines, 'CNC Machines');
 
     // =========================================================================
-    // SHEET 4: INDUSTRIAL ROBOTS (Welding, Handling & Spraying/Grinding Robots)
+    // SHEET 4: INDUSTRIAL ROBOTS (All 64 Models + EXW RMB + Freight KG + Retail Price)
     // =========================================================================
+    const activeRmbRate =
+      Number(draftRmbRate) > 0 ? Number(draftRmbRate) : rmbExchangeRate;
+    const activeFreightRate =
+      Number(draftFreightRate) >= 0 ? Number(draftFreightRate) : freightRatePerKg;
+
     const robotHeaderRow = [
-      'Subcategory Group',
+      'Series Club',
       'Model Number',
       'Category',
       'Subcategory',
+      'EXW Price (RMB)',
+      'Exchange Rate (PKR/RMB)',
+      'EXW Price (PKR)',
+      'Control Cabinet + Robot + Wooden Box (KG)',
+      'Freight Rate (PKR/KG)',
+      'Freight Charges (PKR)',
+      'Retail Markup',
       'Price PKR',
-      'USD Estimate',
       'Stock Qty',
-      'Warranty',
+      'Pricing Status',
+      'Wooden Box Dimensions (L*W*H)',
       'Title',
       'Description',
     ];
     const robotItems = products.filter((p) => p.category === 'Robots');
     const robotRows: (string | number)[][] = [robotHeaderRow];
     for (const item of robotItems) {
+      const clubInfo = detectControllerSeriesClub(item);
+      const rateMeta = resolveOfficialRateListPricing({
+        category: 'Robots',
+        modelNumber: item.modelNumber,
+      });
+      const exwRmb = item.exwRmb ?? rateMeta.exwRmb ?? null;
+      const packedWeightKg =
+        item.packedWeightKg ?? rateMeta.packedWeightKg ?? null;
+      const woodenBoxDimensions =
+        item.woodenBoxDimensions ?? rateMeta.woodenBoxDimensions ?? '';
+
+      const breakdown = calculateRobotRetailPriceBreakdown(
+        exwRmb,
+        packedWeightKg,
+        activeRmbRate,
+        activeFreightRate,
+        DEFAULT_RETAIL_MARKUP
+      );
+
+      const retailPriceVal =
+        breakdown.isComplete && breakdown.retailPricePkr > 0
+          ? breakdown.retailPricePkr
+          : item.price > 0
+          ? item.price
+          : '';
+
       robotRows.push([
-        'Industrial Robots',
+        clubInfo ? clubInfo.seriesDisplayModel : 'Industrial Robots',
         item.modelNumber,
         item.category,
         item.subcategory || '',
-        item.price > 0 ? item.price : '',
-        item.usdEstimate ?? '',
-        item.stockCount ?? 0,
-        item.warranty || '1 Year Official Warranty',
+        exwRmb !== null && exwRmb > 0 ? exwRmb : '',
+        activeRmbRate,
+        breakdown.exwPkr > 0 ? breakdown.exwPkr : '',
+        packedWeightKg !== null && packedWeightKg > 0 ? packedWeightKg : '',
+        activeFreightRate,
+        breakdown.freightPkr > 0 ? breakdown.freightPkr : '',
+        DEFAULT_RETAIL_MARKUP,
+        retailPriceVal,
+        item.stockCount ?? 4,
+        breakdown.missingStatus,
+        woodenBoxDimensions,
         item.title || '',
         item.description || '',
       ]);
     }
     const wsRobots = XLSX.utils.aoa_to_sheet(robotRows);
-    wsRobots['!cols'] = wsMachines['!cols'];
+    wsRobots['!cols'] = [
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 24 },
+      { wch: 18 },
+      { wch: 42 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 12 },
+      { wch: 52 },
+      { wch: 28 },
+      { wch: 42 },
+      { wch: 55 },
+    ];
     XLSX.utils.book_append_sheet(wb, wsRobots, 'Industrial Robots');
 
     // =========================================================================
-    // SHEET 5: MISSING FROM 2026 PDF (Controllers Needing Price Confirmation)
+    // SHEET 5: EXCHANGE & FREIGHT RATES (For Future Changings in Stock Admin)
     // =========================================================================
-    const wsMissing = XLSX.utils.aoa_to_sheet(missingRows);
-    wsMissing['!cols'] = wsControllers['!cols'];
-    XLSX.utils.book_append_sheet(wb, wsMissing, 'Missing from 2026 PDF');
+    const ratesRows: (string | number)[][] = [
+      ['Parameter', 'Rate / Value', 'Unit', 'Formula / Notes'],
+      [
+        'RMB Exchange Rate',
+        activeRmbRate,
+        'PKR / RMB',
+        'EXW (PKR) = EXW Price (RMB) * RMB Exchange Rate',
+      ],
+      [
+        'Freight Rate per KG',
+        activeFreightRate,
+        'PKR / KG',
+        'Freight Charges (PKR) = Control Cabinet + Robot + Wooden Box (KG) * Freight Rate per KG',
+      ],
+      [
+        'Retail Markup Multiplier',
+        DEFAULT_RETAIL_MARKUP,
+        'Multiplier (+25%)',
+        'Retail Price (PKR) = (EXW (PKR) + Freight Charges (PKR)) * 1.25',
+      ],
+    ];
+    const wsRates = XLSX.utils.aoa_to_sheet(ratesRows);
+    wsRates['!cols'] = [
+      { wch: 28 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 78 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsRates, 'Exchange & Freight Rates');
 
     XLSX.writeFile(wb, 'SZGH-Pakistan-Controller-Series-Panel-Pricing-Sheet.xlsx');
   };
@@ -2481,6 +2775,66 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                       className="hidden"
                     />
                   </label>
+                </div>
+              </div>
+
+              {/* Exchange Rate (RMB -> PKR) & Freight Rate (PKR/KG) Configuration Tab for Industrial Robots */}
+              <div className="p-4 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wide">
+                      Industrial Robot Exchange Rate &amp; Freight Rate Configuration (Master Excel Sheet Tab)
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Formula: <code className="font-mono font-semibold text-slate-800 dark:text-slate-200">EXW (PKR) = EXW (RMB) × {draftRmbRate || 43.5}</code> · <code className="font-mono font-semibold text-slate-800 dark:text-slate-200">Freight = Packed Weight (KG) × {draftFreightRate || 800} PKR/kg</code> · <code className="font-mono font-semibold text-[#0D5C2B] dark:text-emerald-400">Retail Price = (EXW + Freight) × 1.25</code>
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      RMB Exchange Rate (PKR / RMB)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      value={draftRmbRate}
+                      onChange={(e) => setDraftRmbRate(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-mono-tabular font-bold text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Freight Rate per KG (PKR / KG)
+                    </label>
+                    <input
+                      type="number"
+                      step="10"
+                      min="0"
+                      value={draftFreightRate}
+                      onChange={(e) => setDraftFreightRate(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-xs font-mono-tabular font-bold text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextRmb = Number(draftRmbRate) > 0 ? Number(draftRmbRate) : DEFAULT_RMB_TO_PKR_RATE;
+                      const nextFreight = Number(draftFreightRate) >= 0 ? Number(draftFreightRate) : DEFAULT_FREIGHT_RATE_PER_KG;
+                      if (onUpdateRobotRates) {
+                        onUpdateRobotRates(nextRmb, nextFreight);
+                      }
+                      setStatusBanner({
+                        type: 'success',
+                        message: `Applied Robot Exchange Rate = ${nextRmb} PKR/RMB and Freight Rate = ${nextFreight} PKR/KG across all Industrial Robot listings and Master Excel Sheet!`,
+                      });
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-[#1E2985] hover:bg-[#16206B] text-white text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Apply Exchange &amp; Freight Rates</span>
+                  </button>
                 </div>
               </div>
 

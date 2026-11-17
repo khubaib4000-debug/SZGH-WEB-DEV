@@ -126,6 +126,10 @@ import {
   buildPanelPricesFromCE,
   resolveOfficialRateListPricing,
   PanelPriceBreakdown,
+  DEFAULT_RMB_TO_PKR_RATE,
+  DEFAULT_FREIGHT_RATE_PER_KG,
+  DEFAULT_RETAIL_MARKUP,
+  calculateRobotRetailPriceBreakdown,
 } from './data/products';
 import {
   onAuthStateChanged,
@@ -164,6 +168,7 @@ const THEME_STORAGE_KEY = 'sdgh_pakistan_theme_v1';
 const CART_STORAGE_KEY = 'sdgh_pakistan_cart_v2';
 const METRICS_STORAGE_KEY = 'sdgh_pakistan_metrics_v1';
 const ORDERS_STORAGE_KEY = 'sdgh_pakistan_orders_v1';
+const ROBOT_RATES_STORAGE_KEY = 'sdgh_pakistan_robot_rates_v1';
 
 interface ProductPerformanceMetrics {
   views: number;
@@ -261,6 +266,55 @@ export default function App() {
       // Ignore storage errors
     }
   }, [performanceMetrics]);
+
+  // Persistent Robot Exchange Rate (RMB -> PKR, default 43.5) & Freight Rate (PKR/KG, default 800)
+  const [rmbExchangeRate, setRmbExchangeRate] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(ROBOT_RATES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.rmbExchangeRate === 'number' && parsed.rmbExchangeRate > 0) {
+          return parsed.rmbExchangeRate;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return DEFAULT_RMB_TO_PKR_RATE;
+  });
+
+  const [freightRatePerKg, setFreightRatePerKg] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(ROBOT_RATES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.freightRatePerKg === 'number' && parsed.freightRatePerKg >= 0) {
+          return parsed.freightRatePerKg;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return DEFAULT_FREIGHT_RATE_PER_KG;
+  });
+
+  const handleUpdateRobotRates = (newRmbRate: number, newFreightRate: number) => {
+    const validRmb = newRmbRate > 0 ? newRmbRate : DEFAULT_RMB_TO_PKR_RATE;
+    const validFreight = newFreightRate >= 0 ? newFreightRate : DEFAULT_FREIGHT_RATE_PER_KG;
+    setRmbExchangeRate(validRmb);
+    setFreightRatePerKg(validFreight);
+    try {
+      localStorage.setItem(
+        ROBOT_RATES_STORAGE_KEY,
+        JSON.stringify({
+          rmbExchangeRate: validRmb,
+          freightRatePerKg: validFreight,
+        })
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  };
 
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<NavSection>('home');
@@ -546,12 +600,15 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const [manifestReady, setManifestReady] = useState(false);
+
   // Subscribe to custom product manifest (/catalog_index/active_manifest)
   useEffect(() => {
     const manifestPath = 'catalog_index/active_manifest';
     const unsubscribeManifest = onSnapshot(
       doc(db, 'catalog_index', 'active_manifest'),
       (snapshot) => {
+        setManifestReady(true);
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (Array.isArray(data.customProductIds)) {
@@ -570,20 +627,30 @@ export default function App() {
     return () => unsubscribeManifest();
   }, []);
 
-  // Subscribe to all built-in + custom product documents in /inventory/{productId}
+  // Subscribe to custom product documents (and built-in overrides when admin modal is open) in /inventory/{productId}
   useEffect(() => {
-    const allProductIds = Array.from(
-      new Set([
-        ...PRODUCTS_DATABASE.map((p) => p.id),
-        ...customProductIds,
-      ])
-    );
+    if (!manifestReady) return;
 
-    const unsubscribes = allProductIds.map((productId) => {
+    const targetIds = adminStockModalOpen
+      ? Array.from(
+          new Set([
+            ...PRODUCTS_DATABASE.map((p) => p.id),
+            ...customProductIds,
+          ])
+        )
+      : customProductIds;
+
+    if (targetIds.length === 0) return;
+
+    let cancelled = false;
+    const unsubscribes: (() => void)[] = [];
+
+    for (const productId of targetIds) {
       const path = `inventory/${productId}`;
-      return onSnapshot(
+      const unsub = onSnapshot(
         doc(db, 'inventory', productId),
         (snapshot) => {
+          if (cancelled) return;
           if (snapshot.exists()) {
             const data = snapshot.data();
             if (
@@ -673,14 +740,18 @@ export default function App() {
         },
         (error) => {
           handleFirestoreError(error, OperationType.GET, path);
+          cancelled = true;
+          unsubscribes.forEach((u) => u());
         }
       );
-    });
+      unsubscribes.push(unsub);
+    }
 
     return () => {
+      cancelled = true;
       unsubscribes.forEach((unsub) => unsub());
     };
-  }, [customProductIds]);
+  }, [manifestReady, customProductIds, adminStockModalOpen]);
 
   const deriveTitleFromDescription = (
     desc?: string,
@@ -701,6 +772,17 @@ export default function App() {
 
     const mergedBuiltIn = PRODUCTS_DATABASE.map((item) => {
       const override = cloudInventoryOverrides[item.id];
+      const dynamicRobotPrice =
+        item.category === 'Robots'
+          ? calculateRobotRetailPriceBreakdown(
+              item.exwRmb ?? null,
+              item.packedWeightKg ?? null,
+              rmbExchangeRate,
+              freightRatePerKg,
+              DEFAULT_RETAIL_MARKUP
+            ).retailPricePkr ?? 0
+          : item.price;
+
       if (!override) {
         const normPanel = normalizePanelStrings(item);
         const { images: panelImgs, imageLabels: panelLabels } =
@@ -708,8 +790,15 @@ export default function App() {
             ...normPanel,
             hasPanelOptions: item.hasPanelOptions,
           });
+        const effectivePrice =
+          item.category === 'Robots' ? dynamicRobotPrice : item.price;
         return {
           ...item,
+          price: effectivePrice,
+          usdEstimate:
+            effectivePrice > 0
+              ? Math.max(1, Math.round(effectivePrice / 278))
+              : 0,
           modelNumber: normPanel.modelNumber,
           description: normPanel.description,
           title: deriveTitleFromDescription(normPanel.description, normPanel.title),
@@ -903,6 +992,7 @@ export default function App() {
         });
 
       const ratePricing = resolveOfficialRateListPricing({
+        category: override.category || item.category,
         modelNumber: resolvedModel,
         title: effectiveTitle,
         description: effectiveDesc,
@@ -1475,7 +1565,7 @@ export default function App() {
     });
 
     return [...customProducts, ...filteredBuiltIn];
-  }, [cloudInventoryOverrides, customProductIds]);
+  }, [cloudInventoryOverrides, customProductIds, rmbExchangeRate, freightRatePerKg]);
 
   // Automatically sync the official pictures into Firestore for any matching inventory docs when Admin is signed in
   useEffect(() => {
@@ -3086,6 +3176,9 @@ export default function App() {
         customProductIds={customProductIds}
         orders={combinedOrders}
         onUpdateOrderStatus={handleUpdateOrderStatus}
+        rmbExchangeRate={rmbExchangeRate}
+        freightRatePerKg={freightRatePerKg}
+        onUpdateRobotRates={handleUpdateRobotRates}
       />
 
       {/* Persistent WhatsApp Live Chat Icon Across All Pages */}
