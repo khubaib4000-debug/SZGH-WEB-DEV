@@ -3375,6 +3375,7 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
     const slug = row.modelNumber.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const isEtherCAT = /EtherCAT/i.test(row.spec);
     const isAbsolute = /Absolute/i.test(row.spec);
+    const hasLetterI = /i/i.test(row.modelNumber);
     return {
       id: `prod-driver-${slug}`,
       title: `SZGH Digital AC Servo Driver — ${row.spec}`,
@@ -3397,18 +3398,25 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       usdEstimate: Math.max(1, Math.round(row.basePricePKR / 278)),
       inStock: true,
       stockCount: 18,
+      ...(hasLetterI ? {} : { defaultImageIndex: 0 }),
       warranty: '1 Year Official Warranty',
       hasIOBoardOption: false,
-      images: [
-        HERO_SHOWCASE_PHOTOS.motors,
-        ...createIndustrialProductGallery(
-          row.modelNumber,
-          'Motors',
-          '#2563eb',
-          '185 × 85 × 170 mm',
-          row.spec
-        ).slice(1),
-      ],
+      images: hasLetterI
+        ? [
+            HERO_SHOWCASE_PHOTOS.motors,
+            ...createIndustrialProductGallery(
+              row.modelNumber,
+              'Motors',
+              '#2563eb',
+              '185 × 85 × 170 mm',
+              row.spec
+            ).slice(1),
+          ]
+        : [
+            '/DSC06940.jpg',
+            '/DSC06941.png',
+            '/DSC06942.png',
+          ],
       imageLabels: [
         'Digital Servo Driver View',
         'Cabinet Mounting CAD',
@@ -4784,6 +4792,10 @@ export function mergeProductsByModelOnly(
       modelNumber: normalizedModel,
     });
     const isServoMotorSubcategory = resolvedSubcategory === 'Servo motor';
+    const isServoDriverWithoutI =
+      resolvedSubcategory === 'Servo Driver' &&
+      !/i/i.test(normalizedModel) &&
+      !/i/i.test(baseModelDisplay);
 
     const rawHasCustomBaseFour = Boolean(
       rawProduct.images
@@ -4802,6 +4814,12 @@ export function mergeProductsByModelOnly(
           '/DSC06936.png',
           '/DSC06937.jpg',
           '/DSC06939.jpg',
+        ]
+      : isServoDriverWithoutI
+      ? [
+          '/DSC06940.jpg',
+          '/DSC06941.png',
+          '/DSC06942.png',
         ]
       : is880MC
       ? SZGH_880MC_IMAGES
@@ -4971,7 +4989,7 @@ export function mergeProductsByModelOnly(
       })),
       images: resolvedImages,
       imageLabels: resolvedLabels,
-      defaultImageIndex: isServoMotorSubcategory
+      defaultImageIndex: isServoMotorSubcategory || isServoDriverWithoutI
         ? 0
         : is880MC
         ? SZGH_880MC_DEFAULT_IMAGE_INDEX
