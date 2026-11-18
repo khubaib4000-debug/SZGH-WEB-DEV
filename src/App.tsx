@@ -171,6 +171,7 @@ import { CategoryStoreSubpage } from './components/CategoryStoreSubpage';
 import { WhatsAppFloatingChat } from './components/WhatsAppFloatingChat';
 import { RetrofitBookingSection } from './components/RetrofitBookingSection';
 import { AdminStockModal } from './components/AdminStockModal';
+import { LOCAL_STOCK_OVERRIDES_STORAGE_KEY } from './data/invoiceLedgerData';
 
 const THEME_STORAGE_KEY = 'sdgh_pakistan_theme_v1';
 const CART_STORAGE_KEY = 'sdgh_pakistan_cart_v2';
@@ -387,7 +388,55 @@ export default function App() {
         panelPrices?: PanelPriceBreakdown;
       }
     >
-  >({});
+  >(() => {
+    try {
+      const raw = localStorage.getItem(LOCAL_STOCK_OVERRIDES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        LOCAL_STOCK_OVERRIDES_STORAGE_KEY,
+        JSON.stringify(cloudInventoryOverrides)
+      );
+    } catch {
+      // Ignore storage errors
+    }
+  }, [cloudInventoryOverrides]);
+
+  const handleApplyLocalStockUpdates = (
+    updates: Record<
+      string,
+      {
+        stockCount: number;
+        stockStatus: 'In Stock' | 'Low Stock' | 'Pre-Order';
+        price: number;
+      }
+    >
+  ) => {
+    setCloudInventoryOverrides((prev) => {
+      const next = { ...prev };
+      for (const [productId, val] of Object.entries(updates)) {
+        next[productId] = {
+          ...(next[productId] || {}),
+          stockCount: val.stockCount,
+          stockStatus: val.stockStatus,
+          price: val.price,
+        };
+      }
+      return next;
+    });
+  };
 
   // Submitted Customer Orders State (Local + Live Firestore Sync)
   const [localOrders, setLocalOrders] = useState<SubmittedCustomerOrder[]>(() => {
@@ -3235,6 +3284,7 @@ export default function App() {
         rmbExchangeRate={rmbExchangeRate}
         freightRatePerKg={freightRatePerKg}
         onUpdateRobotRates={handleUpdateRobotRates}
+        onApplyLocalStockUpdates={handleApplyLocalStockUpdates}
       />
 
       {/* Persistent WhatsApp Live Chat Icon Across All Pages */}

@@ -3341,23 +3341,20 @@ function buildRateListCatalogItems(existingItems: ProductItem[]): ProductItem[] 
       usdEstimate: Math.max(1, Math.round(row.basePricePKR / 278)),
       inStock: true,
       stockCount: 20,
+      defaultImageIndex: 0,
       warranty: '1 Year Official Warranty',
       hasIOBoardOption: false,
       images: [
-        HERO_SHOWCASE_PHOTOS.motors,
-        ...createIndustrialProductGallery(
-          row.modelNumber,
-          'Motors',
-          '#0068AD',
-          row.spec.includes('flange') ? row.spec.split(',')[0] : 'Standard Servo Flange',
-          row.spec
-        ).slice(1),
+        '/0X9A5553.jpg',
+        '/DSC06936.png',
+        '/DSC06937.jpg',
+        '/DSC06939.jpg',
       ],
       imageLabels: [
-        'AC Servo Motor View',
-        'Flange & Shaft CAD',
-        'Encoder & Brake Pinout',
-        'CNC Axis Integration',
+        'AC Servo Motor View 1',
+        'AC Servo Motor View 2',
+        'AC Servo Motor View 3',
+        'AC Servo Motor View 4',
       ],
       specs: [
         { label: 'Model Number', value: row.modelNumber },
@@ -4782,6 +4779,11 @@ export function mergeProductsByModelOnly(
       title: normalizedPanel.title,
       description: normalizedPanel.description,
     });
+    const resolvedSubcategory = resolveOfficialSubcategory({
+      ...rawProduct,
+      modelNumber: normalizedModel,
+    });
+    const isServoMotorSubcategory = resolvedSubcategory === 'Servo motor';
 
     const rawHasCustomBaseFour = Boolean(
       rawProduct.images
@@ -4794,7 +4796,14 @@ export function mergeProductsByModelOnly(
         )
     );
 
-    const baseFourImages: string[] = is880MC
+    const baseFourImages: string[] = isServoMotorSubcategory
+      ? [
+          '/0X9A5553.jpg',
+          '/DSC06936.png',
+          '/DSC06937.jpg',
+          '/DSC06939.jpg',
+        ]
+      : is880MC
       ? SZGH_880MC_IMAGES
       : is1080MC
       ? SZGH_1080MC_IMAGES
@@ -4846,7 +4855,14 @@ export function mergeProductsByModelOnly(
       ? SZGH_CNC_IO12_IMAGES
       : rawProduct.images;
 
-    const baseFourLabels: string[] = is880MC
+    const baseFourLabels: string[] = isServoMotorSubcategory
+      ? [
+          'AC Servo Motor View 1',
+          'AC Servo Motor View 2',
+          'AC Servo Motor View 3',
+          'AC Servo Motor View 4',
+        ]
+      : is880MC
       ? SZGH_880MC_IMAGE_LABELS
       : is1080MC || is1080MDB || is1080MDC
       ? SZGH_1080MC_IMAGE_LABELS
@@ -4939,10 +4955,7 @@ export function mergeProductsByModelOnly(
       hasPanelOptions: itemHasPanel,
       rawPanelType,
       panelPrices: resolvedPanelPrices,
-      subcategory: resolveOfficialSubcategory({
-        ...rawProduct,
-        modelNumber: normalizedModel,
-      }),
+      subcategory: resolvedSubcategory,
       hasIOBoardOption: isIOBoardItem ? false : rawProduct.hasIOBoardOption,
       title:
         rawProduct.category === 'Controllers'
@@ -4958,7 +4971,9 @@ export function mergeProductsByModelOnly(
       })),
       images: resolvedImages,
       imageLabels: resolvedLabels,
-      defaultImageIndex: is880MC
+      defaultImageIndex: isServoMotorSubcategory
+        ? 0
+        : is880MC
         ? SZGH_880MC_DEFAULT_IMAGE_INDEX
         : is1080MC || is1080MDB || is1080MDC
         ? SZGH_1080MC_DEFAULT_IMAGE_INDEX

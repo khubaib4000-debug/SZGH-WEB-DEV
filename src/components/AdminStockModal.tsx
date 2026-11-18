@@ -23,6 +23,8 @@ import {
   Edit3,
   ClipboardList,
   Printer,
+  FileText,
+  ClipboardCheck,
 } from 'lucide-react';
 import {
   User,
@@ -136,6 +138,20 @@ import {
   calculateRobotRetailPriceBreakdown,
 } from '../data/products';
 import { SubmittedCustomerOrder } from './CartDrawer';
+import {
+  INVOICE_SUMMARIES_STORAGE_KEY,
+  STOCK_SOLD_UNITS_STORAGE_KEY,
+  SubmittedInvoiceSummaryRecord,
+  SubmittedInvoiceLineSummary,
+  createEmptyInvoiceRows,
+  formatPKR,
+} from '../data/invoiceLedgerData';
+import {
+  InvoiceAndSummaryWorkspace,
+  InvoiceDraftState,
+  findProductForInvoiceModel,
+  prependIntegratedInvoiceAndSummarySheets,
+} from './InvoiceAndSummaryWorkspace';
 
 interface AdminStockModalProps {
   isOpen: boolean;
@@ -154,6 +170,16 @@ interface AdminStockModalProps {
   onUpdateRobotRates?: (
     rmbExchangeRate: number,
     freightRatePerKg: number
+  ) => void;
+  onApplyLocalStockUpdates?: (
+    updates: Record<
+      string,
+      {
+        stockCount: number;
+        stockStatus: 'In Stock' | 'Low Stock' | 'Pre-Order';
+        price: number;
+      }
+    >
   ) => void;
 }
 
@@ -281,18 +307,106 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   rmbExchangeRate = DEFAULT_RMB_TO_PKR_RATE,
   freightRatePerKg = DEFAULT_FREIGHT_RATE_PER_KG,
   onUpdateRobotRates,
+  onApplyLocalStockUpdates,
 }) => {
-  const [activeTab, setActiveTab] = useState<'manage' | 'create' | 'excel' | 'orders'>('manage');
+  const [activeTab, setActiveTab] = useState<
+    'manage' | 'create' | 'excel' | 'orders' | 'invoice' | 'summary'
+  >('manage');
   const [draftRmbRate, setDraftRmbRate] = useState<string>(String(rmbExchangeRate));
   const [draftFreightRate, setDraftFreightRate] = useState<string>(String(freightRatePerKg));
   const [searchQuery, setSearchQuery] = useState('');
   const [stepAmount, setStepAmount] = useState<number>(1);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+
+  // Persistent Submitted Invoice Summaries ("Summary" Sheet)
+  const [submittedSummaries, setSubmittedSummaries] = useState<
+    SubmittedInvoiceSummaryRecord[]
+  >(() => {
+    try {
+      const raw = localStorage.getItem(INVOICE_SUMMARIES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return [];
+  });
+
+  // Persistent Cumulative Units Sold per Model ("Stock List" Sheet)
+  const [unitsSoldByModel, setUnitsSoldByModel] = useState<
+    Record<string, number>
+  >(() => {
+    try {
+      const raw = localStorage.getItem(STOCK_SOLD_UNITS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {
+      // Ignore storage error
+    }
+    return {};
+  });
+
+  // Active Commercial Invoice & Bill Draft State
+  const [invoiceDraft, setInvoiceDraft] = useState<InvoiceDraftState>(() => {
+    const today = new Date();
+    const formattedDate = `${String(today.getDate()).padStart(2, '0')}-${String(
+      today.getMonth() + 1
+    ).padStart(2, '0')}-${today.getFullYear()}`;
+    let nextSeq = 1;
+    try {
+      const raw = localStorage.getItem(INVOICE_SUMMARIES_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) nextSeq = parsed.length + 1;
+      }
+    } catch {
+      // Ignore
+    }
+    return {
+      invoiceNo: `INV-SZGH-2026-${String(nextSeq).padStart(3, '0')}`,
+      invoiceDate: formattedDate,
+      customerId: 'CUST-001',
+      customerName: 'Haji Murtza',
+      companyName: 'Haji Murtza Engineering',
+      deliveryAddress: 'Lahore Industrial Area',
+      contactAndCity: '0301-4130439 — Lahore',
+      salesAgent: 'ZAIN & FAIZAN',
+      paymentBankAccount: 'UBL KH Enterprises Pvt Ltd',
+      accountNo: 'PK45UNIL0109000349986649',
+      rows: createEmptyInvoiceRows(12),
+      includeGst18: false,
+      discountPKR: 0,
+      amountReceivedPKR: 0,
+    };
+  });
+
+  const persistSummaries = (next: SubmittedInvoiceSummaryRecord[]) => {
+    setSubmittedSummaries(next);
+    try {
+      localStorage.setItem(INVOICE_SUMMARIES_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Ignore
+    }
+  };
+
+  const persistUnitsSold = (next: Record<string, number>) => {
+    setUnitsSoldByModel(next);
+    try {
+      localStorage.setItem(STOCK_SOLD_UNITS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Ignore
+    }
+  };
 
   // Local draft edits for existing products in Manage tab
   const [draftEdits, setDraftEdits] = useState<
@@ -475,6 +589,16 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
     setSavingId(product.id);
     setStatusBanner(null);
+
+    if (onApplyLocalStockUpdates) {
+      onApplyLocalStockUpdates({
+        [product.id]: {
+          stockCount: clampedStock,
+          stockStatus: computedStatus,
+          price: clampedPrice,
+        },
+      });
+    }
 
     const path = `inventory/${product.id}`;
     try {
@@ -1673,6 +1797,17 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     const wb = XLSX.utils.book_new();
 
     // =========================================================================
+    // SHEETS 0A-0D: INTEGRATED INVOICE & BILL, SUMMARY SHEET, STOCK LIST & CUSTOMER MASTER
+    // =========================================================================
+    prependIntegratedInvoiceAndSummarySheets(
+      wb,
+      products,
+      submittedSummaries,
+      unitsSoldByModel,
+      invoiceDraft
+    );
+
+    // =========================================================================
     // SHEET 1: CONTROLLERS (All Controller Series + Missing from 2026 PDF Merged in Single Sheet)
     // =========================================================================
     const controllerHeaderRow = [
@@ -2297,6 +2432,394 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     );
   });
 
+  /**
+   * Loads a received Website Customer Order into the "Invoice & Bill" tab with 1 click.
+   */
+  const handleLoadWebsiteOrderIntoInvoice = (order: SubmittedCustomerOrder) => {
+    const nextRows = createEmptyInvoiceRows(12);
+    if (Array.isArray(order.items) && order.items.length > 0) {
+      order.items.slice(0, 12).forEach((item, idx) => {
+        nextRows[idx] = {
+          sNo: idx + 1,
+          modelNumber: item.product?.modelNumber || '',
+          description: item.product?.description || item.product?.title || '',
+          billQty: Math.max(1, Math.round(item.quantity || 1)),
+          unitPricePKR: Math.max(0, Math.round(item.product?.price || 0)),
+          productId: item.product?.id,
+        };
+      });
+    } else if (order.itemsSummary) {
+      // Parse lines from itemsSummary if items array wasn't populated from cloud
+      const lines = order.itemsSummary
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+      lines.slice(0, 12).forEach((line, idx) => {
+        const matchedProd = products.find((p) =>
+          line.toLowerCase().includes(p.modelNumber.toLowerCase())
+        );
+        const qtyMatch = line.match(/[×x]\s*(\d+)/i);
+        const qty = qtyMatch ? Math.max(1, Number(qtyMatch[1])) : 1;
+        nextRows[idx] = {
+          sNo: idx + 1,
+          modelNumber: matchedProd ? matchedProd.modelNumber : line.slice(0, 35),
+          description: matchedProd ? matchedProd.description || matchedProd.title : line,
+          billQty: qty,
+          unitPricePKR: matchedProd ? matchedProd.price : 0,
+          productId: matchedProd?.id,
+        };
+      });
+    }
+
+    const nextSeq = submittedSummaries.length + 1;
+    const today = new Date();
+    const formattedDate = `${String(today.getDate()).padStart(2, '0')}-${String(
+      today.getMonth() + 1
+    ).padStart(2, '0')}-${today.getFullYear()}`;
+
+    setInvoiceDraft({
+      invoiceNo: `INV-SZGH-2026-${String(nextSeq).padStart(3, '0')}`,
+      invoiceDate: formattedDate,
+      customerId: `WEB-${order.orderId.slice(-4)}`,
+      customerName: order.contactName || order.companyName || 'Website Customer',
+      companyName: order.companyName || order.contactName || '',
+      deliveryAddress: order.address || order.city || '',
+      contactAndCity: [order.phone, order.city].filter(Boolean).join(' — '),
+      salesAgent: 'Direct By KH Enterprises',
+      paymentBankAccount: 'UBL KH Enterprises Pvt Ltd',
+      accountNo: 'PK45UNIL0109000349986649',
+      rows: nextRows,
+      includeGst18: order.salesTaxRate === 18,
+      discountPKR: 0,
+      amountReceivedPKR: 0,
+      linkedWebsiteOrderId: order.orderId,
+    });
+
+    setActiveTab('invoice');
+    setStatusBanner({
+      type: 'success',
+      message: `Loaded Order #${order.orderId} (${order.companyName || order.contactName}) into Invoice & Bill. Review stock on the right and click "Submit Invoice & Deduct Stock".`,
+    });
+  };
+
+  /**
+   * Reloads a previously submitted summary record into the Invoice & Bill view for printing/inspection.
+   */
+  const handleReloadSummaryIntoInvoice = (
+    summary: SubmittedInvoiceSummaryRecord
+  ) => {
+    const nextRows = createEmptyInvoiceRows(12);
+    summary.lineItems.slice(0, 12).forEach((li, idx) => {
+      nextRows[idx] = {
+        sNo: idx + 1,
+        modelNumber: li.modelNumber,
+        description: li.description,
+        billQty: li.qty,
+        unitPricePKR: li.unitPricePKR,
+      };
+    });
+    setInvoiceDraft({
+      invoiceNo: summary.invoiceNo,
+      invoiceDate: summary.invoiceDate,
+      customerId: summary.customerId,
+      customerName: summary.customerName,
+      companyName: summary.companyName,
+      deliveryAddress: summary.deliveryAddress,
+      contactAndCity: summary.contactAndCity,
+      salesAgent: summary.salesAgent,
+      paymentBankAccount: summary.paymentBankAccount,
+      accountNo: summary.accountNo,
+      rows: nextRows,
+      includeGst18: summary.gst18PKR > 0,
+      discountPKR: summary.discountPKR,
+      amountReceivedPKR: summary.amountReceivedPKR,
+      linkedWebsiteOrderId: summary.linkedWebsiteOrderId,
+    });
+    setActiveTab('invoice');
+    setStatusBanner({
+      type: 'success',
+      message: `Loaded submitted Invoice ${summary.invoiceNo} (${summary.summaryId}) into Invoice & Bill view.`,
+    });
+  };
+
+  /**
+   * Updates Amount Received on an existing Summary Sheet row and recalculates its Balance & Payment Status.
+   */
+  const handleUpdateSummaryAmountReceived = (
+    summaryId: string,
+    newAmountReceived: number
+  ) => {
+    const updated = submittedSummaries.map((rec) => {
+      if (rec.summaryId !== summaryId) return rec;
+      const balance = Math.max(0, rec.totalInclTaxPKR - newAmountReceived);
+      const paymentStatus: SubmittedInvoiceSummaryRecord['paymentStatus'] =
+        balance <= 0
+          ? 'PAID IN FULL'
+          : newAmountReceived > 0
+          ? 'PARTIAL'
+          : 'UNPAID';
+      return {
+        ...rec,
+        amountReceivedPKR: newAmountReceived,
+        balanceDuePKR: balance,
+        paymentStatus,
+      };
+    });
+    persistSummaries(updated);
+  };
+
+  const handleDeleteSummaryRecord = (summaryId: string) => {
+    const updated = submittedSummaries.filter((r) => r.summaryId !== summaryId);
+    persistSummaries(updated);
+    setStatusBanner({
+      type: 'success',
+      message: `Removed record ${summaryId} from Summary Sheet.`,
+    });
+  };
+
+  /**
+   * Core Action: Triggered by the non-print "Submit Invoice & Deduct Stock" button in Invoice & Bill.
+   * 1. Hits the Stock Sheet (reduces stockCount of each billed product & increments Total Units Sold).
+   * 2. Creates a permanent order detail summary in the new Summary Sheet.
+   */
+  const handleSubmitInvoiceAndDeductStock = async () => {
+    const validRows = invoiceDraft.rows.filter(
+      (r) => r.modelNumber.trim().length > 0 && r.billQty > 0
+    );
+    if (validRows.length === 0) {
+      setStatusBanner({
+        type: 'error',
+        message:
+          'Please enter at least one Product Model with Bill Qty > 0 before submitting the invoice.',
+      });
+      return;
+    }
+
+    setSubmittingInvoice(true);
+    setStatusBanner(null);
+
+    try {
+      const localStockUpdates: Record<
+        string,
+        {
+          stockCount: number;
+          stockStatus: 'In Stock' | 'Low Stock' | 'Pre-Order';
+          price: number;
+        }
+      > = {};
+      const nextUnitsSold = { ...unitsSoldByModel };
+      const lineSummaries: SubmittedInvoiceLineSummary[] = [];
+
+      // Track running stock per productId in case the same model appears on multiple lines
+      const runningStockMap = new Map<string, number>();
+      products.forEach((p) => runningStockMap.set(p.id, p.stockCount ?? 0));
+
+      for (const row of validRows) {
+        const matchedProd = findProductForInvoiceModel(
+          row.modelNumber,
+          products
+        );
+        const qty = Math.max(1, Math.round(row.billQty));
+        const unitPrice = Math.max(0, Math.round(row.unitPricePKR));
+        const lineTotal = qty * unitPrice;
+
+        const modelUpper = (
+          matchedProd ? matchedProd.modelNumber : row.modelNumber
+        )
+          .trim()
+          .toUpperCase();
+        nextUnitsSold[modelUpper] = (nextUnitsSold[modelUpper] || 0) + qty;
+
+        if (matchedProd) {
+          const stockBefore = runningStockMap.get(matchedProd.id) ?? matchedProd.stockCount ?? 0;
+          const stockAfter = Math.max(0, stockBefore - qty);
+          runningStockMap.set(matchedProd.id, stockAfter);
+          const newStatus = deriveStatusFromCount(stockAfter);
+          const effectivePrice =
+            matchedProd.price > 0 ? matchedProd.price : unitPrice;
+
+          localStockUpdates[matchedProd.id] = {
+            stockCount: stockAfter,
+            stockStatus: newStatus,
+            price: effectivePrice,
+          };
+
+          lineSummaries.push({
+            modelNumber: matchedProd.modelNumber,
+            description:
+              row.description || matchedProd.description || matchedProd.title || '',
+            qty,
+            unitPricePKR: unitPrice,
+            lineTotalPKR: lineTotal,
+            stockBefore,
+            stockAfter,
+          });
+        } else {
+          lineSummaries.push({
+            modelNumber: row.modelNumber.trim(),
+            description: row.description.trim(),
+            qty,
+            unitPricePKR: unitPrice,
+            lineTotalPKR: lineTotal,
+            stockBefore: 0,
+            stockAfter: 0,
+          });
+        }
+      }
+
+      // 1. Immediately apply stock deductions to local Stock Admin & Website state
+      if (onApplyLocalStockUpdates && Object.keys(localStockUpdates).length > 0) {
+        onApplyLocalStockUpdates(localStockUpdates);
+      }
+      persistUnitsSold(nextUnitsSold);
+
+      // Also update any loaded Excel rows in memory if applicable
+      if (trackedExcelItems.length > 0) {
+        setTrackedExcelItems((prev) =>
+          prev.map((item) => {
+            const matchedId = item.matchedProductId;
+            if (matchedId && localStockUpdates[matchedId]) {
+              return {
+                ...item,
+                stockCount: String(localStockUpdates[matchedId].stockCount),
+              };
+            }
+            return item;
+          })
+        );
+      }
+
+      // Sync reduced stock counts to Firebase Firestore /inventory/{productId} if admin is signed in
+      if (currentUser && isAuthorizedAdmin) {
+        for (const [prodId, upd] of Object.entries(localStockUpdates)) {
+          const prodObj = products.find((p) => p.id === prodId);
+          if (!prodObj) continue;
+          try {
+            await setDoc(doc(db, 'inventory', prodId), {
+              productId: prodObj.id.slice(0, 128),
+              modelNumber: prodObj.modelNumber.slice(0, 120),
+              title: (prodObj.title || '').slice(0, 200),
+              category: prodObj.category,
+              subcategory: (prodObj.subcategory || '').slice(0, 120),
+              description: (prodObj.description || '').slice(0, 1500),
+              price: upd.price,
+              stockCount: upd.stockCount,
+              stockStatus: upd.stockStatus,
+              defaultImageIndex: prodObj.defaultImageIndex ?? 0,
+              images: buildPreservedImages(prodObj.images, prodObj),
+              updatedBy: currentUser.uid,
+              updatedAt: serverTimestamp(),
+            });
+          } catch {
+            // Local override is already persisted if cloud quota is reached
+          }
+        }
+      }
+
+      // 2. Build & Save the Order Detail Summary Record in the new Summary Sheet
+      const totalUnitsBilled = lineSummaries.reduce((a, b) => a + b.qty, 0);
+      const subtotalExclGstPKR = lineSummaries.reduce(
+        (a, b) => a + b.lineTotalPKR,
+        0
+      );
+      const gst18PKR = invoiceDraft.includeGst18
+        ? Math.round(subtotalExclGstPKR * 0.18)
+        : 0;
+      const discountPKR = Math.max(0, Math.round(invoiceDraft.discountPKR || 0));
+      const totalInclTaxPKR = Math.max(
+        0,
+        subtotalExclGstPKR + gst18PKR - discountPKR
+      );
+      const amountReceivedPKR = Math.max(
+        0,
+        Math.round(invoiceDraft.amountReceivedPKR || 0)
+      );
+      const balanceDuePKR = totalInclTaxPKR - amountReceivedPKR;
+      const paymentStatus: SubmittedInvoiceSummaryRecord['paymentStatus'] =
+        balanceDuePKR <= 0
+          ? 'PAID IN FULL'
+          : amountReceivedPKR > 0
+          ? 'PARTIAL'
+          : 'UNPAID';
+
+      const summarySeq = submittedSummaries.length + 1;
+      const summaryId = `SUM-2026-${String(summarySeq).padStart(3, '0')}`;
+      const submittedAt = new Date().toLocaleString('en-PK', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+
+      const itemsSummaryText = lineSummaries
+        .map(
+          (li) =>
+            `${li.modelNumber} × ${li.qty} @ PKR ${formatPKR(
+              li.unitPricePKR
+            )} = PKR ${formatPKR(li.lineTotalPKR)} (Stock: ${li.stockBefore} → ${
+              li.stockAfter
+            })`
+        )
+        .join(' | ');
+
+      const newSummaryRecord: SubmittedInvoiceSummaryRecord = {
+        summaryId,
+        invoiceNo:
+          invoiceDraft.invoiceNo.trim() ||
+          `INV-SZGH-2026-${String(summarySeq).padStart(3, '0')}`,
+        invoiceDate: invoiceDraft.invoiceDate,
+        submittedAt,
+        customerId: invoiceDraft.customerId || 'CUST-001',
+        customerName: invoiceDraft.customerName.trim() || 'Walk-In Customer',
+        companyName:
+          invoiceDraft.companyName.trim() ||
+          invoiceDraft.customerName.trim() ||
+          'Walk-In Customer',
+        deliveryAddress: invoiceDraft.deliveryAddress.trim() || 'Lahore',
+        contactAndCity: invoiceDraft.contactAndCity.trim() || 'Lahore',
+        salesAgent: invoiceDraft.salesAgent || 'Direct By KH Enterprises',
+        paymentBankAccount:
+          invoiceDraft.paymentBankAccount || 'UBL KH Enterprises Pvt Ltd',
+        accountNo: invoiceDraft.accountNo || 'PK45UNIL0109000349986649',
+        lineItems: lineSummaries,
+        itemsSummaryText,
+        totalUnitsBilled,
+        subtotalExclGstPKR,
+        gst18PKR,
+        discountPKR,
+        totalInclTaxPKR,
+        amountReceivedPKR,
+        balanceDuePKR,
+        paymentStatus,
+        stockDeducted: true,
+        linkedWebsiteOrderId: invoiceDraft.linkedWebsiteOrderId,
+      };
+
+      const nextSummaries = [newSummaryRecord, ...submittedSummaries];
+      persistSummaries(nextSummaries);
+
+      if (invoiceDraft.linkedWebsiteOrderId && onUpdateOrderStatus) {
+        onUpdateOrderStatus(invoiceDraft.linkedWebsiteOrderId, 'Confirmed');
+      }
+
+      // Prepare next sequential Invoice No
+      const nextInvoiceNum = nextSummaries.length + 1;
+      setInvoiceDraft((prev) => ({
+        ...prev,
+        invoiceNo: `INV-SZGH-2026-${String(nextInvoiceNum).padStart(3, '0')}`,
+        rows: createEmptyInvoiceRows(12),
+        discountPKR: 0,
+        amountReceivedPKR: 0,
+        linkedWebsiteOrderId: undefined,
+      }));
+
+      setStatusBanner({
+        type: 'success',
+        message: `Invoice ${newSummaryRecord.invoiceNo} submitted! Deducted ${totalUnitsBilled} unit(s) from the Stock Sheet and created Order Summary #${summaryId} in the Summary Sheet.`,
+      });
+    } finally {
+      setSubmittingInvoice(false);
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-xs overflow-y-auto"
@@ -2455,20 +2978,20 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             )}
           </div>
 
-          {/* 4-Tab Mode Selector */}
+          {/* 6-Tab Mode Selector */}
           {isAuthorizedAdmin && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <div className="print:hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setActiveTab('manage')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-md text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'manage'
                     ? 'bg-[#1E2985] dark:bg-emerald-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Layers className="w-4 h-4 shrink-0" />
-                <span>1. Manage Stock ({products.length})</span>
+                <span>1. Stock Sheet ({products.length})</span>
               </button>
 
               <button
@@ -2477,7 +3000,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                   setEditingCustomProductId(null);
                   setActiveTab('create');
                 }}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-md text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'create'
                     ? 'bg-[#0D5C2B] dark:bg-emerald-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -2490,7 +3013,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('excel')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-md text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'excel'
                     ? 'bg-amber-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -2506,14 +3029,40 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('orders')}
-                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-md text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'orders'
                     ? 'bg-[#0D5C2B] text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <ClipboardList className="w-4 h-4 shrink-0" />
-                <span>4. Customer Orders ({orders.length})</span>
+                <span>4. Orders ({orders.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('invoice')}
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'invoice'
+                    ? 'bg-[#0D5C2B] text-white shadow-xs ring-2 ring-emerald-400/50'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-emerald-500/10'
+                }`}
+              >
+                <FileText className="w-4 h-4 shrink-0" />
+                <span>5. Invoice &amp; Bill</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('summary')}
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'summary'
+                    ? 'bg-[#1E2985] text-white shadow-xs ring-2 ring-blue-400/50'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-blue-500/10'
+                }`}
+              >
+                <ClipboardCheck className="w-4 h-4 shrink-0" />
+                <span>6. Summary Sheet ({submittedSummaries.length})</span>
               </button>
             </div>
           )}
@@ -2535,6 +3084,30 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
               <span>{statusBanner.message}</span>
             </div>
           )}
+
+          {/* ================================================================= */}
+          {/* TAB 5 & TAB 6: INVOICE & BILL + ORDER SUMMARY SHEET               */}
+          {/* ================================================================= */}
+          {isAuthorizedAdmin &&
+            (activeTab === 'invoice' || activeTab === 'summary') && (
+              <InvoiceAndSummaryWorkspace
+                mode={activeTab}
+                products={products}
+                orders={orders}
+                invoiceDraft={invoiceDraft}
+                setInvoiceDraft={setInvoiceDraft}
+                submittedSummaries={submittedSummaries}
+                unitsSoldByModel={unitsSoldByModel}
+                onSubmitInvoiceAndDeductStock={handleSubmitInvoiceAndDeductStock}
+                onLoadWebsiteOrderIntoInvoice={handleLoadWebsiteOrderIntoInvoice}
+                onReloadSummaryIntoInvoice={handleReloadSummaryIntoInvoice}
+                onUpdateSummaryAmountReceived={handleUpdateSummaryAmountReceived}
+                onDeleteSummaryRecord={handleDeleteSummaryRecord}
+                onDownloadMasterExcel={handleDownloadControllerSeriesPricingSheet}
+                onSwitchMode={(target) => setActiveTab(target)}
+                submittingInvoice={submittingInvoice}
+              />
+            )}
 
           {/* ================================================================= */}
           {/* TAB 4: LIVE CUSTOMER ORDERS & OFFICIAL TAX INVOICE LOGS           */}
@@ -2604,6 +3177,15 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleLoadWebsiteOrderIntoInvoice(order)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-extrabold transition-colors cursor-pointer"
+                            title="Load this Customer Order into the Invoice & Bill Sheet to generate invoice and deduct stock"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Make Invoice &amp; Bill</span>
+                          </button>
                           <a
                             href={
                               order.whatsappRedirectUrl ||
