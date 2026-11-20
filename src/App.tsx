@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowRight,
   Play,
@@ -147,6 +147,7 @@ import {
 } from 'firebase/auth';
 import {
   doc,
+  getDoc,
   onSnapshot,
   updateDoc,
   serverTimestamp,
@@ -158,6 +159,13 @@ import {
   ADMIN_EMAILS,
   OperationType,
   handleFirestoreError,
+  isFirestoreQuotaExceeded,
+  FIRESTORE_CACHE_TTL_MS,
+  readIdbCache,
+  writeIdbCache,
+  readManyIdbCache,
+  isBase64ImageDataUrl,
+  dedupeFirestoreRead,
 } from './lib/firebase';
 import { Navbar, NavSection } from './components/Navbar';
 import { ProductCard } from './components/ProductCard';
@@ -194,6 +202,192 @@ const DEFAULT_PERFORMANCE_METRICS: Record<string, ProductPerformanceMetrics> = {
   'SZGH-T450': { views: 96, sold: 9 },
   'SZGH-H1500-B-6': { views: 88, sold: 7 },
 };
+
+interface CloudInventoryOverride {
+  stockCount: number;
+  stockStatus: 'In Stock' | 'Low Stock' | 'Pre-Order';
+  price: number;
+  defaultImageIndex?: number;
+  images?: string[];
+  modelNumber?: string;
+  title?: string;
+  category?: ProductCategory;
+  subcategory?: string;
+  description?: string;
+  panelPrices?: PanelPriceBreakdown;
+}
+
+interface CachedInventoryDocEntry {
+  exists: boolean;
+  override?: CloudInventoryOverride;
+}
+
+const BUILT_IN_LOCAL_IMAGE_IDS = new Set<string>(
+  PRODUCTS_DATABASE.filter(
+    (item) =>
+      Array.isArray(item.images) &&
+      item.images.some(
+        (img) =>
+          typeof img === 'string' &&
+          img.trim().length > 0 &&
+          !isBase64ImageDataUrl(img)
+      )
+  ).map((item) => item.id)
+);
+
+function hasLocalCatalogImages(
+  productId: string,
+  modelNumber?: string,
+  title?: string,
+  description?: string
+): boolean {
+  if (BUILT_IN_LOCAL_IMAGE_IDS.has(productId)) {
+    return true;
+  }
+  if (!modelNumber) return false;
+  return (
+    isSZGH880MCModel({ modelNumber }) ||
+    isSZGH1080MCModel({ modelNumber }) ||
+    isSZGH1080MICModel({ modelNumber }) ||
+    isSZGH880TCModel({ modelNumber }) ||
+    isSZGH880TICModel({ modelNumber }) ||
+    isSZGH880VTCModel({ modelNumber }) ||
+    isSZGH880VMCModel({ modelNumber }) ||
+    isSZGH1080TCModel({ modelNumber }) ||
+    isSZGH1000MDBModel({ modelNumber }) ||
+    isSZGH1500MDBModel({ modelNumber }) ||
+    isSZGH990MDBModel({ modelNumber }) ||
+    isSZGH990MDCModel({ modelNumber }) ||
+    isSZGH990TDBModel({ modelNumber }) ||
+    isSZGH990TDCModel({ modelNumber }) ||
+    isSZGH1000MCModel({ modelNumber }) ||
+    isSZGH1000MICModel({ modelNumber }) ||
+    isSZGH1000TCModel({ modelNumber }) ||
+    isSZGH1000TICModel({ modelNumber }) ||
+    isSZGH1000MDCModel({ modelNumber }) ||
+    isSZGH1500MDCModel({ modelNumber }) ||
+    isSZGH1000MDCBModel({ modelNumber }) ||
+    isSZGH1500MDCBModel({ modelNumber }) ||
+    isSZGH1000TDBModel({ modelNumber }) ||
+    isSZGH1000TDCModel({ modelNumber }) ||
+    isSZGHCNCIO12Model({ modelNumber, title, description })
+  );
+}
+
+function sanitizeOverrideForLocalStorage(
+  override: CloudInventoryOverride
+): CloudInventoryOverride {
+  if (!override.images || !override.images.some(isBase64ImageDataUrl)) {
+    return override;
+  }
+  const nonBase64Images = override.images.map((img) =>
+    isBase64ImageDataUrl(img) ? '' : img
+  );
+  const hasAnyPath = nonBase64Images.some((img) => img.trim().length > 0);
+  return {
+    ...override,
+    images: hasAnyPath ? nonBase64Images : undefined,
+  };
+}
+
+function parseInventoryDoc(
+  productId: string,
+  data: Record<string, unknown>
+): CloudInventoryOverride | null {
+  if (
+    typeof data.stockCount !== 'number' ||
+    typeof data.price !== 'number' ||
+    (data.stockStatus !== 'In Stock' &&
+      data.stockStatus !== 'Low Stock' &&
+      data.stockStatus !== 'Pre-Order')
+  ) {
+    return null;
+  }
+
+  const modelNumber =
+    typeof data.modelNumber === 'string' ? data.modelNumber : undefined;
+  const title = typeof data.title === 'string' ? data.title : undefined;
+  const description =
+    typeof data.description === 'string' ? data.description : undefined;
+
+  const usesLocalAssets = hasLocalCatalogImages(
+    productId,
+    modelNumber,
+    title,
+    description
+  );
+
+  const rawImages = Array.isArray(data.images)
+    ? data.images.map((img: unknown) => {
+        if (typeof img !== 'string') return '';
+        // Do not retain large Base64 image blobs when static assets already exist locally in src/data/
+        if (usesLocalAssets && isBase64ImageDataUrl(img)) return '';
+        return img;
+      })
+    : [];
+
+  const hasAnyUsableImage = rawImages.some((img) => img.trim().length > 0);
+  const normalizedTuple: string[] | undefined = !hasAnyUsableImage
+    ? undefined
+    : rawImages.length > 6
+    ? [
+        rawImages[0] ?? '',
+        rawImages[1] ?? '',
+        rawImages[2] ?? '',
+        rawImages[3] ?? '',
+        rawImages[4] ?? '',
+        rawImages[5] ?? '',
+        rawImages[6] ?? '',
+        rawImages[7] ?? '',
+      ]
+    : rawImages.length > 4
+    ? [
+        rawImages[0] ?? '',
+        rawImages[1] ?? '',
+        rawImages[2] ?? '',
+        rawImages[3] ?? '',
+        rawImages[4] ?? '',
+        rawImages[5] ?? '',
+      ]
+    : [
+        rawImages[0] ?? '',
+        rawImages[1] ?? '',
+        rawImages[2] ?? '',
+        rawImages[3] ?? '',
+      ];
+
+  const rawPanelPrices = data.panelPrices as { A?: unknown } | undefined;
+
+  return {
+    stockCount: data.stockCount,
+    stockStatus: data.stockStatus,
+    price: data.price,
+    defaultImageIndex:
+      typeof data.defaultImageIndex === 'number'
+        ? Math.max(0, Math.min(7, Math.round(data.defaultImageIndex)))
+        : undefined,
+    images: normalizedTuple,
+    modelNumber,
+    title,
+    category:
+      data.category === 'Controllers' ||
+      data.category === 'Motors' ||
+      data.category === 'Machines' ||
+      data.category === 'Robots'
+        ? data.category
+        : undefined,
+    subcategory:
+      typeof data.subcategory === 'string' ? data.subcategory : undefined,
+    description,
+    panelPrices:
+      rawPanelPrices &&
+      typeof rawPanelPrices === 'object' &&
+      typeof rawPanelPrices.A === 'number' &&
+      rawPanelPrices.A > 0
+        ? buildPanelPricesFromBase(rawPanelPrices.A)
+        : undefined,
+  };
+}
 
 export default function App() {
   // 1. Persistent Dark / Moderate (Light) Theme State
@@ -372,29 +566,20 @@ export default function App() {
   const [adminStockModalOpen, setAdminStockModalOpen] = useState(false);
   const [customProductIds, setCustomProductIds] = useState<string[]>([]);
   const [cloudInventoryOverrides, setCloudInventoryOverrides] = useState<
-    Record<
-      string,
-      {
-        stockCount: number;
-        stockStatus: 'In Stock' | 'Low Stock' | 'Pre-Order';
-        price: number;
-        defaultImageIndex?: number;
-        images?: string[];
-        modelNumber?: string;
-        title?: string;
-        category?: ProductCategory;
-        subcategory?: string;
-        description?: string;
-        panelPrices?: PanelPriceBreakdown;
-      }
-    >
+    Record<string, CloudInventoryOverride>
   >(() => {
     try {
       const raw = localStorage.getItem(LOCAL_STOCK_OVERRIDES_STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed = JSON.parse(raw) as Record<string, CloudInventoryOverride>;
         if (parsed && typeof parsed === 'object') {
-          return parsed;
+          const cleaned: Record<string, CloudInventoryOverride> = {};
+          for (const [id, entry] of Object.entries(parsed)) {
+            if (entry && typeof entry === 'object') {
+              cleaned[id] = sanitizeOverrideForLocalStorage(entry);
+            }
+          }
+          return cleaned;
         }
       }
     } catch {
@@ -405,9 +590,13 @@ export default function App() {
 
   useEffect(() => {
     try {
+      const lightweight: Record<string, CloudInventoryOverride> = {};
+      for (const [id, entry] of Object.entries(cloudInventoryOverrides)) {
+        lightweight[id] = sanitizeOverrideForLocalStorage(entry);
+      }
       localStorage.setItem(
         LOCAL_STOCK_OVERRIDES_STORAGE_KEY,
-        JSON.stringify(cloudInventoryOverrides)
+        JSON.stringify(lightweight)
       );
     } catch {
       // Ignore storage errors
@@ -427,12 +616,17 @@ export default function App() {
     setCloudInventoryOverrides((prev) => {
       const next = { ...prev };
       for (const [productId, val] of Object.entries(updates)) {
-        next[productId] = {
+        const updatedEntry: CloudInventoryOverride = {
           ...(next[productId] || {}),
           stockCount: val.stockCount,
           stockStatus: val.stockStatus,
           price: val.price,
         };
+        next[productId] = updatedEntry;
+        void writeIdbCache<CachedInventoryDocEntry>(
+          `inventory_doc:${productId}`,
+          { exists: true, override: updatedEntry }
+        );
       }
       return next;
     });
@@ -516,36 +710,83 @@ export default function App() {
     return () => unsubscribeAuth();
   }, []);
 
-  // Subscribe to Order Manifest (/order_index/active_orders) for Admin
+  const orderDocListenersRef = useRef<Map<string, () => void>>(new Map());
+  const isAuthenticatedAdmin = Boolean(
+    currentUser && currentUser.emailVerified && isAuthorizedAdmin
+  );
+
+  // Subscribe to Order Manifest (/order_index/active_orders) strictly for authenticated Admin users only
   useEffect(() => {
-    if (!isAuthorizedAdmin) return;
+    if (!isAuthenticatedAdmin || isFirestoreQuotaExceeded) {
+      setCloudOrderIds((prev) => (prev.length === 0 ? prev : []));
+      setCloudOrdersMap((prev) =>
+        Object.keys(prev).length === 0 ? prev : {}
+      );
+      return;
+    }
+    const manifestPath = 'order_index/active_orders';
     const unsubscribeOrderManifest = onSnapshot(
       doc(db, 'order_index', 'active_orders'),
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (Array.isArray(data.orderIds)) {
-            setCloudOrderIds(
-              data.orderIds.filter(
-                (id: unknown): id is string =>
-                  typeof id === 'string' && id.trim().length > 0
-              )
+            const nextIds = data.orderIds.filter(
+              (id: unknown): id is string =>
+                typeof id === 'string' && id.trim().length > 0
             );
+            setCloudOrderIds((prev) => {
+              if (
+                prev.length === nextIds.length &&
+                prev.every((id, index) => id === nextIds[index])
+              ) {
+                return prev;
+              }
+              return nextIds;
+            });
           }
         }
       },
-      () => {
-        // Ignore read error if manifest not created yet
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, manifestPath);
       }
     );
-    return () => unsubscribeOrderManifest();
-  }, [isAuthorizedAdmin]);
+    return () => {
+      unsubscribeOrderManifest();
+    };
+  }, [isAuthenticatedAdmin, currentUser?.uid]);
 
-  // Subscribe to individual order documents (/orders/{orderId}) for Admin
+  const cloudOrderIdsKey = useMemo(
+    () => cloudOrderIds.join(','),
+    [cloudOrderIds]
+  );
+
+  // Subscribe incrementally to individual order documents (/orders/{orderId}) strictly for authenticated Admin users only
   useEffect(() => {
-    if (!isAuthorizedAdmin || cloudOrderIds.length === 0) return;
-    const unsubs = cloudOrderIds.map((orderId) =>
-      onSnapshot(
+    const activeListeners = orderDocListenersRef.current;
+
+    if (!isAuthenticatedAdmin || isFirestoreQuotaExceeded) {
+      activeListeners.forEach((unsub) => unsub());
+      activeListeners.clear();
+      return;
+    }
+
+    const boundedOrderIds = cloudOrderIds.slice(-100);
+    const activeIdSet = new Set(boundedOrderIds);
+
+    // Unsubscribe from any order IDs no longer in the active set
+    for (const [existingId, unsub] of activeListeners.entries()) {
+      if (!activeIdSet.has(existingId)) {
+        unsub();
+        activeListeners.delete(existingId);
+      }
+    }
+
+    // Subscribe only to newly added order IDs so existing listeners are never torn down & re-read
+    for (const orderId of boundedOrderIds) {
+      if (activeListeners.has(orderId)) continue;
+      const orderPath = `orders/${orderId}`;
+      const unsub = onSnapshot(
         doc(db, 'orders', orderId),
         (snap) => {
           if (snap.exists()) {
@@ -571,7 +812,10 @@ export default function App() {
                 city: d.city || '',
                 address: d.address || '',
                 orderNotes: d.orderNotes || '',
-                invoiceType: d.invoiceType || d.paymentMethod || '1- Cash (Cash on Pick Up)',
+                invoiceType:
+                  d.invoiceType ||
+                  d.paymentMethod ||
+                  '1- Cash (Cash on Pick Up)',
                 paymentMethod:
                   d.paymentMethod === '2- Online (UBL Bank Transfer)' ||
                   d.paymentMethod === 'Online Bank Transfer (UBL)'
@@ -583,9 +827,11 @@ export default function App() {
                 transactionRef: d.transactionRef || '',
                 itemsSummary: d.itemsSummary || '',
                 items: [],
-                subtotalPKR: typeof d.subtotalPKR === 'number' ? d.subtotalPKR : 0,
+                subtotalPKR:
+                  typeof d.subtotalPKR === 'number' ? d.subtotalPKR : 0,
                 salesTaxRate: d.salesTaxRate === 0 ? 0 : 18,
-                salesTaxPKR: typeof d.salesTaxPKR === 'number' ? d.salesTaxPKR : 0,
+                salesTaxPKR:
+                  typeof d.salesTaxPKR === 'number' ? d.salesTaxPKR : 0,
                 totalPKR: typeof d.totalPKR === 'number' ? d.totalPKR : 0,
                 orderStatus: d.orderStatus || 'New Order',
                 autoDispatchStatus: 'recorded',
@@ -593,13 +839,27 @@ export default function App() {
             }));
           }
         },
-        () => {
-          // Ignore individual doc error
+        (error) => {
+          handleFirestoreError(error, OperationType.GET, orderPath);
+          const existingUnsub = activeListeners.get(orderId);
+          if (existingUnsub) {
+            existingUnsub();
+            activeListeners.delete(orderId);
+          }
         }
-      )
-    );
-    return () => unsubs.forEach((u) => u());
-  }, [isAuthorizedAdmin, cloudOrderIds]);
+      );
+      activeListeners.set(orderId, unsub);
+    }
+  }, [isAuthenticatedAdmin, currentUser?.uid, cloudOrderIdsKey]);
+
+  // Ensure all order listeners are cleanly unsubscribed on unmount
+  useEffect(() => {
+    const activeListeners = orderDocListenersRef.current;
+    return () => {
+      activeListeners.forEach((unsub) => unsub());
+      activeListeners.clear();
+    };
+  }, []);
 
   const combinedOrders = useMemo(() => {
     const byId = new Map<string, SubmittedCustomerOrder>();
@@ -658,157 +918,255 @@ export default function App() {
   }, []);
 
   const [manifestReady, setManifestReady] = useState(false);
+  const fetchedInventoryIdsRef = useRef<Set<string>>(new Set());
 
-  // Subscribe to custom product manifest (/catalog_index/active_manifest)
+  const MANIFEST_IDB_CACHE_KEY = 'manifest:active_manifest';
+  const inventoryDocCacheKey = (productId: string) =>
+    `inventory_doc:${productId}`;
+
+  // Initial page load: ONLY fetch catalog_index/active_manifest (cached in IndexedDB with 15-min TTL)
+  // Do NOT eagerly fetch individual inventory/{productId} documents on page load.
   useEffect(() => {
+    let cancelled = false;
     const manifestPath = 'catalog_index/active_manifest';
-    const unsubscribeManifest = onSnapshot(
-      doc(db, 'catalog_index', 'active_manifest'),
-      (snapshot) => {
+
+    const loadManifestOnce = async () => {
+      const cachedIds = await readIdbCache<string[]>(
+        MANIFEST_IDB_CACHE_KEY,
+        FIRESTORE_CACHE_TTL_MS
+      );
+      if (cancelled) return;
+      if (cachedIds !== null) {
+        setCustomProductIds(cachedIds);
         setManifestReady(true);
+        return;
+      }
+
+      if (isFirestoreQuotaExceeded) {
+        setManifestReady(true);
+        return;
+      }
+
+      try {
+        const snapshot = await dedupeFirestoreRead(manifestPath, () =>
+          getDoc(doc(db, 'catalog_index', 'active_manifest'))
+        );
+        if (cancelled) return;
+        let validIds: string[] = [];
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (Array.isArray(data.customProductIds)) {
-            const validIds = data.customProductIds.filter(
+            validIds = data.customProductIds.filter(
               (id: unknown): id is string =>
                 typeof id === 'string' && id.trim().length > 0
             );
-            setCustomProductIds(validIds);
           }
         }
-      },
-      (error) => {
+        await writeIdbCache(MANIFEST_IDB_CACHE_KEY, validIds);
+        if (cancelled) return;
+        setCustomProductIds(validIds);
+        setManifestReady(true);
+      } catch (error) {
+        if (cancelled) return;
         handleFirestoreError(error, OperationType.GET, manifestPath);
+        setManifestReady(true);
       }
-    );
-    return () => unsubscribeManifest();
-  }, []);
+    };
 
-  // Subscribe to custom product documents (and built-in overrides when admin modal is open) in /inventory/{productId}
-  useEffect(() => {
-    if (!manifestReady) return;
-
-    const targetIds = adminStockModalOpen
-      ? Array.from(
-          new Set([
-            ...PRODUCTS_DATABASE.map((p) => p.id),
-            ...customProductIds,
-          ])
-        )
-      : customProductIds;
-
-    if (targetIds.length === 0) return;
-
-    let cancelled = false;
-    const unsubscribes: (() => void)[] = [];
-
-    for (const productId of targetIds) {
-      const path = `inventory/${productId}`;
-      const unsub = onSnapshot(
-        doc(db, 'inventory', productId),
-        (snapshot) => {
-          if (cancelled) return;
-          if (snapshot.exists()) {
-            const data = snapshot.data();
-            if (
-              typeof data.stockCount === 'number' &&
-              typeof data.price === 'number' &&
-              (data.stockStatus === 'In Stock' ||
-                data.stockStatus === 'Low Stock' ||
-                data.stockStatus === 'Pre-Order')
-            ) {
-              const rawImages = Array.isArray(data.images)
-                ? data.images.map((img: unknown) =>
-                    typeof img === 'string' ? img : ''
-                  )
-                : [];
-              const normalizedTuple: string[] | undefined =
-                rawImages.length > 6
-                  ? [
-                      rawImages[0] ?? '',
-                      rawImages[1] ?? '',
-                      rawImages[2] ?? '',
-                      rawImages[3] ?? '',
-                      rawImages[4] ?? '',
-                      rawImages[5] ?? '',
-                      rawImages[6] ?? '',
-                      rawImages[7] ?? '',
-                    ]
-                  : rawImages.length > 4
-                  ? [
-                      rawImages[0] ?? '',
-                      rawImages[1] ?? '',
-                      rawImages[2] ?? '',
-                      rawImages[3] ?? '',
-                      rawImages[4] ?? '',
-                      rawImages[5] ?? '',
-                    ]
-                  : rawImages.length > 0
-                  ? [
-                      rawImages[0] ?? '',
-                      rawImages[1] ?? '',
-                      rawImages[2] ?? '',
-                      rawImages[3] ?? '',
-                    ]
-                  : undefined;
-
-              setCloudInventoryOverrides((prev) => ({
-                ...prev,
-                [productId]: {
-                  stockCount: data.stockCount,
-                  stockStatus: data.stockStatus,
-                  price: data.price,
-                  defaultImageIndex:
-                    typeof data.defaultImageIndex === 'number'
-                      ? Math.max(0, Math.min(7, Math.round(data.defaultImageIndex)))
-                      : undefined,
-                  images: normalizedTuple,
-                  modelNumber:
-                    typeof data.modelNumber === 'string'
-                      ? data.modelNumber
-                      : undefined,
-                  title: typeof data.title === 'string' ? data.title : undefined,
-                  category:
-                    data.category === 'Controllers' ||
-                    data.category === 'Motors' ||
-                    data.category === 'Machines' ||
-                    data.category === 'Robots'
-                      ? data.category
-                      : undefined,
-                  subcategory:
-                    typeof data.subcategory === 'string'
-                      ? data.subcategory
-                      : undefined,
-                  description:
-                    typeof data.description === 'string'
-                      ? data.description
-                      : undefined,
-                  panelPrices:
-                    data.panelPrices &&
-                    typeof data.panelPrices === 'object' &&
-                    typeof data.panelPrices.A === 'number' &&
-                    data.panelPrices.A > 0
-                      ? buildPanelPricesFromBase(data.panelPrices.A)
-                      : undefined,
-                },
-              }));
-            }
-          }
-        },
-        (error) => {
-          handleFirestoreError(error, OperationType.GET, path);
-          cancelled = true;
-          unsubscribes.forEach((u) => u());
-        }
-      );
-      unsubscribes.push(unsub);
-    }
+    void loadManifestOnce();
 
     return () => {
       cancelled = true;
-      unsubscribes.forEach((unsub) => unsub());
     };
-  }, [manifestReady, customProductIds, adminStockModalOpen]);
+  }, []);
+
+  const customProductIdsKey = useMemo(
+    () => customProductIds.join(','),
+    [customProductIds]
+  );
+
+  // Lazy-load a single inventory/{productId} document ONLY when a user opens that product's details
+  const selectedProductId = selectedProductModal?.id ?? null;
+  useEffect(() => {
+    if (!selectedProductId) return;
+    if (fetchedInventoryIdsRef.current.has(selectedProductId)) return;
+
+    let cancelled = false;
+
+    const lazyLoadSelectedProduct = async () => {
+      const cacheKey = inventoryDocCacheKey(selectedProductId);
+      const cached = await readIdbCache<CachedInventoryDocEntry>(
+        cacheKey,
+        FIRESTORE_CACHE_TTL_MS
+      );
+      if (cancelled) return;
+
+      if (cached !== null) {
+        fetchedInventoryIdsRef.current.add(selectedProductId);
+        if (cached.override) {
+          setCloudInventoryOverrides((prev) => ({
+            ...prev,
+            [selectedProductId]: cached.override!,
+          }));
+        }
+        return;
+      }
+
+      if (isFirestoreQuotaExceeded) return;
+
+      const path = `inventory/${selectedProductId}`;
+      try {
+        const snapshot = await dedupeFirestoreRead(path, () =>
+          getDoc(doc(db, 'inventory', selectedProductId))
+        );
+        if (cancelled) return;
+
+        const parsed = snapshot.exists()
+          ? parseInventoryDoc(
+              selectedProductId,
+              snapshot.data() as Record<string, unknown>
+            )
+          : null;
+
+        const cacheEntry: CachedInventoryDocEntry = parsed
+          ? { exists: true, override: parsed }
+          : { exists: false };
+
+        await writeIdbCache(cacheKey, cacheEntry);
+        if (cancelled) return;
+
+        fetchedInventoryIdsRef.current.add(selectedProductId);
+        if (parsed) {
+          setCloudInventoryOverrides((prev) => ({
+            ...prev,
+            [selectedProductId]: parsed,
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          handleFirestoreError(error, OperationType.GET, path);
+        }
+      }
+    };
+
+    void lazyLoadSelectedProduct();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProductId]);
+
+  // Lazy-load inventory/{productId} documents ONLY when an authenticated Admin opens the Stock Modal
+  useEffect(() => {
+    if (!adminStockModalOpen || !isAuthenticatedAdmin || !manifestReady) {
+      return;
+    }
+
+    const targetIds = Array.from(
+      new Set([...PRODUCTS_DATABASE.map((p) => p.id), ...customProductIds])
+    );
+    const pendingIds = targetIds.filter(
+      (id) => !fetchedInventoryIdsRef.current.has(id)
+    );
+    if (pendingIds.length === 0) return;
+
+    let cancelled = false;
+
+    const loadAdminInventoryDocs = async () => {
+      const cacheKeys = pendingIds.map(inventoryDocCacheKey);
+      const cachedMap = await readManyIdbCache<CachedInventoryDocEntry>(
+        cacheKeys,
+        FIRESTORE_CACHE_TTL_MS
+      );
+      if (cancelled) return;
+
+      const hydratedOverrides: Record<string, CloudInventoryOverride> = {};
+      const idsToFetch: string[] = [];
+
+      for (const productId of pendingIds) {
+        const entry = cachedMap.get(inventoryDocCacheKey(productId));
+        if (entry !== undefined) {
+          fetchedInventoryIdsRef.current.add(productId);
+          if (entry.override) {
+            hydratedOverrides[productId] = entry.override;
+          }
+        } else {
+          idsToFetch.push(productId);
+        }
+      }
+
+      if (Object.keys(hydratedOverrides).length > 0) {
+        setCloudInventoryOverrides((prev) => ({
+          ...prev,
+          ...hydratedOverrides,
+        }));
+      }
+
+      if (idsToFetch.length === 0 || isFirestoreQuotaExceeded) return;
+
+      const newlyFetchedOverrides: Record<string, CloudInventoryOverride> = {};
+      const BATCH_SIZE = 15;
+
+      for (let i = 0; i < idsToFetch.length; i += BATCH_SIZE) {
+        if (cancelled || isFirestoreQuotaExceeded) break;
+        const batch = idsToFetch.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async (productId) => {
+            if (cancelled || isFirestoreQuotaExceeded) return;
+            const path = `inventory/${productId}`;
+            try {
+              const snapshot = await dedupeFirestoreRead(path, () =>
+                getDoc(doc(db, 'inventory', productId))
+              );
+              if (cancelled) return;
+
+              const parsed = snapshot.exists()
+                ? parseInventoryDoc(
+                    productId,
+                    snapshot.data() as Record<string, unknown>
+                  )
+                : null;
+
+              const cacheEntry: CachedInventoryDocEntry = parsed
+                ? { exists: true, override: parsed }
+                : { exists: false };
+
+              await writeIdbCache(inventoryDocCacheKey(productId), cacheEntry);
+              if (cancelled) return;
+
+              fetchedInventoryIdsRef.current.add(productId);
+              if (parsed) {
+                newlyFetchedOverrides[productId] = parsed;
+              }
+            } catch (error) {
+              handleFirestoreError(error, OperationType.GET, path);
+            }
+          })
+        );
+      }
+
+      if (cancelled) return;
+
+      if (Object.keys(newlyFetchedOverrides).length > 0) {
+        setCloudInventoryOverrides((prev) => ({
+          ...prev,
+          ...newlyFetchedOverrides,
+        }));
+      }
+    };
+
+    void loadAdminInventoryDocs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    adminStockModalOpen,
+    isAuthenticatedAdmin,
+    manifestReady,
+    customProductIdsKey,
+  ]);
 
   const deriveTitleFromDescription = (
     desc?: string,
@@ -1660,9 +2018,9 @@ export default function App() {
     return [...customProducts, ...filteredBuiltIn];
   }, [cloudInventoryOverrides, customProductIds, rmbExchangeRate, freightRatePerKg]);
 
-  // Automatically sync the official pictures into Firestore for any matching inventory docs when Admin is signed in
+  // Automatically sync the official local pictures into Firestore for matching inventory docs only when Admin opens the Stock Modal
   useEffect(() => {
-    if (!isAuthorizedAdmin || !currentUser) return;
+    if (!isAuthenticatedAdmin || !currentUser || !adminStockModalOpen) return;
     for (const [productId, override] of Object.entries(cloudInventoryOverrides)) {
       if (!override.modelNumber) continue;
       const normPanel = normalizePanelStrings({
@@ -1881,6 +2239,9 @@ export default function App() {
         descMatches &&
         subcatMatches &&
         priceMatches;
+      if (targetImages.some(isBase64ImageDataUrl)) {
+        continue;
+      }
       if (!alreadySynced) {
         updateDoc(doc(db, 'inventory', productId), {
           images: targetImages,
@@ -1907,13 +2268,41 @@ export default function App() {
         });
       }
     }
-  }, [isAuthorizedAdmin, currentUser, cloudInventoryOverrides]);
+  }, [isAuthenticatedAdmin, currentUser, adminStockModalOpen, cloudInventoryOverrides]);
 
   // Merge same model & number of axes into 1 product listing with Axis Selection Tabs
   const mergedCatalogProducts = useMemo(
     () => mergeProductsByModelAndAxes(liveProducts),
     [liveProducts]
   );
+
+  // Keep open ProductDetailModal synchronized once its lazy-loaded inventory/{productId} doc arrives
+  const activeSelectedProductModal = useMemo(() => {
+    if (!selectedProductModal) return null;
+    const liveMatch =
+      mergedCatalogProducts.find((p) => p.id === selectedProductModal.id) ||
+      liveProducts.find((p) => p.id === selectedProductModal.id);
+    if (!liveMatch) return selectedProductModal;
+    return {
+      ...selectedProductModal,
+      stockCount: liveMatch.stockCount,
+      stockStatus: liveMatch.stockStatus,
+      price: liveMatch.price,
+      usdEstimate: liveMatch.usdEstimate,
+      panelPrices: liveMatch.panelPrices ?? selectedProductModal.panelPrices,
+      images:
+        liveMatch.images && liveMatch.images.length > 0
+          ? liveMatch.images
+          : selectedProductModal.images,
+      imageLabels:
+        liveMatch.imageLabels && liveMatch.imageLabels.length > 0
+          ? liveMatch.imageLabels
+          : selectedProductModal.imageLabels,
+      defaultImageIndex:
+        liveMatch.defaultImageIndex ?? selectedProductModal.defaultImageIndex,
+      description: liveMatch.description || selectedProductModal.description,
+    };
+  }, [selectedProductModal, mergedCatalogProducts, liveProducts]);
 
   const syncedProductIds = useMemo(
     () => new Set(Object.keys(cloudInventoryOverrides)),
@@ -3253,7 +3642,7 @@ export default function App() {
 
       {/* Detailed Product Description & Features Modal */}
       <ProductDetailModal
-        product={selectedProductModal}
+        product={activeSelectedProductModal}
         onClose={() => setSelectedProductModal(null)}
         onAddToCart={handleAddToCart}
       />
