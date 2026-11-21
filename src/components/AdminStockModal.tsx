@@ -45,6 +45,8 @@ import {
   ADMIN_EMAILS,
   OperationType,
   handleFirestoreError,
+  isFirestoreQuotaExceeded,
+  isQuotaExceededFirestoreError,
   isBase64ImageDataUrl,
   filterNonBase64Images,
   writeIdbCache,
@@ -617,6 +619,15 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         ? customSubcategory.trim()
         : (product.subcategory || '').trim();
 
+    if (isFirestoreQuotaExceeded) {
+      setStatusBanner({
+        type: 'error',
+        message:
+          'Firestore daily quota reached (resource-exhausted). Saved locally; cloud write aborted without retrying.',
+      });
+      return;
+    }
+
     setSavingId(product.id);
     setStatusBanner(null);
 
@@ -630,26 +641,54 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       });
     }
 
-    const path = `inventory/${product.id}`;
+    // Only write the full inventory/{productId} document when editing photos/default/title/subcategory/description;
+    // simple Stock In / Sold / Qty / Price updates write ONLY to the lightweight catalog_index/stock_summary doc.
+    const isFullDocEdit =
+      customImages !== undefined ||
+      customDefaultIdx !== undefined ||
+      customTitle !== undefined ||
+      customSubcategory !== undefined ||
+      customDescription !== undefined;
+
+    const cleanSummaryImages = filterNonBase64Images(imagesToSave);
+    const path = isFullDocEdit ? `inventory/${product.id}` : STOCK_SUMMARY_DOC_PATH;
+
     try {
-      await setDoc(doc(db, 'inventory', product.id), {
-        productId: product.id.slice(0, 128),
-        modelNumber: product.modelNumber.slice(0, 120),
-        title: titleToSave.slice(0, 200),
-        category: product.category,
-        subcategory: subcatToSave.slice(0, 120),
-        description: descToSave.slice(0, 1500),
-        price: clampedPrice,
-        stockCount: clampedStock,
-        stockStatus: computedStatus,
-        defaultImageIndex: defaultIdxToSave,
-        images: imagesToSave,
-        updatedBy: currentUser.uid,
-        updatedAt: serverTimestamp(),
-      });
+      if (isFullDocEdit) {
+        await setDoc(doc(db, 'inventory', product.id), {
+          productId: product.id.slice(0, 128),
+          modelNumber: product.modelNumber.slice(0, 120),
+          title: titleToSave.slice(0, 200),
+          category: product.category,
+          subcategory: subcatToSave.slice(0, 120),
+          description: descToSave.slice(0, 1500),
+          price: clampedPrice,
+          stockCount: clampedStock,
+          stockStatus: computedStatus,
+          defaultImageIndex: defaultIdxToSave,
+          images: imagesToSave,
+          updatedBy: currentUser.uid,
+          updatedAt: serverTimestamp(),
+        });
+
+        await writeIdbCache(`inventory_doc:${product.id}`, {
+          exists: true,
+          override: {
+            stockCount: clampedStock,
+            stockStatus: computedStatus,
+            price: clampedPrice,
+            defaultImageIndex: defaultIdxToSave,
+            images: cleanSummaryImages || imagesToSave,
+            modelNumber: product.modelNumber,
+            title: titleToSave,
+            category: product.category,
+            subcategory: subcatToSave,
+            description: descToSave,
+          },
+        });
+      }
 
       // Keep the lightweight single-doc catalog_index/stock_summary synchronized (never storing Base64 strings)
-      const cleanSummaryImages = filterNonBase64Images(imagesToSave);
       await upsertStockSummaryEntries(
         {
           [product.id]: {
@@ -664,22 +703,6 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         currentUser.uid
       );
 
-      await writeIdbCache(`inventory_doc:${product.id}`, {
-        exists: true,
-        override: {
-          stockCount: clampedStock,
-          stockStatus: computedStatus,
-          price: clampedPrice,
-          defaultImageIndex: defaultIdxToSave,
-          images: cleanSummaryImages || imagesToSave,
-          modelNumber: product.modelNumber,
-          title: titleToSave,
-          category: product.category,
-          subcategory: subcatToSave,
-          description: descToSave,
-        },
-      });
-
       setDraftEdits((prev) => {
         const next = { ...prev };
         delete next[product.id];
@@ -693,10 +716,13 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         }`,
       });
     } catch (error) {
+      const isQuota =
+        isQuotaExceededFirestoreError(error) || isFirestoreQuotaExceeded;
       setStatusBanner({
         type: 'error',
-        message:
-          'Failed to update live product in Firebase. Ensure you are signed in with an authorized admin email.',
+        message: isQuota
+          ? 'Firestore daily quota reached (resource-exhausted). Change kept locally; cloud write aborted without retrying.'
+          : 'Failed to update live product in Firebase. Ensure you are signed in with an authorized admin email.',
       });
       handleFirestoreError(error, OperationType.WRITE, path);
     } finally {
@@ -706,20 +732,37 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
   const handleSyncAllCatalogToCloud = async (forceTitleFromDesc = false) => {
     if (!currentUser || !isAuthorizedAdmin) return;
+    if (isFirestoreQuotaExceeded) {
+      setStatusBanner({
+        type: 'error',
+        message:
+          'Firestore daily quota has already been reached. Aborted sync without writing; please try again after the daily quota resets.',
+      });
+      return;
+    }
     setBulkSyncing(true);
     setStatusBanner(null);
+    let abortedByQuota = false;
+    let updatedDocsCount = 0;
+
     try {
       const summaryBatch: StockSummaryMap = {};
       const nowTs = Date.now();
 
       for (const product of products) {
-        const path = `inventory/${product.id}`;
+        if (isFirestoreQuotaExceeded) {
+          abortedByQuota = true;
+          break;
+        }
         const computedStatus =
           product.stockStatus || deriveStatusFromCount(product.stockCount);
         const imagesToSave = buildPreservedImages(product.images, product);
+        const nonBase64OnlySlots = imagesToSave.map((img) =>
+          isBase64ImageDataUrl(img) ? '' : img
+        );
         const defaultIdx = Math.max(
           0,
-          Math.min(imagesToSave.length - 1, Math.round(product.defaultImageIndex ?? 0))
+          Math.min(nonBase64OnlySlots.length - 1, Math.round(product.defaultImageIndex ?? 0))
         );
         const descText = (product.description || '').trim();
         const derivedTitle = forceTitleFromDesc
@@ -727,7 +770,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           : extractTitleFromDescription(descText, product.title);
         const roundedPrice = Math.max(0, Math.min(1000000000, Math.round(product.price)));
         const roundedStock = Math.max(0, Math.min(100000, Math.round(product.stockCount)));
-        const nonBase64Images = filterNonBase64Images(imagesToSave);
+        const nonBase64Images = filterNonBase64Images(nonBase64OnlySlots);
 
         summaryBatch[product.id] = {
           qty: roundedStock,
@@ -738,25 +781,44 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           defaultImageIndex: defaultIdx,
         };
 
-        try {
-          await setDoc(doc(db, 'inventory', product.id), {
-            productId: product.id.slice(0, 128),
-            modelNumber: product.modelNumber.slice(0, 120),
-            title: derivedTitle.slice(0, 200),
-            category: product.category,
-            subcategory: (product.subcategory || '').slice(0, 120),
-            description: descText.slice(0, 1500),
-            price: roundedPrice,
-            stockCount: roundedStock,
-            stockStatus: computedStatus,
-            defaultImageIndex: defaultIdx,
-            images: imagesToSave,
-            updatedBy: currentUser.uid,
-            updatedAt: serverTimestamp(),
-          });
-        } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, path);
+        // For standard "Sync All to Cloud" (forceTitleFromDesc === false), avoid rewriting 256+ full inventory docs;
+        // persist all stock & prices in 1 single write to catalog_index/stock_summary at the end.
+        // Only write an individual inventory/{productId} doc when explicitly syncing derived titles that actually changed.
+        if (forceTitleFromDesc && derivedTitle !== (product.title || '').trim()) {
+          const path = `inventory/${product.id}`;
+          try {
+            await setDoc(doc(db, 'inventory', product.id), {
+              productId: product.id.slice(0, 128),
+              modelNumber: product.modelNumber.slice(0, 120),
+              title: derivedTitle.slice(0, 200),
+              category: product.category,
+              subcategory: (product.subcategory || '').slice(0, 120),
+              description: descText.slice(0, 1500),
+              price: roundedPrice,
+              stockCount: roundedStock,
+              stockStatus: computedStatus,
+              defaultImageIndex: defaultIdx,
+              images: nonBase64OnlySlots,
+              updatedBy: currentUser.uid,
+              updatedAt: serverTimestamp(),
+            });
+            updatedDocsCount += 1;
+          } catch (err) {
+            handleFirestoreError(err, OperationType.WRITE, path);
+            if (isQuotaExceededFirestoreError(err) || isFirestoreQuotaExceeded) {
+              abortedByQuota = true;
+              break;
+            }
+          }
         }
+      }
+
+      if (abortedByQuota || isFirestoreQuotaExceeded) {
+        setStatusBanner({
+          type: 'error',
+          message: `Firestore daily quota (resource-exhausted) reached after updating ${updatedDocsCount} doc(s). Sync aborted immediately with no retries.`,
+        });
+        return;
       }
 
       await writeStockSummaryToCloud(summaryBatch, currentUser.uid);
@@ -775,9 +837,19 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
       setStatusBanner({
         type: 'success',
         message: forceTitleFromDesc
-          ? `Fetched Title from Description and updated all ${products.length} products in Stock Admin & Firebase!`
-          : `All ${products.length} catalog products and catalog_index/stock_summary are now synced to Firebase.`,
+          ? `Updated ${updatedDocsCount} changed title doc(s) and saved ${products.length} items to ${STOCK_SUMMARY_DOC_PATH} in 1 summary write.`
+          : `Synced all ${products.length} products into ${STOCK_SUMMARY_DOC_PATH} in 1 lightweight write (zero full-doc rewrites).`,
       });
+    } catch (error) {
+      const isQuota =
+        isQuotaExceededFirestoreError(error) || isFirestoreQuotaExceeded;
+      setStatusBanner({
+        type: 'error',
+        message: isQuota
+          ? 'Firestore daily quota reached (resource-exhausted). Sync aborted immediately without retrying.'
+          : 'Failed to sync stock summary to Firebase.',
+      });
+      handleFirestoreError(error, OperationType.WRITE, STOCK_SUMMARY_DOC_PATH);
     } finally {
       setBulkSyncing(false);
     }
@@ -785,12 +857,22 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
 
   /**
    * One-Time Admin Cleanup:
-   * Scans existing inventory/{productId} docs, strips all legacy `data:image/` Base64 strings
-   * (preserving valid URLs/local paths, stock counts, prices, and descriptions),
-   * and writes the clean lightweight summary into `catalog_index/stock_summary`.
+   * Scans existing inventory/{productId} docs sequentially, ONLY writes a doc back if it actually
+   * contained a `data:image/` Base64 string (preserving valid URLs, stock counts, prices, and descriptions),
+   * writes `catalog_index/stock_summary` strictly ONCE at the very end, and aborts immediately on
+   * any `resource-exhausted` quota error without retrying.
    */
   const handleStripLegacyBase64FromFirestore = async () => {
     if (!currentUser || !isAuthorizedAdmin || strippingBase64) return;
+    if (isFirestoreQuotaExceeded) {
+      setStatusBanner({
+        type: 'error',
+        message:
+          'Firestore daily quota has already been reached. Aborted cleanup before issuing any reads or writes; please resume after quota resets.',
+      });
+      return;
+    }
+
     setStrippingBase64(true);
     setStatusBanner(null);
 
@@ -805,185 +887,206 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     let existingDocsCount = 0;
     let strippedDocsCount = 0;
     let totalBytesRemoved = 0;
+    let abortedByQuota = false;
     const cleanSummaryMap: StockSummaryMap = {};
-    const BATCH_SIZE = 10;
 
     try {
-      for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
-        const batch = allIds.slice(i, i + BATCH_SIZE);
-        setStripProgress(`Scanning ${Math.min(i + batch.length, allIds.length)}/${allIds.length}...`);
+      for (let i = 0; i < allIds.length; i += 1) {
+        if (isFirestoreQuotaExceeded) {
+          abortedByQuota = true;
+          break;
+        }
 
-        await Promise.all(
-          batch.map(async (productId) => {
-            scannedCount += 1;
-            const localProduct = productById.get(productId);
-            const docPath = `inventory/${productId}`;
+        const productId = allIds[i];
+        scannedCount = i + 1;
+        setStripProgress(`Scanning ${scannedCount}/${allIds.length}...`);
 
-            try {
-              const snap = await getDoc(doc(db, 'inventory', productId));
-              if (!snap.exists()) {
-                return;
-              }
-              existingDocsCount += 1;
-              const d = snap.data() as Record<string, unknown>;
+        const localProduct = productById.get(productId);
+        const docPath = `inventory/${productId}`;
 
-              const rawImages = Array.isArray(d.images)
-                ? d.images.map((v) => (typeof v === 'string' ? v : ''))
-                : [];
+        try {
+          const snap = await getDoc(doc(db, 'inventory', productId));
+          if (!snap.exists()) {
+            continue;
+          }
+          existingDocsCount += 1;
+          const d = snap.data() as Record<string, unknown>;
 
-              let hadBase64 = false;
-              let removedBytesForDoc = 0;
-              const localNonBase64Images = (localProduct?.images || []).map((img) =>
-                isBase64ImageDataUrl(img) ? '' : img
-              );
+          const rawImages = Array.isArray(d.images)
+            ? d.images.map((v) => (typeof v === 'string' ? v : ''))
+            : [];
 
-              const slotCount = Math.max(4, Math.min(8, rawImages.length || 4));
-              const cleanedImages: string[] = [];
-              for (let idx = 0; idx < slotCount; idx++) {
-                const rawVal = (rawImages[idx] || '').trim();
-                if (isBase64ImageDataUrl(rawVal)) {
-                  hadBase64 = true;
-                  removedBytesForDoc += rawVal.length;
-                  // Replace Base64 blob with local static path if available, otherwise empty slot ''
-                  cleanedImages.push((localNonBase64Images[idx] || '').slice(0, 2000));
-                } else {
-                  cleanedImages.push(rawVal.slice(0, 2000));
-                }
-              }
+          let hadBase64 = false;
+          let removedBytesForDoc = 0;
+          const localNonBase64Images = (localProduct?.images || []).map((img) =>
+            isBase64ImageDataUrl(img) ? '' : img
+          );
 
-              const safeStock = Math.max(
-                0,
-                Math.min(
-                  100000,
-                  Math.round(
-                    typeof d.stockCount === 'number'
-                      ? d.stockCount
-                      : localProduct?.stockCount ?? 0
-                  )
-                )
-              );
-              const safePrice = Math.max(
-                0,
-                Math.min(
-                  1000000000,
-                  Math.round(
-                    typeof d.price === 'number'
-                      ? d.price
-                      : localProduct?.price ?? 0
-                  )
-                )
-              );
-              const safeStatus: 'In Stock' | 'Low Stock' | 'Pre-Order' =
-                d.stockStatus === 'In Stock' ||
-                d.stockStatus === 'Low Stock' ||
-                d.stockStatus === 'Pre-Order'
-                  ? d.stockStatus
-                  : deriveStatusFromCount(safeStock);
-              const safeDefaultIdx = Math.max(
-                0,
-                Math.min(
-                  cleanedImages.length - 1,
-                  Math.round(
-                    typeof d.defaultImageIndex === 'number'
-                      ? d.defaultImageIndex
-                      : localProduct?.defaultImageIndex ?? 0
-                  )
-                )
-              );
-              const safeCategory: ProductCategory =
-                d.category === 'Controllers' ||
-                d.category === 'Motors' ||
-                d.category === 'Machines' ||
-                d.category === 'Robots'
-                  ? d.category
-                  : localProduct?.category || 'Controllers';
-              const safeModel = (
-                typeof d.modelNumber === 'string' && d.modelNumber.trim().length > 0
-                  ? d.modelNumber.trim()
-                  : localProduct?.modelNumber || productId
-              ).slice(0, 160);
-              const safeTitle = (
-                typeof d.title === 'string'
-                  ? d.title
-                  : localProduct?.title || ''
-              ).slice(0, 300);
-              const safeSubcat = (
-                typeof d.subcategory === 'string'
-                  ? d.subcategory
-                  : localProduct?.subcategory || ''
-              ).slice(0, 160);
-              const safeDesc = (
-                typeof d.description === 'string'
-                  ? d.description
-                  : localProduct?.description || ''
-              ).slice(0, 2500);
-
-              if (hadBase64) {
-                await setDoc(doc(db, 'inventory', productId), {
-                  productId: productId.slice(0, 128),
-                  modelNumber: safeModel,
-                  title: safeTitle,
-                  category: safeCategory,
-                  subcategory: safeSubcat,
-                  description: safeDesc,
-                  price: safePrice,
-                  stockCount: safeStock,
-                  stockStatus: safeStatus,
-                  defaultImageIndex: safeDefaultIdx,
-                  images: cleanedImages,
-                  updatedBy: currentUser.uid,
-                  updatedAt: serverTimestamp(),
-                });
-                strippedDocsCount += 1;
-                totalBytesRemoved += removedBytesForDoc;
-              }
-
-              const summaryImages = filterNonBase64Images(cleanedImages);
-              cleanSummaryMap[productId] = {
-                qty: safeStock,
-                price: safePrice,
-                stockStatus: safeStatus,
-                updatedAt: Date.now(),
-                ...(summaryImages ? { images: summaryImages } : {}),
-                defaultImageIndex: safeDefaultIdx,
-              };
-
-              await writeIdbCache(`inventory_doc:${productId}`, {
-                exists: true,
-                override: {
-                  stockCount: safeStock,
-                  stockStatus: safeStatus,
-                  price: safePrice,
-                  defaultImageIndex: safeDefaultIdx,
-                  images: summaryImages,
-                  modelNumber: safeModel,
-                  title: safeTitle,
-                  category: safeCategory,
-                  subcategory: safeSubcat,
-                  description: safeDesc,
-                },
-              });
-            } catch (err) {
-              handleFirestoreError(err, OperationType.WRITE, docPath);
+          const slotCount = Math.max(4, Math.min(8, rawImages.length || 4));
+          const cleanedImages: string[] = [];
+          for (let idx = 0; idx < slotCount; idx++) {
+            const rawVal = (rawImages[idx] || '').trim();
+            if (isBase64ImageDataUrl(rawVal)) {
+              hadBase64 = true;
+              removedBytesForDoc += rawVal.length;
+              cleanedImages.push((localNonBase64Images[idx] || '').slice(0, 2000));
+            } else {
+              cleanedImages.push(rawVal.slice(0, 2000));
             }
-          })
-        );
+          }
+
+          const safeStock = Math.max(
+            0,
+            Math.min(
+              100000,
+              Math.round(
+                typeof d.stockCount === 'number'
+                  ? d.stockCount
+                  : localProduct?.stockCount ?? 0
+              )
+            )
+          );
+          const safePrice = Math.max(
+            0,
+            Math.min(
+              1000000000,
+              Math.round(
+                typeof d.price === 'number'
+                  ? d.price
+                  : localProduct?.price ?? 0
+              )
+            )
+          );
+          const safeStatus: 'In Stock' | 'Low Stock' | 'Pre-Order' =
+            d.stockStatus === 'In Stock' ||
+            d.stockStatus === 'Low Stock' ||
+            d.stockStatus === 'Pre-Order'
+              ? d.stockStatus
+              : deriveStatusFromCount(safeStock);
+          const safeDefaultIdx = Math.max(
+            0,
+            Math.min(
+              cleanedImages.length - 1,
+              Math.round(
+                typeof d.defaultImageIndex === 'number'
+                  ? d.defaultImageIndex
+                  : localProduct?.defaultImageIndex ?? 0
+              )
+            )
+          );
+          const safeCategory: ProductCategory =
+            d.category === 'Controllers' ||
+            d.category === 'Motors' ||
+            d.category === 'Machines' ||
+            d.category === 'Robots'
+              ? d.category
+              : localProduct?.category || 'Controllers';
+          const safeModel = (
+            typeof d.modelNumber === 'string' && d.modelNumber.trim().length > 0
+              ? d.modelNumber.trim()
+              : localProduct?.modelNumber || productId
+          ).slice(0, 160);
+          const safeTitle = (
+            typeof d.title === 'string'
+              ? d.title
+              : localProduct?.title || ''
+          ).slice(0, 300);
+          const safeSubcat = (
+            typeof d.subcategory === 'string'
+              ? d.subcategory
+              : localProduct?.subcategory || ''
+          ).slice(0, 160);
+          const safeDesc = (
+            typeof d.description === 'string'
+              ? d.description
+              : localProduct?.description || ''
+          ).slice(0, 2500);
+
+          // ONLY write back to Firestore if this document actually contained a data:image/ Base64 string
+          if (hadBase64) {
+            await setDoc(doc(db, 'inventory', productId), {
+              productId: productId.slice(0, 128),
+              modelNumber: safeModel,
+              title: safeTitle,
+              category: safeCategory,
+              subcategory: safeSubcat,
+              description: safeDesc,
+              price: safePrice,
+              stockCount: safeStock,
+              stockStatus: safeStatus,
+              defaultImageIndex: safeDefaultIdx,
+              images: cleanedImages,
+              updatedBy: currentUser.uid,
+              updatedAt: serverTimestamp(),
+            });
+            strippedDocsCount += 1;
+            totalBytesRemoved += removedBytesForDoc;
+          }
+
+          const summaryImages = filterNonBase64Images(cleanedImages);
+          cleanSummaryMap[productId] = {
+            qty: safeStock,
+            price: safePrice,
+            stockStatus: safeStatus,
+            updatedAt: Date.now(),
+            ...(summaryImages ? { images: summaryImages } : {}),
+            defaultImageIndex: safeDefaultIdx,
+          };
+
+          await writeIdbCache(`inventory_doc:${productId}`, {
+            exists: true,
+            override: {
+              stockCount: safeStock,
+              stockStatus: safeStatus,
+              price: safePrice,
+              defaultImageIndex: safeDefaultIdx,
+              images: summaryImages,
+              modelNumber: safeModel,
+              title: safeTitle,
+              category: safeCategory,
+              subcategory: safeSubcat,
+              description: safeDesc,
+            },
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, docPath);
+          if (isQuotaExceededFirestoreError(err) || isFirestoreQuotaExceeded) {
+            abortedByQuota = true;
+            break;
+          }
+        }
       }
 
-      setStripProgress('Writing catalog_index/stock_summary...');
+      if (abortedByQuota || isFirestoreQuotaExceeded) {
+        const freedMb = (totalBytesRemoved / (1024 * 1024)).toFixed(2);
+        if (Object.keys(cleanSummaryMap).length > 0) {
+          onApplySummaryOverrides?.(cleanSummaryMap);
+        }
+        setStatusBanner({
+          type: 'error',
+          message: `Cleanup stopped immediately on Firestore quota limit (resource-exhausted) at ${scannedCount}/${allIds.length}. Cleaned ${strippedDocsCount} doc(s) (~${freedMb} MB removed) before halting. No retries were attempted; resume once daily quota resets.`,
+        });
+        return;
+      }
+
+      // Write catalog_index/stock_summary strictly ONCE at the very end of the cleanup
+      setStripProgress('Writing catalog_index/stock_summary (1 write)...');
       await writeStockSummaryToCloud(cleanSummaryMap, currentUser.uid);
       onApplySummaryOverrides?.(cleanSummaryMap);
 
       const freedMb = (totalBytesRemoved / (1024 * 1024)).toFixed(2);
       setStatusBanner({
         type: 'success',
-        message: `Cleanup complete! Scanned ${scannedCount} IDs (${existingDocsCount} Firestore docs found), stripped legacy Base64 images from ${strippedDocsCount} doc(s) (~${freedMb} MB removed), and saved ${Object.keys(cleanSummaryMap).length} clean entries into ${STOCK_SUMMARY_DOC_PATH}.`,
+        message: `Cleanup complete! Scanned ${scannedCount} IDs (${existingDocsCount} Firestore docs found), stripped legacy Base64 images from ${strippedDocsCount} doc(s) (~${freedMb} MB removed), and saved ${Object.keys(cleanSummaryMap).length} clean entries into ${STOCK_SUMMARY_DOC_PATH} in 1 write.`,
       });
     } catch (error) {
+      const isQuota =
+        isQuotaExceededFirestoreError(error) || isFirestoreQuotaExceeded;
       setStatusBanner({
         type: 'error',
-        message:
-          'Base64 cleanup encountered a Firestore error. Ensure you are signed in as an authorized admin and try again.',
+        message: isQuota
+          ? 'Firestore daily quota reached (resource-exhausted) while writing catalog_index/stock_summary. Aborted immediately without retrying.'
+          : 'Base64 cleanup encountered a Firestore error. Ensure you are signed in as an authorized admin and try again.',
       });
       handleFirestoreError(error, OperationType.WRITE, STOCK_SUMMARY_DOC_PATH);
     } finally {
@@ -2694,10 +2797,15 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     setStatusBanner(null);
 
     const newCustomIdsToRegister: string[] = [];
+    const excelSummaryUpdates: StockSummaryMap = {};
+    const nowTs = Date.now();
     let syncedCount = 0;
 
     try {
       for (const item of itemsToSync) {
+        if (isFirestoreQuotaExceeded) {
+          throw new Error('resource-exhausted: Firestore daily quota exceeded.');
+        }
         const trimmedModel = item.modelNumber.trim();
         if (!trimmedModel) continue;
 
@@ -2740,33 +2848,47 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             : 0;
 
         const statusToSave = deriveStatusFromCount(stockNum);
-        const imagesToSave = buildPreservedImages(item.images, item);
+        const imagesToSave = buildPreservedImages(item.images, item).map((img) =>
+          isBase64ImageDataUrl(img) ? '' : img
+        );
+        const cleanImgs = filterNonBase64Images(imagesToSave);
 
-        const path = `inventory/${productId}`;
-        await setDoc(doc(db, 'inventory', productId), {
-          productId: productId.slice(0, 128),
-          modelNumber: trimmedModel.slice(0, 120),
-          title: titleToSave.slice(0, 200),
-          category: categoryToSave,
-          subcategory: subcatToSave.slice(0, 120),
-          description: descToSave.slice(0, 1500),
+        excelSummaryUpdates[productId] = {
+          qty: stockNum,
           price: priceNum,
-          ...(item.panelPrices ? { panelPrices: item.panelPrices } : {}),
-          stockCount: stockNum,
           stockStatus: statusToSave,
+          updatedAt: nowTs,
+          ...(cleanImgs ? { images: cleanImgs } : {}),
           defaultImageIndex: item.defaultImageIndex || 0,
-          images: imagesToSave,
-          updatedBy: currentUser.uid,
-          updatedAt: serverTimestamp(),
-        });
+        };
 
+        // Only write a full inventory/{productId} document for brand-new custom Excel items;
+        // existing catalog items update via the single lightweight catalog_index/stock_summary write at the end.
         if (!existingProduct) {
+          if (isFirestoreQuotaExceeded) {
+            throw new Error('resource-exhausted: Firestore daily quota exceeded.');
+          }
+          await setDoc(doc(db, 'inventory', productId), {
+            productId: productId.slice(0, 128),
+            modelNumber: trimmedModel.slice(0, 120),
+            title: titleToSave.slice(0, 200),
+            category: categoryToSave,
+            subcategory: subcatToSave.slice(0, 120),
+            description: descToSave.slice(0, 1500),
+            price: priceNum,
+            stockCount: stockNum,
+            stockStatus: statusToSave,
+            defaultImageIndex: item.defaultImageIndex || 0,
+            images: imagesToSave,
+            updatedBy: currentUser.uid,
+            updatedAt: serverTimestamp(),
+          });
           newCustomIdsToRegister.push(productId);
         }
         syncedCount += 1;
       }
 
-      if (newCustomIdsToRegister.length > 0) {
+      if (newCustomIdsToRegister.length > 0 && !isFirestoreQuotaExceeded) {
         const mergedCustomIds = Array.from(
           new Set([...customProductIds, ...newCustomIdsToRegister])
         ).slice(0, 500);
@@ -2779,45 +2901,7 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         });
       }
 
-      // Also upsert all synced Excel rows into the lightweight single-doc catalog_index/stock_summary
-      const excelSummaryUpdates: StockSummaryMap = {};
-      const nowTs = Date.now();
-      for (const item of itemsToSync) {
-        const trimmedModel = item.modelNumber.trim();
-        if (!trimmedModel) continue;
-        const existingProduct =
-          (item.matchedProductId
-            ? products.find((p) => p.id === item.matchedProductId)
-            : null) ||
-          products.find(
-            (p) => p.modelNumber.trim().toLowerCase() === trimmedModel.toLowerCase()
-          );
-        const productId =
-          existingProduct?.id ||
-          `excel-${trimmedModel
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '')
-            .slice(0, 50)}`;
-        const stockNum =
-          item.stockCount.trim() !== ''
-            ? Math.max(0, Math.min(100000, Math.round(Number(item.stockCount) || 0)))
-            : 0;
-        const priceNum =
-          item.price.trim() !== ''
-            ? Math.max(0, Math.min(1000000000, Math.round(Number(item.price) || 0)))
-            : 0;
-        const cleanImgs = filterNonBase64Images(buildPreservedImages(item.images, item));
-        excelSummaryUpdates[productId] = {
-          qty: stockNum,
-          price: priceNum,
-          stockStatus: deriveStatusFromCount(stockNum),
-          updatedAt: nowTs,
-          ...(cleanImgs ? { images: cleanImgs } : {}),
-          defaultImageIndex: item.defaultImageIndex || 0,
-        };
-      }
-      if (Object.keys(excelSummaryUpdates).length > 0) {
+      if (Object.keys(excelSummaryUpdates).length > 0 && !isFirestoreQuotaExceeded) {
         await upsertStockSummaryEntries(excelSummaryUpdates, currentUser.uid);
         onApplySummaryOverrides?.(excelSummaryUpdates);
       }
@@ -3105,15 +3189,14 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         );
       }
 
-      // Sync reduced stock counts to Firebase Firestore /inventory/{productId} + catalog_index/stock_summary if admin is signed in
-      if (currentUser && isAuthorizedAdmin) {
+      // Sync reduced stock counts in 1 lightweight write to catalog_index/stock_summary (no full inventory/{productId} rewrites)
+      if (currentUser && isAuthorizedAdmin && !isFirestoreQuotaExceeded) {
         const invoiceSummaryUpdates: StockSummaryMap = {};
         const nowTs = Date.now();
         for (const [prodId, upd] of Object.entries(localStockUpdates)) {
           const prodObj = products.find((p) => p.id === prodId);
           if (!prodObj) continue;
-          const preservedImages = buildPreservedImages(prodObj.images, prodObj);
-          const cleanImgs = filterNonBase64Images(preservedImages);
+          const cleanImgs = filterNonBase64Images(prodObj.images);
           invoiceSummaryUpdates[prodId] = {
             qty: upd.stockCount,
             price: upd.price,
@@ -3122,31 +3205,12 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             ...(cleanImgs ? { images: cleanImgs } : {}),
             defaultImageIndex: prodObj.defaultImageIndex ?? 0,
           };
-          try {
-            await setDoc(doc(db, 'inventory', prodId), {
-              productId: prodObj.id.slice(0, 128),
-              modelNumber: prodObj.modelNumber.slice(0, 120),
-              title: (prodObj.title || '').slice(0, 200),
-              category: prodObj.category,
-              subcategory: (prodObj.subcategory || '').slice(0, 120),
-              description: (prodObj.description || '').slice(0, 1500),
-              price: upd.price,
-              stockCount: upd.stockCount,
-              stockStatus: upd.stockStatus,
-              defaultImageIndex: prodObj.defaultImageIndex ?? 0,
-              images: preservedImages,
-              updatedBy: currentUser.uid,
-              updatedAt: serverTimestamp(),
-            });
-          } catch {
-            // Local override is already persisted if cloud quota is reached
-          }
         }
         if (Object.keys(invoiceSummaryUpdates).length > 0) {
           try {
             await upsertStockSummaryEntries(invoiceSummaryUpdates, currentUser.uid);
           } catch {
-            // Local override is already persisted
+            // Local override is already persisted if cloud quota is reached
           }
         }
       }

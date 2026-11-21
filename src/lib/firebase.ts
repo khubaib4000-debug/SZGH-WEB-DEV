@@ -422,15 +422,25 @@ export async function writeStockSummaryToCloud(
   summaryMap: StockSummaryMap,
   adminUid: string
 ): Promise<StockSummaryMap> {
+  if (isFirestoreQuotaExceeded) {
+    throw new Error('resource-exhausted: Firestore daily quota exceeded.');
+  }
   const sanitized = sanitizeStockSummaryMap(summaryMap);
   const encodedChunks = encodeStockSummaryEntries(sanitized);
 
-  await setDoc(doc(db, 'catalog_index', STOCK_SUMMARY_DOC_ID), {
-    manifestId: STOCK_SUMMARY_DOC_ID,
-    customProductIds: encodedChunks,
-    updatedBy: adminUid,
-    updatedAt: serverTimestamp(),
-  });
+  try {
+    await setDoc(doc(db, 'catalog_index', STOCK_SUMMARY_DOC_ID), {
+      manifestId: STOCK_SUMMARY_DOC_ID,
+      customProductIds: encodedChunks,
+      updatedBy: adminUid,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    if (isQuotaExceededFirestoreError(error)) {
+      isFirestoreQuotaExceeded = true;
+    }
+    throw error;
+  }
 
   await writeIdbCache(STOCK_SUMMARY_IDB_CACHE_KEY, sanitized);
   return sanitized;
@@ -440,10 +450,17 @@ export async function upsertStockSummaryEntries(
   partial: StockSummaryMap,
   adminUid: string
 ): Promise<StockSummaryMap> {
+  if (isFirestoreQuotaExceeded) {
+    throw new Error('resource-exhausted: Firestore daily quota exceeded.');
+  }
   let existing: StockSummaryMap = {};
   try {
     existing = await readStockSummaryCached(false);
-  } catch {
+  } catch (error) {
+    if (isQuotaExceededFirestoreError(error)) {
+      isFirestoreQuotaExceeded = true;
+      throw error;
+    }
     existing = {};
   }
   const merged: StockSummaryMap = {
