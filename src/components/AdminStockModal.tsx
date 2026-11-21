@@ -25,6 +25,7 @@ import {
   Printer,
   FileText,
   ClipboardCheck,
+  Sparkles,
 } from 'lucide-react';
 import {
   User,
@@ -33,6 +34,7 @@ import {
 } from 'firebase/auth';
 import {
   doc,
+  getDoc,
   setDoc,
   serverTimestamp,
 } from 'firebase/firestore';
@@ -43,6 +45,13 @@ import {
   ADMIN_EMAILS,
   OperationType,
   handleFirestoreError,
+  isBase64ImageDataUrl,
+  filterNonBase64Images,
+  writeIdbCache,
+  writeStockSummaryToCloud,
+  upsertStockSummaryEntries,
+  StockSummaryMap,
+  STOCK_SUMMARY_DOC_PATH,
 } from '../lib/firebase';
 import {
   ProductItem,
@@ -181,6 +190,22 @@ interface AdminStockModalProps {
       }
     >
   ) => void;
+  onFetchSingleInventoryDoc?: (
+    productId: string,
+    forceRefresh?: boolean
+  ) => Promise<{
+    stockCount: number;
+    stockStatus: 'In Stock' | 'Low Stock' | 'Pre-Order';
+    price: number;
+    defaultImageIndex?: number;
+    images?: string[];
+    modelNumber?: string;
+    title?: string;
+    category?: ProductCategory;
+    subcategory?: string;
+    description?: string;
+  } | null>;
+  onApplySummaryOverrides?: (summaryMap: StockSummaryMap) => void;
 }
 
 export interface TrackedExcelStockItem {
@@ -308,6 +333,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   freightRatePerKg = DEFAULT_FREIGHT_RATE_PER_KG,
   onUpdateRobotRates,
   onApplyLocalStockUpdates,
+  onFetchSingleInventoryDoc,
+  onApplySummaryOverrides,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'manage' | 'create' | 'excel' | 'orders' | 'invoice' | 'summary'
@@ -318,6 +345,9 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
   const [stepAmount, setStepAmount] = useState<number>(1);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [bulkSyncing, setBulkSyncing] = useState(false);
+  const [strippingBase64, setStrippingBase64] = useState(false);
+  const [stripProgress, setStripProgress] = useState<string>('');
+  const [loadingProductDocId, setLoadingProductDocId] = useState<string | null>(null);
   const [submittingInvoice, setSubmittingInvoice] = useState(false);
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error';
@@ -618,6 +648,38 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         updatedAt: serverTimestamp(),
       });
 
+      // Keep the lightweight single-doc catalog_index/stock_summary synchronized (never storing Base64 strings)
+      const cleanSummaryImages = filterNonBase64Images(imagesToSave);
+      await upsertStockSummaryEntries(
+        {
+          [product.id]: {
+            qty: clampedStock,
+            price: clampedPrice,
+            stockStatus: computedStatus,
+            updatedAt: Date.now(),
+            ...(cleanSummaryImages ? { images: cleanSummaryImages } : {}),
+            defaultImageIndex: defaultIdxToSave,
+          },
+        },
+        currentUser.uid
+      );
+
+      await writeIdbCache(`inventory_doc:${product.id}`, {
+        exists: true,
+        override: {
+          stockCount: clampedStock,
+          stockStatus: computedStatus,
+          price: clampedPrice,
+          defaultImageIndex: defaultIdxToSave,
+          images: cleanSummaryImages || imagesToSave,
+          modelNumber: product.modelNumber,
+          title: titleToSave,
+          category: product.category,
+          subcategory: subcatToSave,
+          description: descToSave,
+        },
+      });
+
       setDraftEdits((prev) => {
         const next = { ...prev };
         delete next[product.id];
@@ -647,6 +709,9 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     setBulkSyncing(true);
     setStatusBanner(null);
     try {
+      const summaryBatch: StockSummaryMap = {};
+      const nowTs = Date.now();
+
       for (const product of products) {
         const path = `inventory/${product.id}`;
         const computedStatus =
@@ -660,6 +725,18 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         const derivedTitle = forceTitleFromDesc
           ? extractTitleFromDescription(descText) || (product.title || '').trim()
           : extractTitleFromDescription(descText, product.title);
+        const roundedPrice = Math.max(0, Math.min(1000000000, Math.round(product.price)));
+        const roundedStock = Math.max(0, Math.min(100000, Math.round(product.stockCount)));
+        const nonBase64Images = filterNonBase64Images(imagesToSave);
+
+        summaryBatch[product.id] = {
+          qty: roundedStock,
+          price: roundedPrice,
+          stockStatus: computedStatus,
+          updatedAt: nowTs,
+          ...(nonBase64Images ? { images: nonBase64Images } : {}),
+          defaultImageIndex: defaultIdx,
+        };
 
         try {
           await setDoc(doc(db, 'inventory', product.id), {
@@ -669,8 +746,8 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             category: product.category,
             subcategory: (product.subcategory || '').slice(0, 120),
             description: descText.slice(0, 1500),
-            price: Math.max(0, Math.min(1000000000, Math.round(product.price))),
-            stockCount: Math.max(0, Math.min(100000, Math.round(product.stockCount))),
+            price: roundedPrice,
+            stockCount: roundedStock,
             stockStatus: computedStatus,
             defaultImageIndex: defaultIdx,
             images: imagesToSave,
@@ -681,6 +758,9 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           handleFirestoreError(err, OperationType.WRITE, path);
         }
       }
+
+      await writeStockSummaryToCloud(summaryBatch, currentUser.uid);
+      onApplySummaryOverrides?.(summaryBatch);
 
       // Also update any tracked Excel rows in memory so their Title column is populated from Description
       setTrackedExcelItems((prev) =>
@@ -696,10 +776,219 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         type: 'success',
         message: forceTitleFromDesc
           ? `Fetched Title from Description and updated all ${products.length} products in Stock Admin & Firebase!`
-          : `All ${products.length} catalog products are now synced to Firebase.`,
+          : `All ${products.length} catalog products and catalog_index/stock_summary are now synced to Firebase.`,
       });
     } finally {
       setBulkSyncing(false);
+    }
+  };
+
+  /**
+   * One-Time Admin Cleanup:
+   * Scans existing inventory/{productId} docs, strips all legacy `data:image/` Base64 strings
+   * (preserving valid URLs/local paths, stock counts, prices, and descriptions),
+   * and writes the clean lightweight summary into `catalog_index/stock_summary`.
+   */
+  const handleStripLegacyBase64FromFirestore = async () => {
+    if (!currentUser || !isAuthorizedAdmin || strippingBase64) return;
+    setStrippingBase64(true);
+    setStatusBanner(null);
+
+    const productById = new Map<string, ProductItem>(
+      products.map((p) => [p.id, p])
+    );
+    const allIds = Array.from(
+      new Set([...products.map((p) => p.id), ...customProductIds])
+    );
+
+    let scannedCount = 0;
+    let existingDocsCount = 0;
+    let strippedDocsCount = 0;
+    let totalBytesRemoved = 0;
+    const cleanSummaryMap: StockSummaryMap = {};
+    const BATCH_SIZE = 10;
+
+    try {
+      for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
+        const batch = allIds.slice(i, i + BATCH_SIZE);
+        setStripProgress(`Scanning ${Math.min(i + batch.length, allIds.length)}/${allIds.length}...`);
+
+        await Promise.all(
+          batch.map(async (productId) => {
+            scannedCount += 1;
+            const localProduct = productById.get(productId);
+            const docPath = `inventory/${productId}`;
+
+            try {
+              const snap = await getDoc(doc(db, 'inventory', productId));
+              if (!snap.exists()) {
+                return;
+              }
+              existingDocsCount += 1;
+              const d = snap.data() as Record<string, unknown>;
+
+              const rawImages = Array.isArray(d.images)
+                ? d.images.map((v) => (typeof v === 'string' ? v : ''))
+                : [];
+
+              let hadBase64 = false;
+              let removedBytesForDoc = 0;
+              const localNonBase64Images = (localProduct?.images || []).map((img) =>
+                isBase64ImageDataUrl(img) ? '' : img
+              );
+
+              const slotCount = Math.max(4, Math.min(8, rawImages.length || 4));
+              const cleanedImages: string[] = [];
+              for (let idx = 0; idx < slotCount; idx++) {
+                const rawVal = (rawImages[idx] || '').trim();
+                if (isBase64ImageDataUrl(rawVal)) {
+                  hadBase64 = true;
+                  removedBytesForDoc += rawVal.length;
+                  // Replace Base64 blob with local static path if available, otherwise empty slot ''
+                  cleanedImages.push((localNonBase64Images[idx] || '').slice(0, 2000));
+                } else {
+                  cleanedImages.push(rawVal.slice(0, 2000));
+                }
+              }
+
+              const safeStock = Math.max(
+                0,
+                Math.min(
+                  100000,
+                  Math.round(
+                    typeof d.stockCount === 'number'
+                      ? d.stockCount
+                      : localProduct?.stockCount ?? 0
+                  )
+                )
+              );
+              const safePrice = Math.max(
+                0,
+                Math.min(
+                  1000000000,
+                  Math.round(
+                    typeof d.price === 'number'
+                      ? d.price
+                      : localProduct?.price ?? 0
+                  )
+                )
+              );
+              const safeStatus: 'In Stock' | 'Low Stock' | 'Pre-Order' =
+                d.stockStatus === 'In Stock' ||
+                d.stockStatus === 'Low Stock' ||
+                d.stockStatus === 'Pre-Order'
+                  ? d.stockStatus
+                  : deriveStatusFromCount(safeStock);
+              const safeDefaultIdx = Math.max(
+                0,
+                Math.min(
+                  cleanedImages.length - 1,
+                  Math.round(
+                    typeof d.defaultImageIndex === 'number'
+                      ? d.defaultImageIndex
+                      : localProduct?.defaultImageIndex ?? 0
+                  )
+                )
+              );
+              const safeCategory: ProductCategory =
+                d.category === 'Controllers' ||
+                d.category === 'Motors' ||
+                d.category === 'Machines' ||
+                d.category === 'Robots'
+                  ? d.category
+                  : localProduct?.category || 'Controllers';
+              const safeModel = (
+                typeof d.modelNumber === 'string' && d.modelNumber.trim().length > 0
+                  ? d.modelNumber.trim()
+                  : localProduct?.modelNumber || productId
+              ).slice(0, 160);
+              const safeTitle = (
+                typeof d.title === 'string'
+                  ? d.title
+                  : localProduct?.title || ''
+              ).slice(0, 300);
+              const safeSubcat = (
+                typeof d.subcategory === 'string'
+                  ? d.subcategory
+                  : localProduct?.subcategory || ''
+              ).slice(0, 160);
+              const safeDesc = (
+                typeof d.description === 'string'
+                  ? d.description
+                  : localProduct?.description || ''
+              ).slice(0, 2500);
+
+              if (hadBase64) {
+                await setDoc(doc(db, 'inventory', productId), {
+                  productId: productId.slice(0, 128),
+                  modelNumber: safeModel,
+                  title: safeTitle,
+                  category: safeCategory,
+                  subcategory: safeSubcat,
+                  description: safeDesc,
+                  price: safePrice,
+                  stockCount: safeStock,
+                  stockStatus: safeStatus,
+                  defaultImageIndex: safeDefaultIdx,
+                  images: cleanedImages,
+                  updatedBy: currentUser.uid,
+                  updatedAt: serverTimestamp(),
+                });
+                strippedDocsCount += 1;
+                totalBytesRemoved += removedBytesForDoc;
+              }
+
+              const summaryImages = filterNonBase64Images(cleanedImages);
+              cleanSummaryMap[productId] = {
+                qty: safeStock,
+                price: safePrice,
+                stockStatus: safeStatus,
+                updatedAt: Date.now(),
+                ...(summaryImages ? { images: summaryImages } : {}),
+                defaultImageIndex: safeDefaultIdx,
+              };
+
+              await writeIdbCache(`inventory_doc:${productId}`, {
+                exists: true,
+                override: {
+                  stockCount: safeStock,
+                  stockStatus: safeStatus,
+                  price: safePrice,
+                  defaultImageIndex: safeDefaultIdx,
+                  images: summaryImages,
+                  modelNumber: safeModel,
+                  title: safeTitle,
+                  category: safeCategory,
+                  subcategory: safeSubcat,
+                  description: safeDesc,
+                },
+              });
+            } catch (err) {
+              handleFirestoreError(err, OperationType.WRITE, docPath);
+            }
+          })
+        );
+      }
+
+      setStripProgress('Writing catalog_index/stock_summary...');
+      await writeStockSummaryToCloud(cleanSummaryMap, currentUser.uid);
+      onApplySummaryOverrides?.(cleanSummaryMap);
+
+      const freedMb = (totalBytesRemoved / (1024 * 1024)).toFixed(2);
+      setStatusBanner({
+        type: 'success',
+        message: `Cleanup complete! Scanned ${scannedCount} IDs (${existingDocsCount} Firestore docs found), stripped legacy Base64 images from ${strippedDocsCount} doc(s) (~${freedMb} MB removed), and saved ${Object.keys(cleanSummaryMap).length} clean entries into ${STOCK_SUMMARY_DOC_PATH}.`,
+      });
+    } catch (error) {
+      setStatusBanner({
+        type: 'error',
+        message:
+          'Base64 cleanup encountered a Firestore error. Ensure you are signed in as an authorized admin and try again.',
+      });
+      handleFirestoreError(error, OperationType.WRITE, STOCK_SUMMARY_DOC_PATH);
+    } finally {
+      setStrippingBase64(false);
+      setStripProgress('');
     }
   };
 
@@ -717,6 +1006,30 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           defaultImageIndex: product.defaultImageIndex ?? 0,
         },
       }));
+    }
+
+    // Lazy-load ONLY this specific inventory/{productId} document when Photos & Default is clicked
+    if (onFetchSingleInventoryDoc) {
+      setLoadingProductDocId(product.id);
+      void onFetchSingleInventoryDoc(product.id, false)
+        .then((cloudDoc) => {
+          if (cloudDoc?.images && cloudDoc.images.some((u) => u.trim().length > 0)) {
+            setPhotoDrafts((prev) => ({
+              ...prev,
+              [product.id]: {
+                images: [...cloudDoc.images!],
+                defaultImageIndex:
+                  cloudDoc.defaultImageIndex ??
+                  prev[product.id]?.defaultImageIndex ??
+                  product.defaultImageIndex ??
+                  0,
+              },
+            }));
+          }
+        })
+        .finally(() => {
+          setLoadingProductDocId((cur) => (cur === product.id ? null : cur));
+        });
     }
   };
 
@@ -966,6 +1279,21 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           updatedAt: serverTimestamp(),
         });
       }
+
+      const cleanImagesForSummary = filterNonBase64Images(normalizedImages);
+      await upsertStockSummaryEntries(
+        {
+          [targetProductId]: {
+            qty: parsedStock,
+            price: parsedPrice,
+            stockStatus: computedStatus,
+            updatedAt: Date.now(),
+            ...(cleanImagesForSummary ? { images: cleanImagesForSummary } : {}),
+            defaultImageIndex: defaultIdx,
+          },
+        },
+        currentUser.uid
+      );
 
       // Reset form & switch to Manage tab
       setEditingCustomProductId(null);
@@ -2306,6 +2634,51 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
     );
     setNewDefaultImageIndex(product.defaultImageIndex ?? 0);
     setActiveTab('create');
+
+    // Lazy-load ONLY this specific inventory/{productId} document when Edit Tabs is clicked
+    if (onFetchSingleInventoryDoc) {
+      setLoadingProductDocId(product.id);
+      void onFetchSingleInventoryDoc(product.id, false)
+        .then((cloudDoc) => {
+          if (!cloudDoc) return;
+          if (cloudDoc.modelNumber) setNewModelNumber(cloudDoc.modelNumber);
+          if (cloudDoc.title !== undefined) setNewTitle(cloudDoc.title);
+          if (cloudDoc.category) setNewCategory(cloudDoc.category);
+          if (cloudDoc.subcategory !== undefined) {
+            setNewSubcategory(cloudDoc.subcategory);
+          }
+          if (cloudDoc.price > 0) setNewPrice(String(cloudDoc.price));
+          setNewStockCount(String(cloudDoc.stockCount));
+          if (cloudDoc.description !== undefined) {
+            setNewDescription(cloudDoc.description);
+          }
+          if (cloudDoc.images && cloudDoc.images.some((u) => u.trim().length > 0)) {
+            setNewImages(
+              cloudDoc.images.length > 4
+                ? [
+                    cloudDoc.images[0] || '',
+                    cloudDoc.images[1] || '',
+                    cloudDoc.images[2] || '',
+                    cloudDoc.images[3] || '',
+                    cloudDoc.images[4] || '',
+                    cloudDoc.images[5] || '',
+                  ]
+                : [
+                    cloudDoc.images[0] || '',
+                    cloudDoc.images[1] || '',
+                    cloudDoc.images[2] || '',
+                    cloudDoc.images[3] || '',
+                  ]
+            );
+          }
+          if (typeof cloudDoc.defaultImageIndex === 'number') {
+            setNewDefaultImageIndex(cloudDoc.defaultImageIndex);
+          }
+        })
+        .finally(() => {
+          setLoadingProductDocId((cur) => (cur === product.id ? null : cur));
+        });
+    }
   };
 
   /**
@@ -2404,6 +2777,49 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
           updatedBy: currentUser.uid,
           updatedAt: serverTimestamp(),
         });
+      }
+
+      // Also upsert all synced Excel rows into the lightweight single-doc catalog_index/stock_summary
+      const excelSummaryUpdates: StockSummaryMap = {};
+      const nowTs = Date.now();
+      for (const item of itemsToSync) {
+        const trimmedModel = item.modelNumber.trim();
+        if (!trimmedModel) continue;
+        const existingProduct =
+          (item.matchedProductId
+            ? products.find((p) => p.id === item.matchedProductId)
+            : null) ||
+          products.find(
+            (p) => p.modelNumber.trim().toLowerCase() === trimmedModel.toLowerCase()
+          );
+        const productId =
+          existingProduct?.id ||
+          `excel-${trimmedModel
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 50)}`;
+        const stockNum =
+          item.stockCount.trim() !== ''
+            ? Math.max(0, Math.min(100000, Math.round(Number(item.stockCount) || 0)))
+            : 0;
+        const priceNum =
+          item.price.trim() !== ''
+            ? Math.max(0, Math.min(1000000000, Math.round(Number(item.price) || 0)))
+            : 0;
+        const cleanImgs = filterNonBase64Images(buildPreservedImages(item.images, item));
+        excelSummaryUpdates[productId] = {
+          qty: stockNum,
+          price: priceNum,
+          stockStatus: deriveStatusFromCount(stockNum),
+          updatedAt: nowTs,
+          ...(cleanImgs ? { images: cleanImgs } : {}),
+          defaultImageIndex: item.defaultImageIndex || 0,
+        };
+      }
+      if (Object.keys(excelSummaryUpdates).length > 0) {
+        await upsertStockSummaryEntries(excelSummaryUpdates, currentUser.uid);
+        onApplySummaryOverrides?.(excelSummaryUpdates);
       }
 
       setStatusBanner({
@@ -2689,11 +3105,23 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
         );
       }
 
-      // Sync reduced stock counts to Firebase Firestore /inventory/{productId} if admin is signed in
+      // Sync reduced stock counts to Firebase Firestore /inventory/{productId} + catalog_index/stock_summary if admin is signed in
       if (currentUser && isAuthorizedAdmin) {
+        const invoiceSummaryUpdates: StockSummaryMap = {};
+        const nowTs = Date.now();
         for (const [prodId, upd] of Object.entries(localStockUpdates)) {
           const prodObj = products.find((p) => p.id === prodId);
           if (!prodObj) continue;
+          const preservedImages = buildPreservedImages(prodObj.images, prodObj);
+          const cleanImgs = filterNonBase64Images(preservedImages);
+          invoiceSummaryUpdates[prodId] = {
+            qty: upd.stockCount,
+            price: upd.price,
+            stockStatus: upd.stockStatus,
+            updatedAt: nowTs,
+            ...(cleanImgs ? { images: cleanImgs } : {}),
+            defaultImageIndex: prodObj.defaultImageIndex ?? 0,
+          };
           try {
             await setDoc(doc(db, 'inventory', prodId), {
               productId: prodObj.id.slice(0, 128),
@@ -2706,12 +3134,19 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
               stockCount: upd.stockCount,
               stockStatus: upd.stockStatus,
               defaultImageIndex: prodObj.defaultImageIndex ?? 0,
-              images: buildPreservedImages(prodObj.images, prodObj),
+              images: preservedImages,
               updatedBy: currentUser.uid,
               updatedAt: serverTimestamp(),
             });
           } catch {
             // Local override is already persisted if cloud quota is reached
+          }
+        }
+        if (Object.keys(invoiceSummaryUpdates).length > 0) {
+          try {
+            await upsertStockSummaryEntries(invoiceSummaryUpdates, currentUser.uid);
+          } catch {
+            // Local override is already persisted
           }
         }
       }
@@ -2848,6 +3283,24 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {isAuthorizedAdmin && (
+              <button
+                type="button"
+                onClick={handleStripLegacyBase64FromFirestore}
+                disabled={strippingBase64 || bulkSyncing}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-bold transition-colors cursor-pointer"
+                title="One-time cleanup: scan inventory docs, strip legacy data:image/ Base64 strings (keeping URLs, stock counts, and prices intact), and write a clean catalog_index/stock_summary doc"
+              >
+                <Sparkles
+                  className={`w-3.5 h-3.5 ${strippingBase64 ? 'animate-spin' : ''}`}
+                />
+                <span>
+                  {strippingBase64
+                    ? stripProgress || 'Cleaning Base64...'
+                    : 'Strip Legacy Base64 from Firestore'}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={handleDownloadControllerSeriesPricingSheet}
@@ -4261,7 +4714,11 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                               className="inline-flex items-center gap-1 px-2.5 py-2 rounded-md bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-[#1E2985] text-xs font-bold cursor-pointer"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
-                              <span>Edit Tabs</span>
+                              <span>
+                                {loadingProductDocId === product.id
+                                  ? 'Loading...'
+                                  : 'Edit Tabs'}
+                              </span>
                             </button>
                           )}
 
@@ -4276,7 +4733,11 @@ export const AdminStockModal: React.FC<AdminStockModalProps> = ({
                             }`}
                           >
                             <ImageIcon className="w-3.5 h-3.5" />
-                            <span>Photos &amp; Default ★</span>
+                            <span>
+                              {loadingProductDocId === product.id && isPhotoExpanded
+                                ? 'Loading Photos...'
+                                : 'Photos & Default ★'}
+                            </span>
                           </button>
                         </div>
                       </div>

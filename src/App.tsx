@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   ArrowRight,
   Play,
@@ -163,9 +163,12 @@ import {
   FIRESTORE_CACHE_TTL_MS,
   readIdbCache,
   writeIdbCache,
-  readManyIdbCache,
   isBase64ImageDataUrl,
+  filterNonBase64Images,
   dedupeFirestoreRead,
+  readStockSummaryCached,
+  STOCK_SUMMARY_DOC_PATH,
+  StockSummaryMap,
 } from './lib/firebase';
 import { Navbar, NavSection } from './components/Navbar';
 import { ProductCard } from './components/ProductCard';
@@ -980,50 +983,77 @@ export default function App() {
     };
   }, []);
 
-  const customProductIdsKey = useMemo(
-    () => customProductIds.join(','),
-    [customProductIds]
-  );
+  // Apply lightweight stock summary overrides (qty, price, status, non-Base64 image URLs only)
+  const applyStockSummaryOverrides = useCallback((summaryMap: StockSummaryMap) => {
+    const entries = Object.entries(summaryMap);
+    if (entries.length === 0) return;
 
-  // Lazy-load a single inventory/{productId} document ONLY when a user opens that product's details
-  const selectedProductId = selectedProductModal?.id ?? null;
-  useEffect(() => {
-    if (!selectedProductId) return;
-    if (fetchedInventoryIdsRef.current.has(selectedProductId)) return;
+    setCloudInventoryOverrides((prev) => {
+      const next = { ...prev };
+      for (const [productId, entry] of entries) {
+        const safeImages = filterNonBase64Images(entry.images);
+        const derivedStatus: 'In Stock' | 'Low Stock' | 'Pre-Order' =
+          entry.stockStatus === 'In Stock' ||
+          entry.stockStatus === 'Low Stock' ||
+          entry.stockStatus === 'Pre-Order'
+            ? entry.stockStatus
+            : entry.qty <= 0
+            ? 'Pre-Order'
+            : entry.qty <= 3
+            ? 'Low Stock'
+            : 'In Stock';
 
-    let cancelled = false;
+        next[productId] = {
+          ...(next[productId] || {}),
+          stockCount: entry.qty,
+          stockStatus: derivedStatus,
+          price: entry.price,
+          ...(safeImages ? { images: safeImages } : {}),
+          ...(typeof entry.defaultImageIndex === 'number'
+            ? { defaultImageIndex: entry.defaultImageIndex }
+            : {}),
+        };
+      }
+      return next;
+    });
+  }, []);
 
-    const lazyLoadSelectedProduct = async () => {
-      const cacheKey = inventoryDocCacheKey(selectedProductId);
-      const cached = await readIdbCache<CachedInventoryDocEntry>(
-        cacheKey,
-        FIRESTORE_CACHE_TTL_MS
-      );
-      if (cancelled) return;
+  // Lazy-load a single inventory/{productId} document on demand (15-min IndexedDB cache)
+  const fetchSingleInventoryDoc = useCallback(
+    async (
+      productId: string,
+      forceRefresh = false
+    ): Promise<CloudInventoryOverride | null> => {
+      if (!productId) return null;
+      const cacheKey = inventoryDocCacheKey(productId);
 
-      if (cached !== null) {
-        fetchedInventoryIdsRef.current.add(selectedProductId);
-        if (cached.override) {
-          setCloudInventoryOverrides((prev) => ({
-            ...prev,
-            [selectedProductId]: cached.override!,
-          }));
+      if (!forceRefresh) {
+        const cached = await readIdbCache<CachedInventoryDocEntry>(
+          cacheKey,
+          FIRESTORE_CACHE_TTL_MS
+        );
+        if (cached !== null) {
+          fetchedInventoryIdsRef.current.add(productId);
+          if (cached.override) {
+            setCloudInventoryOverrides((prev) => ({
+              ...prev,
+              [productId]: cached.override!,
+            }));
+          }
+          return cached.override ?? null;
         }
-        return;
       }
 
-      if (isFirestoreQuotaExceeded) return;
+      if (isFirestoreQuotaExceeded) return null;
 
-      const path = `inventory/${selectedProductId}`;
+      const path = `inventory/${productId}`;
       try {
         const snapshot = await dedupeFirestoreRead(path, () =>
-          getDoc(doc(db, 'inventory', selectedProductId))
+          getDoc(doc(db, 'inventory', productId))
         );
-        if (cancelled) return;
-
         const parsed = snapshot.exists()
           ? parseInventoryDoc(
-              selectedProductId,
+              productId,
               snapshot.data() as Record<string, unknown>
             )
           : null;
@@ -1033,140 +1063,59 @@ export default function App() {
           : { exists: false };
 
         await writeIdbCache(cacheKey, cacheEntry);
-        if (cancelled) return;
+        fetchedInventoryIdsRef.current.add(productId);
 
-        fetchedInventoryIdsRef.current.add(selectedProductId);
         if (parsed) {
           setCloudInventoryOverrides((prev) => ({
             ...prev,
-            [selectedProductId]: parsed,
+            [productId]: parsed,
           }));
         }
+        return parsed;
       } catch (error) {
-        if (!cancelled) {
-          handleFirestoreError(error, OperationType.GET, path);
-        }
+        handleFirestoreError(error, OperationType.GET, path);
+        return null;
       }
-    };
+    },
+    []
+  );
 
-    void lazyLoadSelectedProduct();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedProductId]);
-
-  // Lazy-load inventory/{productId} documents ONLY when an authenticated Admin opens the Stock Modal
+  // Lazy-load a single inventory/{productId} document ONLY when a user opens that product's details
+  const selectedProductId = selectedProductModal?.id ?? null;
   useEffect(() => {
-    if (!adminStockModalOpen || !isAuthenticatedAdmin || !manifestReady) {
+    if (!selectedProductId) return;
+    if (fetchedInventoryIdsRef.current.has(selectedProductId)) return;
+
+    void fetchSingleInventoryDoc(selectedProductId, false);
+  }, [selectedProductId, fetchSingleInventoryDoc]);
+
+  // Stock Admin Modal open: read ONLY the single lightweight catalog_index/stock_summary doc (15-min IndexedDB cache)
+  // Never eagerly fetch all 256 individual inventory/{productId} documents.
+  useEffect(() => {
+    if (!adminStockModalOpen || !isAuthenticatedAdmin) {
       return;
     }
 
-    const targetIds = Array.from(
-      new Set([...PRODUCTS_DATABASE.map((p) => p.id), ...customProductIds])
-    );
-    const pendingIds = targetIds.filter(
-      (id) => !fetchedInventoryIdsRef.current.has(id)
-    );
-    if (pendingIds.length === 0) return;
-
     let cancelled = false;
 
-    const loadAdminInventoryDocs = async () => {
-      const cacheKeys = pendingIds.map(inventoryDocCacheKey);
-      const cachedMap = await readManyIdbCache<CachedInventoryDocEntry>(
-        cacheKeys,
-        FIRESTORE_CACHE_TTL_MS
-      );
-      if (cancelled) return;
-
-      const hydratedOverrides: Record<string, CloudInventoryOverride> = {};
-      const idsToFetch: string[] = [];
-
-      for (const productId of pendingIds) {
-        const entry = cachedMap.get(inventoryDocCacheKey(productId));
-        if (entry !== undefined) {
-          fetchedInventoryIdsRef.current.add(productId);
-          if (entry.override) {
-            hydratedOverrides[productId] = entry.override;
-          }
-        } else {
-          idsToFetch.push(productId);
+    const loadStockSummaryOnce = async () => {
+      try {
+        const summaryMap = await readStockSummaryCached(false);
+        if (cancelled) return;
+        applyStockSummaryOverrides(summaryMap);
+      } catch (error) {
+        if (!cancelled) {
+          handleFirestoreError(error, OperationType.GET, STOCK_SUMMARY_DOC_PATH);
         }
-      }
-
-      if (Object.keys(hydratedOverrides).length > 0) {
-        setCloudInventoryOverrides((prev) => ({
-          ...prev,
-          ...hydratedOverrides,
-        }));
-      }
-
-      if (idsToFetch.length === 0 || isFirestoreQuotaExceeded) return;
-
-      const newlyFetchedOverrides: Record<string, CloudInventoryOverride> = {};
-      const BATCH_SIZE = 15;
-
-      for (let i = 0; i < idsToFetch.length; i += BATCH_SIZE) {
-        if (cancelled || isFirestoreQuotaExceeded) break;
-        const batch = idsToFetch.slice(i, i + BATCH_SIZE);
-
-        await Promise.all(
-          batch.map(async (productId) => {
-            if (cancelled || isFirestoreQuotaExceeded) return;
-            const path = `inventory/${productId}`;
-            try {
-              const snapshot = await dedupeFirestoreRead(path, () =>
-                getDoc(doc(db, 'inventory', productId))
-              );
-              if (cancelled) return;
-
-              const parsed = snapshot.exists()
-                ? parseInventoryDoc(
-                    productId,
-                    snapshot.data() as Record<string, unknown>
-                  )
-                : null;
-
-              const cacheEntry: CachedInventoryDocEntry = parsed
-                ? { exists: true, override: parsed }
-                : { exists: false };
-
-              await writeIdbCache(inventoryDocCacheKey(productId), cacheEntry);
-              if (cancelled) return;
-
-              fetchedInventoryIdsRef.current.add(productId);
-              if (parsed) {
-                newlyFetchedOverrides[productId] = parsed;
-              }
-            } catch (error) {
-              handleFirestoreError(error, OperationType.GET, path);
-            }
-          })
-        );
-      }
-
-      if (cancelled) return;
-
-      if (Object.keys(newlyFetchedOverrides).length > 0) {
-        setCloudInventoryOverrides((prev) => ({
-          ...prev,
-          ...newlyFetchedOverrides,
-        }));
       }
     };
 
-    void loadAdminInventoryDocs();
+    void loadStockSummaryOnce();
 
     return () => {
       cancelled = true;
     };
-  }, [
-    adminStockModalOpen,
-    isAuthenticatedAdmin,
-    manifestReady,
-    customProductIdsKey,
-  ]);
+  }, [adminStockModalOpen, isAuthenticatedAdmin, applyStockSummaryOverrides]);
 
   const deriveTitleFromDescription = (
     desc?: string,
@@ -3674,6 +3623,8 @@ export default function App() {
         freightRatePerKg={freightRatePerKg}
         onUpdateRobotRates={handleUpdateRobotRates}
         onApplyLocalStockUpdates={handleApplyLocalStockUpdates}
+        onFetchSingleInventoryDoc={fetchSingleInventoryDoc}
+        onApplySummaryOverrides={applyStockSummaryOverrides}
       />
 
       {/* Persistent WhatsApp Live Chat Icon Across All Pages */}
